@@ -13,6 +13,41 @@ public class OpeningTutorialTests : IDisposable
     public void Dispose(){Saves.FailWrite=null;Directory.Delete(folder,true);}
     PlayerInventories Inventory()=>PlayerInventories.For(character,new ItemCatalog(folder));
     CharacterSaves.OpeningTutorial Tutorial()=>new(CharacterSaves.ToSaved(Gem),CharacterSaves.ToSaved(Gem),Id:Guid.NewGuid().ToString("N"));
+    [Fact] public void OnlyAnUntouchedFirstBeachArrivalStartsLyingDown()
+    {
+        var tutorial=Tutorial();
+        Assert.True(TutorialObjects.ShouldStartWashedUp(TutorialObjects.Strand,tutorial,true));
+        Assert.False(TutorialObjects.ShouldStartWashedUp("1_1_town",tutorial,true));
+        Assert.False(TutorialObjects.ShouldStartWashedUp(TutorialObjects.Strand,null,true));
+        Assert.False(TutorialObjects.ShouldStartWashedUp(TutorialObjects.Strand,tutorial,false));
+        foreach(var progressed in new[] { tutorial with { WakeUpShown=true }, tutorial with { WeaponPromptHeard=true },
+            tutorial with { Talked=true }, tutorial with { ZombieKilled=true }, tutorial with { ChestOpened=true },
+            tutorial with { SkillClaimed=true }, tutorial with { SupportClaimed=true } })
+            Assert.False(TutorialObjects.ShouldStartWashedUp(TutorialObjects.Strand,progressed,true));
+        CharacterSaves.SetTutorial(character,tutorial);
+        CharacterSaves.ChangeTutorial(character,t=>t with { WakeUpShown=true });
+        Assert.False(TutorialObjects.ShouldStartWashedUp(TutorialObjects.Strand,CharacterSaves.Load(character)!.Tutorial,true));
+    }
+    [Fact] public void FittedStartingRoomsKeepTheirSpawnPointsFacingDirection()
+    {
+        const string room="Metadata/Terrain/Act1/Area1/Rooms/washed_up3.arm";
+        Directory.CreateDirectory(Path.Combine(folder,"walkability"));
+        File.WriteAllText(Path.Combine(folder,"room-points.json"),JsonSerializer.Serialize(new
+        {
+            areas=new Dictionary<string,string[]> { [TutorialObjects.Strand]=[room] },
+            rooms=new Dictionary<string,object> { [room]=new
+            {
+                points=new[] { new { name="default",x=10,y=20,angle=MathF.PI*1.5f } },
+                doodads=new[] { new { model="A",x=0,y=0 },new { model="B",x=7,y=3 },
+                    new { model="C",x=11,y=13 },new { model="D",x=2,y=17 } },
+            } },
+        }));
+        File.WriteAllText(Path.Combine(folder,"walkability","1_1_1_seed1.doodads.json"),
+            """{"models":["A","B","C","D"],"doodads":[[0,100,200],[1,103,193],[2,113,189],[3,117,198]]}""");
+        var start=Assert.Single(AreaPopulation.FitRooms(TutorialObjects.Strand,1,[],folder).Points);
+        Assert.Equal((120,190),(start.X,start.Y));
+        Assert.Equal(MathF.PI,start.Angle,5);
+    }
     [Fact] public void UnarmedDialogueWaitsForAWeaponAndArmedDialogueUsesItsOwnVoiceLength()
     {
         Assert.Equal(((byte)1, (double?)null), TutorialObjects.Dialogue(false, false));

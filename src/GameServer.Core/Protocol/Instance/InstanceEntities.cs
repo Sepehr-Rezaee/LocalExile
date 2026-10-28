@@ -835,6 +835,11 @@ public sealed record PlayerObject(string Name, byte ClassIndex, int GridX, int G
     uint ManaReserved = 0, ushort Hideout = 0, ushort Hideout2 = 0, IReadOnlyCollection<int>? LeagueQuestFlags = null,
     ushort Portrait = 0)
 {
+    /// <summary>Start in the client's washed-up beach state, which handles lying down and getting up on input.</summary>
+    public bool WashedUp { get; init; }
+    public float Rotation { get; init; }
+    // All seven 3.29.3b character .act files put WashedUp at stance index 68 (0 is the base stance).
+    public const byte WashedUpStance = 68;
     /// <summary>The Player component's index in the player object's component order (04 §3).</summary>
     public const byte PlayerComponentIndex = 6;
 
@@ -872,7 +877,7 @@ public sealed record PlayerObject(string Name, byte ClassIndex, int GridX, int G
         // Positioned (0x141e2f0b0): x, y, u32 +0x29c, u16 +0x1e0, two flag bytes. The type's +0x21 prefix (Sector) is off.
         // flags1 0x02 adds two bytes: hidden (→ +0x1e7 bit0) and shown (→ +0x1e5 bit3); both changes call the object's
         // vtable +0xb0 (visibility). Without "shown" the player entity exists but its model is not drawn.
-        w.I32(GridX).I32(GridY).U32(0).U16(0).U8(0).U8(Shown ? (byte)0x02 : (byte)0);
+        w.I32(GridX).I32(GridY).F32(Rotation).U16(0).U8(0).U8(Shown ? (byte)0x02 : (byte)0);
         if (Shown) w.U8(0).U8(1);
         // comp1 = Stats (0x1421c2f40): compact-int count of (compact-int key, value) pairs, then u32 +0x28, u32 +0x2c, u8
         // +0x30. Keys are the client's stat ids (Stats.dat row + 1).
@@ -900,7 +905,7 @@ public sealed record PlayerObject(string Name, byte ClassIndex, int GridX, int G
         w
          .Zeros(9)           // raw +0x1e8
          .U16(Hideout).U16(Hideout2)   // Hideouts.dat keys (HASH16; 0 finds no row): the character's hideout (21-hideouts.md §1)
-         .U8(0)              // +0x1b1 (non-zero → "WashedUp" state)
+         .U8((byte)(WashedUp ? 1 : 0)) // +0x1b1 (non-zero → "WashedUp" state)
          .U8(0).U8(0).U8(0).U8(0).U8(0)
          .U32(0)             // u32 count + u32 list (vtable +0x158)
          .U8(0);             // microtransaction counters (0x141e83470)
@@ -908,7 +913,8 @@ public sealed record PlayerObject(string Name, byte ClassIndex, int GridX, int G
         // comp9 = Actor (0x142192a80): u32-counted UTF-16 string, u16 +0x21c, u8; two more u8 (+0x230, +0x234) only
         // when a runtime value is < 1 (false here: traced live, comp9 read 15 bytes); u32 +0x26c, u32 +0x274; then its
         // vtable+0xa0 reader 0x1421932b0: two flag bytes. f0 0x40 = the skill list (0x142197b10); the rest stay off.
-        w.WStr32("").U16(0).U8(0).U32(0).U32(0);
+        // Player's WashedUp flag selects that stance, but Actor is read afterwards and replaces it with this byte.
+        w.WStr32("").U16(0).U8(WashedUp ? WashedUpStance : (byte)0).U32(0).U32(0);
         if (Skills is { Count: > 0 })
         {
             w.U8(0x40).U8(0);

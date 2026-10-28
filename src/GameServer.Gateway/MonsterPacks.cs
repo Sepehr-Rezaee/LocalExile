@@ -340,7 +340,11 @@ static class AreaPopulation
                     if (hits < Math.Max(4, (int)Math.Ceiling(FitShare * plain.Count))) continue;
                     if (origins.Any(o => Math.Abs(o.X - ox) <= 3 && Math.Abs(o.Y - oy) <= 3)) continue;
                     origins.Add((ox, oy));
-                    foreach (var p in room.Points) { var g = At(p.X, p.Y); points.Add(new RoomPoint(p.Name, g.X, g.Y)); }
+                    foreach (var p in room.Points)
+                    {
+                        var g = At(p.X, p.Y);
+                        points.Add(new RoomPoint(p.Name, g.X, g.Y, TurnAngle(a, b, cc, dd, p.Angle)));
+                    }
                     foreach (var d in room.Doodads.Where(d => d.Type is not null))
                     {
                         var g = At(d.X, d.Y);

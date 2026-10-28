@@ -131,6 +131,30 @@ partial class Program
     // waypoint's area, 16-waypoints.md §4: the Submerged Passage's waypoint brings a1q4-PlacedGlyphs). The client opens
     // its ways by these, so the server's checks follow them.
     static bool ClientHasQuestFlag(ClientState conn, string flag) => Quests.ClientHas(flag, conn.QuestFlagsSnapshot(), PlayerQuestFlags(conn));
+
+    // The first ground click in WashedUp sends this action instead of Move. It plays getup in place;
+    // treating its target coordinates as a walk would move only the server's position estimate.
+    static async Task WakeUpOnBeach(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn,
+        InstanceProtocol.UseSkillAtLocation use, double requestedAt)
+    {
+        int action;
+        (int X, int Y) here;
+        lock (conn.Monsters)
+        {
+            if (conn.Closed || conn.LeavingArea || conn.TutorialGettingUp || conn.PeerTemplate is not { WashedUp: true }
+                || conn.HitRecovery.BlocksInput(requestedAt, conn.Clock.Elapsed.TotalSeconds)) return;
+            conn.TutorialGettingUp = true;
+            action = Interlocked.Increment(ref conn.ActionCount);
+            here = conn.Walk.Position(requestedAt);
+            conn.Walk.Order(here.X, here.Y, requestedAt);
+            conn.ChannelSkill = 0;
+        }
+        await Send(remote, stream, ciphers,
+            InstanceProtocol.ActionStarted(PlayerId, here.X, here.Y, use.X, use.Y, use.SkillId, use.Slot, use.Flags),
+            $"0x01ab player gets up on the beach at ({here.X}, {here.Y})",
+            still: () => PlayerActionCurrent(conn, action));
+    }
+
     static async Task SpawnOpeningTutorial(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn)
     {
         if (conn.Layout.Id != TutorialObjects.Strand || CharacterSaves.Load(CharacterName(conn))?.Tutorial is not { } tutorial) return;
@@ -201,31 +225,37 @@ partial class Program
             return;
         }
         conn.TutorialSceneRunning = true;
+        var skipped = conn.TutorialDialogueSkipped = new(TaskCreationOptions.RunContinuationsAsynchronously);
         CharacterSaves.ChangeTutorial(CharacterName(conn),t=>t with { Talked=true });
         await SetQuestFlags(remote,stream,ciphers,conn,["TalkedToWoundedExile"]);
-        _ = RunOpeningScene(remote,stream,ciphers,conn,id,npc,biteAt);
+        _ = RunOpeningScene(remote,stream,ciphers,conn,id,npc,biteAt,skipped.Task);
     }
 
-    static async Task RunOpeningScene(string remote,NetworkStream stream,ConnectionCiphers ciphers,ClientState conn,uint id,SpawnedNpc npc,double biteAt)
+    static async Task RunOpeningScene(string remote,NetworkStream stream,ConnectionCiphers ciphers,ClientState conn,uint id,SpawnedNpc npc,double biteAt,Task skipped)
     {
         try
         {
             double start=conn.Clock.Elapsed.TotalSeconds;
             // Finish the selected voice line, then play the whole bite before handing over to the combat monster.
             // Use the paused instance clock for both waits.
-            async Task Until(double elapsed) { while (!conn.Closed && conn.Clock.Elapsed.TotalSeconds < start+elapsed) await Task.Delay(50); }
-            await Until(biteAt); if(conn.Closed) return;
+            while (!conn.Closed && !skipped.IsCompleted && conn.Clock.Elapsed.TotalSeconds < start+biteAt)
+                await Task.Delay(50);
+            await WhilePaused(conn);
+            if(conn.Closed) return;
+            double biteStarted = conn.Clock.Elapsed.TotalSeconds;
             int component=npc.Npc.Components!.ToList().IndexOf("Transitionable");
             if(component>=0) await Send(remote,stream,ciphers,InstanceEntities.TransitionableUpdate(id,(byte)component,2),"0x02ba wounded exile bitten");
             if(conn.TutorialSceneId!=0) await Send(remote,stream,ciphers,TutorialObjects.BiteAnimation(conn.TutorialSceneId,1),"0x01b2 opening zombie bites exile");
-            await Until(biteAt + TutorialObjects.BiteSeconds); if(conn.Closed) return;
+            while (!conn.Closed && conn.Clock.Elapsed.TotalSeconds < biteStarted+TutorialObjects.BiteSeconds)
+                await Task.Delay(50);
+            if(conn.Closed) return;
             if(conn.TutorialSceneId!=0) await Send(remote,stream,ciphers,InstanceProtocol.RemoveObject(conn.TutorialSceneId),null);
             if(conn.TalkingTo==id) { conn.InNpcTalk=false;conn.TalkingTo=0;await Send(remote,stream,ciphers,InstanceNpcs.Talk(0),null); }
             await SpawnTutorialZombie(remote,stream,ciphers,conn);
         }
         catch(Exception ex) when(ex is IOException or ObjectDisposedException)
         { if(!conn.Closed) Console.WriteLine($"[gateway] opening scene: {ex.Message}"); }
-        finally { conn.TutorialSceneRunning=false; }
+        finally { conn.TutorialSceneRunning=false; conn.TutorialDialogueSkipped=null; }
     }
 
     static async Task SpawnTutorialZombie(string remote,NetworkStream stream,ConnectionCiphers ciphers,ClientState conn)

@@ -673,6 +673,8 @@ partial class Program
         // The new player object starts with exactly these (PlayerStatsWithCleared clears from here).
         lock (conn.Monsters) conn.SentStatKeys = [.. statList.Select(s => s.Item1), .. weaponStats.Select(s => s.Item1)];
         int reservedMana = ReservedMana(conn);
+        bool washedUp = TutorialObjects.ShouldStartWashedUp(layout.Id, CharacterSaves.Load(CharacterName(conn))?.Tutorial,
+            ItemsOf(conn).StartWeapon is not null);
         var player = new PlayerObject(string.IsNullOrEmpty(name) ? "Exile" : name, ClassIndex: PackedClass(conn), GridX: layout.SpawnX, GridY: layout.SpawnY, Life: conn.PlayerLife, EnergyShield: conn.EnergyShield.Current,
             Mana: (uint)Math.Min(conn.PlayerMana, (uint)Math.Max(0, (int)pools.Mana - reservedMana)), ManaReserved: (uint)reservedMana,
             Experience: conn.Experience,
@@ -680,7 +682,11 @@ partial class Program
             Skills: [.. Skills.PlayerDefaults(weaponStats), .. GemSkills(conn, [.. weaponStats, .. statList], characterInputs, weapon)], Stats: [.. weaponStats, .. statList],
             Equipped: Looks(conn, PlayerInventories.For(string.IsNullOrEmpty(name) ? "Exile" : name, Items)),
             QuestFlags: PlayerQuestFlags(conn), Hideout: HomeHideout(conn)?.Hash16 ?? 0, LeagueQuestFlags: [.. Quests.League.Bits(conn.LeagueQuestFlags)],
-            Portrait: WornPortrait(conn));
+            Portrait: WornPortrait(conn))
+        {
+            WashedUp = washedUp,
+            Rotation = washedUp ? layout.SpawnRotation : 0,
+        };
         return player;
     }
 
@@ -769,6 +775,8 @@ partial class Program
             else await Send(remote, stream, ciphers, bytes, label);
         // An area change creates a new player object, so the running auras' buffs must be put on it again.
         await SendOwnAuraChanges(remote, stream, ciphers, conn, replay: true);
+        if (conn.PeerTemplate is { WashedUp: true })
+            CharacterSaves.ChangeTutorial(CharacterName(conn), tutorial => tutorial with { WakeUpShown = true });
     }
 
 }

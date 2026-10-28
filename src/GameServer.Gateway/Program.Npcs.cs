@@ -68,6 +68,8 @@ partial class Program
     {
         if (conn.Sale is not null) await CloseSale(remote, stream, ciphers, conn, accepted: false);
         uint id = conn.TalkingTo;
+        if (id != 0 && conn.InNpcTalk && IsWoundedExile() && conn.TutorialSceneRunning)
+            conn.TutorialDialogueSkipped?.TrySetResult();
         if (id != 0 && conn.InNpcTalk && !IsWoundedExile())
         {
             conn.InNpcTalk = false;

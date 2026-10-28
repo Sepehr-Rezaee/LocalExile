@@ -460,6 +460,8 @@ sealed partial class ClientState(AreaLayout layout, uint ticket, uint seed)
     public TutorialObjects.Placement? TutorialChest;
     public AreaPopulation.RoomObject? TutorialZombiePlacement;
     public bool TutorialSceneRunning;
+    public bool TutorialGettingUp;
+    public TaskCompletionSource? TutorialDialogueSkipped;
     public string? NpcFinishFlag;
     public int? NpcRewardOffer;
     public Dictionary<uint, Item> NpcRewardItems = [];

@@ -8,6 +8,7 @@ using SaveFiles = GameServer.Core.Saves.SaveFiles;
 sealed record AreaLayout(ushort Hash, string Id, int GridW, int GridH, int SpawnX, int SpawnY,
     Func<int, int, bool>? Walkable, (uint Id, AreaTransitionObject Transition)[] AreaTransitions)
 {
+    public float SpawnRotation { get; init; }
     /// <summary>The area's waypoint (WaypointCatalog), if it has one and its place is known.</summary>
     public WaypointObject? Waypoint { get; init; }
     public Func<int, int, int, bool>? Clearance { get; init; }
@@ -108,7 +109,8 @@ static class AreaLayouts
             // The area's start point (a room's "default", e.g. The Twilight Strand's beach), else the deepest cell.
             var start = AreaPopulation.LoadPoints(id, seed, []).FirstOrDefault(p => p.Name == "default");
             var (sx, sy) = start is null ? DeepestCell(cells, w, h) : (start.X, start.Y);
-            return new AreaLayout(hash, id, w, h, sx, sy, Walkable(cells, w, h), transitions) { Clearance = Clearance(cells, w, h) };
+            return new AreaLayout(hash, id, w, h, sx, sy, Walkable(cells, w, h), transitions)
+                { Clearance = Clearance(cells, w, h), SpawnRotation = start?.Angle ?? 0 };
         }
         // No walk map yet: a position inside any grid; the client may place the player on unwalkable ground.
         return new AreaLayout(hash, id, 0, 0, 197, 261, null, transitions);

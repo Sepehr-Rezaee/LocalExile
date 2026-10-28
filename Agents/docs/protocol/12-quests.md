@@ -331,14 +331,23 @@ their save. Flasks are available immediately. The old implementation equipped th
 main inventory, and never spawned the exile, scene zombie, or chest. Existing characters have no `Tutorial` record and
 keep their equipment, gems, and quest progress unchanged.
 
-The fitted `washed_up3.arm` supplies WoundedExile and BiteZombieSpawner positions.
+The fitted `washed_up3.arm` supplies the start point, WoundedExile and BiteZombieSpawner positions.
+An untouched tutorial character starts in the native WashedUp stance, facing the fitted `default` point's angle.
+The room fit transforms named-point angles together with their coordinates; seed 1's start faces approximately pi
+radians, rather than the previous fixed zero (the opposite direction).
+The Player WashedUp flag and Actor stance 68 must both be sent ([04](04-player-entity.md) §4.6 and §4.9).
+The first ground click sends basic action `WashedUp` (ActionTypes HASH16 47065, skill id `0x37d9`), which plays getup
+in place; the server echoes that action without walking its position estimate toward the click.
+`Tutorial.WakeUpShown` saves the introduction once the player is sent; later logins and progressed saves start standing.
 Talking without an equipped weapon plays the weapon prompt and saves `Tutorial.WeaponPromptHeard`.
 With a weapon, the first conversation uses NPCTalk option 2; after the prompt it uses option 3.
 `TalkToWoundedExile(8.2,22.8)` gives the short and long dialogue lengths, rather than two stages of one scene.
 The extracted DBG_02 and DBG_03 audio lasts 7.951 and 22.763 seconds respectively.
-The bite therefore starts after the selected dialogue's 8.2 or 22.8 seconds.
+The bite starts after the selected dialogue's 8.2 or 22.8 seconds, or immediately when the player closes that dialogue.
+Closing the unarmed weapon prompt does not start the bite.
 The scene zombie's rig gives its bite clip 3100 ms; after those 3.1 seconds it is replaced by the combat zombie.
-Both waits use the paused instance clock, and another click on the exile cannot restart the scene.
+The bite wait starts at its actual transition time, so skipped speech does not leave the original voice-length delay.
+Both waits use the paused instance clock, skipping during pause waits for resume, and another exile click cannot restart it.
 The former fixed 8.2-second bite and 22.8-second handoff started the bite before the long voice finished and left it still
 for approximately 11.5 seconds after its animation finished.
 Saves without `WeaponPromptHeard` default to the introductory dialogue; other saved progress is preserved.

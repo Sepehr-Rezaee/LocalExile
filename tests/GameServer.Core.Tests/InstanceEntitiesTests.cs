@@ -100,6 +100,33 @@ public class InstanceEntitiesTests
     }
 
     [Fact]
+    public void New_beach_players_carry_the_native_washed_up_flag_and_matching_actor_stance()
+    {
+        var player = new PlayerObject("Ab", 1, 115, 69, 50, 40);
+        byte[] standing = player.Blob(), washed = (player with { WashedUp = true }).Blob();
+        // Player's flag follows its name, class, experience, flag sets, raw bytes and the two hideout keys.
+        const int washedUpOffset = 126;
+        Assert.Equal((byte)0, standing[washedUpOffset]);
+        Assert.Equal((byte)1, washed[washedUpOffset]);
+        const int actorStanceOffset = 145;
+        Assert.Equal((byte)0, standing[actorStanceOffset]);
+        Assert.Equal((byte)68, washed[actorStanceOffset]);
+        washed[washedUpOffset] = 0;
+        washed[actorStanceOffset] = 0;
+        Assert.Equal(standing, washed);
+    }
+
+    [Fact]
+    public void Player_creation_preserves_the_rooms_spawn_rotation()
+    {
+        var player = new PlayerObject("Ab",1,115,69,50,40);
+        byte[] standing = player.Blob(), rotated = (player with { Rotation=MathF.PI }).Blob();
+        Assert.Equal(MathF.PI,BitConverter.ToSingle(rotated,10));
+        Array.Clear(rotated,10,4);
+        Assert.Equal(standing,rotated);
+    }
+
+    [Fact]
     public void Player_blob_with_stats_and_a_granted_skill()
     {
         // Live 2026-10-17: the default attack (PlayerMelee, GEPL 4474, GESSPL 4430) with the Witch's unarmed stats.

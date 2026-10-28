@@ -301,7 +301,7 @@ u32. With 0 nothing else is read.
 | vec16⟨u8 + 8 bytes⟩ | +0x1d0 | **league quest flags**: bit id − 1 of the client's built-in list ([21](21-hideouts.md) §1) |
 | 9 raw bytes | +0x1e8 | |
 | u16, u16 | → +0x1f8, +0x208 | Hideouts.dat keys by HASH16 (lookups that fail give null and are tolerated); the first is the character's hideout ([21](21-hideouts.md) §1) |
-| u8 | +0x1b1 | non-zero → "WashedUp" state |
+| u8 | +0x1b1 | non-zero → "WashedUp" state; Actor's initial stance must also be 68 (below) |
 | u8 × 5 | +0x1ae, +0x1ad, +0x1b0, +0x1af, +0x238 | |
 | u32 n + n × u32 | → vtable +0x158 | |
 | u8 n + n × (record `0x141e840c0`, u32) | → vtable +0x160 | MicrotransactionCounters.dat |
@@ -325,11 +325,17 @@ not the inventory manager that UI uses; that one needs 0xc0 ([05](05-inventories
 |---|---|---|
 | u32 n + n × UTF-16 | | a metadata path, looked up with `0x14171ed10`. Empty for us |
 | u16 | +0x21c | |
-| u8 | → `0x141e96b50` | |
+| u8 | → `0x141e96b50` | initial stance: 0 base, 68 WashedUp |
 | u8, u8 | +0x230, +0x234 | **only if** a runtime value (`… +0x1a8 < 1`) holds. It does **not** for our player (traced: 15 bytes in the main body) |
 | u32 | +0x26c | |
 | u32 | +0x274 | |
 | then own vtable slot 20 `0x1421932b0` | | 2 flag bytes (f0, f1). f0 0x40 → `0x142197b10`, else f0 0x20 → `0x142198800`; f0 0x01 → u16 + `0x141938bf0` record; f0 0x04 → u16 + record + u8; f0 0x08, f0 0x10 and f1 0x01 → further sections; f1 0x02 → a flag. All 0 for us |
+
+For the beach introduction, Player's `+0x1b1` flag selects WashedUp (call site `0x141e7dfbf`), but Actor is read later
+and replaces the stance (call site `0x142192c50`). Both fields must agree or the character starts standing.
+All seven character `.act` files put WashedUp at stance 68; a first ground click sends action skill `0x37d9` and plays
+getup in place. Native checks with fresh Duelist and Witch characters confirmed both animations.
+The initial Positioned rotation uses the beach room's transformed `default` point angle, preserving its facing.
 
 ## 5. Our blob
 

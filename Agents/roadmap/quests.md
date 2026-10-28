@@ -12,6 +12,8 @@ Items keep the Roadmap's priority groups, and are in rough priority order within
   ([12](../docs/protocol/12-quests.md) §1–6): quest flags
   saved per character, one script per quest (events → flags; flags → exits), S→C 0x2ba steps a Transitionable.
   The opening encounter's dialogue and bite timing now follows its selected voice line.
+  New characters lie facing the fitted start direction and get up on input; skipping armed dialogue starts the bite
+  immediately and combat follows its 3.1-second animation.
 - **Start:** the next quests act by act, each checked against the real game's behavior.
   Its remaining tutorial work is popup acknowledgements and force walls 1/2
   ([opening encounter](../docs/protocol/12-quests.md#opening-encounter-2026-10-25)).
