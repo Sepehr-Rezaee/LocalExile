@@ -331,9 +331,19 @@ their save. Flasks are available immediately. The old implementation equipped th
 main inventory, and never spawned the exile, scene zombie, or chest. Existing characters have no `Tutorial` record and
 keep their equipment, gems, and quest progress unchanged.
 
-The fitted `washed_up3.arm` supplies WoundedExile and BiteZombieSpawner positions. Talking without an equipped weapon
-plays the weapon prompt; with a weapon it uses the actual NPCTalk script's 8.2/22.8-second scene timing. Transitionable
-states are 1 (waiting) and 2 (bitten); state 0 is invalid. The scene rig's bite clip is index 1, sent with 0x1b2 (speed 0
+The fitted `washed_up3.arm` supplies WoundedExile and BiteZombieSpawner positions.
+Talking without an equipped weapon plays the weapon prompt and saves `Tutorial.WeaponPromptHeard`.
+With a weapon, the first conversation uses NPCTalk option 2; after the prompt it uses option 3.
+`TalkToWoundedExile(8.2,22.8)` gives the short and long dialogue lengths, rather than two stages of one scene.
+The extracted DBG_02 and DBG_03 audio lasts 7.951 and 22.763 seconds respectively.
+The bite therefore starts after the selected dialogue's 8.2 or 22.8 seconds.
+The scene zombie's rig gives its bite clip 3100 ms; after those 3.1 seconds it is replaced by the combat zombie.
+Both waits use the paused instance clock, and another click on the exile cannot restart the scene.
+The former fixed 8.2-second bite and 22.8-second handoff started the bite before the long voice finished and left it still
+for approximately 11.5 seconds after its animation finished.
+Saves without `WeaponPromptHeard` default to the introductory dialogue; other saved progress is preserved.
+Transitionable states are 1 (waiting) and 2 (bitten); state 0 is invalid.
+The scene rig's bite clip is index 1, sent with 0x1b2 (speed 0
 while waiting, 1 when biting). Afterwards the scene is removed and MonsterVarieties **ZombieBite**, row 1159, spawns:
 `Metadata/Monsters/Zombies/ZombieBite` uses base object `Metadata/Monsters/Zombies/Drowned/BiteZombie`. These names are
 different; looking up the base object as a monster variety silently found nothing. Killing it drops Characters.dat's
@@ -359,3 +369,8 @@ Live verified on a separate level-one Witch: ground weapon pickup/equip, exile c
 Hungry Corpse spawn/death, Fireball drop/pickup, Large Chest at the captured location, Arcane Surge Support drop/pickup,
 and saved claim flags. Dev `/god` was enabled for combat/navigation verification. The full tutorial popup/acknowledgement
 workflow and force walls 1/2 are not implemented; `CompletedAllTutorials` remains the existing account-style projection.
+The dialogue timing correction was checked with an isolated Duelist equipped before his first conversation and
+a Witch who heard the weapon prompt before equipping.
+The Witch's measured bite/handoff times were 8.218/11.328 seconds, including a duplicate interaction during the wait.
+Native combat-zombie samples advanced through the walk and attack clips at positive playback speed.
+The Duelist killed that monster and claimed Double Strike through the client.

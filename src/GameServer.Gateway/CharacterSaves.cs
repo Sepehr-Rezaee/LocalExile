@@ -61,7 +61,7 @@ static class CharacterSaves
     /// <summary>Deferred class gems and progress for new characters. Null preserves older pre-granted starter kits.</summary>
     public sealed record OpeningTutorial(SavedItem SkillGem, SavedItem SupportGem,
         bool Talked = false, bool ZombieKilled = false, bool ChestOpened = false, bool SkillClaimed = false, bool SupportClaimed = false,
-        string? Id = null);
+        string? Id = null, bool WeaponPromptHeard = false);
     public static void ChangeTutorial(string character, Func<OpeningTutorial, OpeningTutorial> change) =>
         Update(character, s => s.Tutorial is { } tutorial ? s with { Tutorial = change(tutorial) } : s);
     public static void SetTutorial(string character, OpeningTutorial tutorial) => Update(character, s => s with { Tutorial = tutorial });

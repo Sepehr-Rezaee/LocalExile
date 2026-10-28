@@ -9,6 +9,13 @@ static class TutorialObjects
         Zombie = "Metadata/Monsters/Zombies/ZombieBite", Spawner = "Metadata/Monsters/Zombies/BiteZombieSpawner",
         Chest = "Metadata/Chests/TutorialSupportGemChest";
     public sealed record Placement(string Type, string Model, int X, int Y, float Rotation);
+
+    // TalkToWoundedExile(8.2,22.8) supplies the two voice lengths, not two stages of one scene.
+    // NPCTalk options 2/3 play DBG_03 (22.763 s) / DBG_02 (7.951 s). The rig's bite clip lasts 3.1 s.
+    public const double BiteSeconds = 3.1;
+    public static (byte Option, double? BiteAt) Dialogue(bool armed, bool weaponPromptHeard) =>
+        !armed ? ((byte)1, null) : weaponPromptHeard ? ((byte)3, 8.2) : ((byte)2, 22.8);
+
     public sealed record RoomPlacement(int X,int Y,int Width,int Height,int Code)
     {
         public AreaPopulation.RoomPoint Place(AreaPopulation.RoomPoint point)

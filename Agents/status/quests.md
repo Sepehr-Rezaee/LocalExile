@@ -49,6 +49,10 @@ Part of [Status](../Status.md); what to build next in this area is in
   The support gem comes from its chest, which requires the player to walk into range.
   Placements use captured room data and gem claims are saved once; existing characters keep their items and progress.
   The complete Witch weapon, zombie/gem and chest/support-gem sequence was checked live.
+  The exile remembers his weapon prompt and uses the matching short or long dialogue before the bite.
+  Combat starts when the 3.1-second bite finishes, without the former frozen wait.
+  The corrected sequence was checked with an already-equipped Duelist and a Witch who equipped after the prompt.
+  The combat zombie moved and animated its attacks, and the Duelist claimed Double Strike.
   Tutorial popup acknowledgements and force walls 1/2 remain unimplemented, and placement still needs local captures.
   See [opening encounter](../docs/protocol/12-quests.md#opening-encounter-2026-10-25).
 

@@ -185,29 +185,40 @@ partial class Program
 
     static async Task TalkToWoundedExile(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn,uint id,SpawnedNpc npc)
     {
-        if (CharacterSaves.Load(CharacterName(conn))?.Tutorial is not { Talked: false } || conn.TutorialSceneRunning) return;
+        if (CharacterSaves.Load(CharacterName(conn))?.Tutorial is not { } tutorial) return;
+        if (tutorial.Talked || conn.TutorialSceneRunning)
+        {
+            await Send(remote,stream,ciphers,InstanceNpcs.Talk(0),"0x0084 dying exile: opening scene already started");
+            return;
+        }
         bool armed = ItemsOf(conn).Items(PlayerInventories.Weapon1).Count > 0;
+        var dialogue = TutorialObjects.Dialogue(armed, tutorial.WeaponPromptHeard);
         conn.InNpcTalk = true;
-        await Send(remote,stream,ciphers,InstanceNpcs.Talk(id,armed ? (byte)2 : (byte)1),"0x0084 dying exile: class weapon check");
-        if (!armed) return;
+        await Send(remote,stream,ciphers,InstanceNpcs.Talk(id,dialogue.Option),"0x0084 dying exile: class weapon check");
+        if (dialogue.BiteAt is not double biteAt)
+        {
+            CharacterSaves.ChangeTutorial(CharacterName(conn),t=>t with { WeaponPromptHeard=true });
+            return;
+        }
         conn.TutorialSceneRunning = true;
         CharacterSaves.ChangeTutorial(CharacterName(conn),t=>t with { Talked=true });
         await SetQuestFlags(remote,stream,ciphers,conn,["TalkedToWoundedExile"]);
-        _ = RunOpeningScene(remote,stream,ciphers,conn,id,npc);
+        _ = RunOpeningScene(remote,stream,ciphers,conn,id,npc,biteAt);
     }
 
-    static async Task RunOpeningScene(string remote,NetworkStream stream,ConnectionCiphers ciphers,ClientState conn,uint id,SpawnedNpc npc)
+    static async Task RunOpeningScene(string remote,NetworkStream stream,ConnectionCiphers ciphers,ClientState conn,uint id,SpawnedNpc npc,double biteAt)
     {
         try
         {
             double start=conn.Clock.Elapsed.TotalSeconds;
-            // NPCTalk's actual script: triggerer.TalkToWoundedExile(8.2,22.8). Use the paused instance clock.
+            // Finish the selected voice line, then play the whole bite before handing over to the combat monster.
+            // Use the paused instance clock for both waits.
             async Task Until(double elapsed) { while (!conn.Closed && conn.Clock.Elapsed.TotalSeconds < start+elapsed) await Task.Delay(50); }
-            await Until(8.2); if(conn.Closed) return;
+            await Until(biteAt); if(conn.Closed) return;
             int component=npc.Npc.Components!.ToList().IndexOf("Transitionable");
             if(component>=0) await Send(remote,stream,ciphers,InstanceEntities.TransitionableUpdate(id,(byte)component,2),"0x02ba wounded exile bitten");
             if(conn.TutorialSceneId!=0) await Send(remote,stream,ciphers,TutorialObjects.BiteAnimation(conn.TutorialSceneId,1),"0x01b2 opening zombie bites exile");
-            await Until(22.8); if(conn.Closed) return;
+            await Until(biteAt + TutorialObjects.BiteSeconds); if(conn.Closed) return;
             if(conn.TutorialSceneId!=0) await Send(remote,stream,ciphers,InstanceProtocol.RemoveObject(conn.TutorialSceneId),null);
             if(conn.TalkingTo==id) { conn.InNpcTalk=false;conn.TalkingTo=0;await Send(remote,stream,ciphers,InstanceNpcs.Talk(0),null); }
             await SpawnTutorialZombie(remote,stream,ciphers,conn);

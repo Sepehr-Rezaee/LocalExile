@@ -13,6 +13,29 @@ public class OpeningTutorialTests : IDisposable
     public void Dispose(){Saves.FailWrite=null;Directory.Delete(folder,true);}
     PlayerInventories Inventory()=>PlayerInventories.For(character,new ItemCatalog(folder));
     CharacterSaves.OpeningTutorial Tutorial()=>new(CharacterSaves.ToSaved(Gem),CharacterSaves.ToSaved(Gem),Id:Guid.NewGuid().ToString("N"));
+    [Fact] public void UnarmedDialogueWaitsForAWeaponAndArmedDialogueUsesItsOwnVoiceLength()
+    {
+        Assert.Equal(((byte)1, (double?)null), TutorialObjects.Dialogue(false, false));
+        Assert.Equal(((byte)1, (double?)null), TutorialObjects.Dialogue(false, true));
+        Assert.Equal(((byte)2, (double?)22.8), TutorialObjects.Dialogue(true, false));
+        Assert.Equal(((byte)3, (double?)8.2), TutorialObjects.Dialogue(true, true));
+    }
+    [Fact] public void HearingTheWeaponPromptSurvivesReloadWithoutStartingTheZombieScene()
+    {
+        var original=Tutorial();
+        CharacterSaves.SetTutorial(character,original);
+        CharacterSaves.ChangeTutorial(character,t=>t with { WeaponPromptHeard=true });
+        var loaded=CharacterSaves.Load(character)!.Tutorial!;
+        Assert.True(loaded.WeaponPromptHeard);
+        Assert.False(loaded.Talked);
+        Assert.False(loaded.ZombieKilled);
+        Assert.Equal(original.Id,loaded.Id);
+        Assert.Equal((byte)3,TutorialObjects.Dialogue(true,loaded.WeaponPromptHeard).Option);
+        // Saves written before this field existed continue with the original introductory voice.
+        var old=JsonSerializer.Deserialize<CharacterSaves.OpeningTutorial>("""{"SkillGem":{"Type":123},"SupportGem":{"Type":123}}""")!;
+        Assert.False(old.WeaponPromptHeard);
+        Assert.Equal((byte)2,TutorialObjects.Dialogue(true,old.WeaponPromptHeard).Option);
+    }
     [Fact] public void GemsRequireTheirEncounterAndCanOnlyBeClaimedOnceAcrossReloads()
     {
         var inventory=Inventory(); CharacterSaves.SetTutorial(character,Tutorial());
@@ -73,5 +96,7 @@ public class OpeningTutorialTests : IDisposable
         var zombie=Assert.IsType<MonsterCatalog.Variety>(new MonsterCatalog().Find(TutorialObjects.Zombie));
         Assert.True(zombie.Supported);
         Assert.Equal("Metadata/Monsters/Zombies/Drowned/BiteZombie",zombie.BaseType);
+        if(File.Exists("data/monster-takehit.json"))
+            Assert.Equal(TutorialObjects.BiteSeconds,new MonsterEmerge().Seconds(zombie));
     }
 }
