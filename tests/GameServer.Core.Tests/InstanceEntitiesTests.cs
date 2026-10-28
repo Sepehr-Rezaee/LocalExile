@@ -126,6 +126,28 @@ public class InstanceEntitiesTests
         Assert.Equal(standing,rotated);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Beach_stance_and_rotation_preserve_soul_budgets_with_or_without_skills(bool withSkills)
+    {
+        var player = new PlayerObject("Ab", 1, 115, 69, 50, 40,
+            Skills: withSkills ? [new(0x103, 532, 42)] : null, Souls: [new(87, 30, 7)]);
+        byte[] standing = player.Blob();
+        byte[] washed = (player with { WashedUp = true, Rotation = MathF.PI }).Blob();
+        Assert.Equal(MathF.PI, BitConverter.ToSingle(washed, 10));
+        Assert.Equal((byte)1, washed[126]); // Player's WashedUp flag.
+        Assert.Equal((byte)68, washed[145]); // Actor stance, before its variable-length skill/soul list.
+        // Exactly one (row, capacity, current) tuple, followed by the cooldown count and tasks.
+        Assert.EndsWith("01570000001E000000070000000000000000", Convert.ToHexString(washed));
+        if (!withSkills)
+            Assert.EndsWith("40000001570000001E000000070000000000000000", Convert.ToHexString(washed));
+        Array.Clear(washed, 10, 4);
+        washed[126] = 0;
+        washed[145] = 0;
+        Assert.Equal(standing, washed);
+    }
+
     [Fact]
     public void Player_blob_with_stats_and_a_granted_skill()
     {
