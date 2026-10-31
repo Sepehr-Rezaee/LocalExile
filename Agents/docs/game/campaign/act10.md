@@ -41,7 +41,11 @@ the offline exit audit check it, not yet the client. What differs from the secti
   Chamber of Innocence's `InnocenceToDestroyedCourts` to Act 5's Torched Courts) keeps it only in Act 5
   (`AreaTransitionCatalog.SameAct`), so The Desecrated Chambers' same tile leads to Act 10's Torched Courts (2_10_3).
   Act 5's serialisation flags (`On.Exists`) hold here too and match: a character in Act 10 has `a5q4-KilledBoss`, so
-  the burnt exit stands and the unburnt `InnocenceToCourts` is gone.
+  the burnt exit stands and the unburnt `InnocenceToCourts` is gone. Those are Act 5's rules (Acts 4–6), so this act
+  merges after them.
+- Before Kitava the Epilogue is shut: `EndGameAvailable`, which every character is given for the Atlas, is sent only in
+  a hideout and in the maps until earned (`Quests.EndgameOnly`), so Lilly's "Set Sail from Oriath" (1433), Lani's
+  "Kitava" / "Kitava Reward" (1415/1416) and Karui Shores wait for him (the oracle checks all of them).
 - Not created: the fight's phases (the heart, the feast bosses). `SinOnKitavaDead` is not set
   (no later quest reads it).
 

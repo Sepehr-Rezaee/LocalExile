@@ -147,8 +147,10 @@ Part of [Status](../Status.md); what to build next in this area is in
   7–10 quest done with every act 7–10 flag of `EpilogueAtlasDemo`, 24 quest passive points and 20 refund points.
   The exits the layouts disable and a quest gates (The Ashen Fields' way north, The Harbour Bridge's into Act 9, Sin's
   portal home) are created (`scripts/re/exits --quests`: `gated` at seed 1 and three other seeds); burnt Oriath's
-  exits keep Act 10's destinations where Act 5's rules name Act 5's (`AreaTransitionCatalog.SameAct`). Every quest
-  object, chest and NPC the rules name is placed at seed 1 but The Crossroads' BanditBlock (its sight is optional).
+  exits keep Act 10's destinations where Act 5's rules name Act 5's (`AreaTransitionCatalog.SameAct`). Before Kitava
+  the Epilogue stays shut (`EndGameAvailable` is sent only in a hideout and the maps until earned:
+  `Quests.EndgameOnly`). Every quest object, chest and NPC the rules name is placed at seed 1 but The Crossroads'
+  BanditBlock (its sight is optional).
   Driver step files `scripts/dev/campaign/quests/a7q*.py` … `a10q*.py`, `A11q0.py`, `a10q3a11.py`.
   Code: `Acts/Act7.cs` … `Acts/Act10.cs` (QuestObjects module), Oriath Docks' InnocenceTown line in `NPC/TownNpcs.cs`.
   Docs: [12](../docs/protocol/12-quests.md) §16–19; [act 7](../docs/game/campaign/act7.md) …

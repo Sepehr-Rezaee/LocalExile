@@ -836,11 +836,18 @@ public sealed class QuestEngineTests
         Play(late, Act8);
         Assert.Equal([], PresetFlagsOf("E3EndOfAct8", "a7q|a8q").Where(f => !late.Has(f)).ToArray());
         Assert.Equal(Act8Areas.BloodAqueduct, late.Area);
-        // Kitava's Act 10 penalty: EndGameAvailable, which every character has for the Atlas, is not earned before him
-        // (Act 5's −30% only); his scripted end earns it (another −30%), and the client's Epilogue gate opens with it.
+        // Kitava's Act 10 penalty: EndGameAvailable, which every character is given for the Atlas (sent in a hideout
+        // and the maps only, Quests.EndgameOnly), is not earned before him (Act 5's −30% only), so the Epilogue stays
+        // shut in Oriath Docks: no "Set Sail from Oriath" (1433), no Kitava reward from Lani (1415/1416), no way into
+        // Karui Shores. His scripted end earns it (another −30%) and the Act 10 steps below take all three.
         Play(late, Act9);
         Assert.Contains(EndGameAvailable, late.Unearned);
+        Assert.False(late.Has(EndGameAvailable));
         Assert.Equal(-30, Penalty(late));
+        Assert.Throws<QuestSimulator.StepFailed>(() => late.Talk(Lilly10, "Set Sail from Oriath"));
+        Assert.Throws<QuestSimulator.StepFailed>(() => late.Talk(Lani10, "Kitava", IndexOf(Lani10, 1415)));
+        Assert.Throws<QuestSimulator.StepFailed>(() => late.Reward(Lani10, "Kitava Reward"));
+        Assert.Throws<QuestSimulator.StepFailed>(() => late.Enter(Act10Areas.KaruiShores, travel: true));
         Play(late, Act10);
         Assert.DoesNotContain(EndGameAvailable, late.Unearned);
         Assert.Equal(-60, Penalty(late));
@@ -1004,6 +1011,9 @@ public sealed class QuestEngineTests
             && NpcPresent(Act10Areas.OriathDocks, Act10Objects.InnocenceTown, With("a10q2-BannonTransformed")));
         Assert.Equal("a10q3-OpenedGate", FlagToEnter(Act10Areas.RavagedSquare, Act10Areas.Canals));
         Assert.Equal(EndGameAvailable, FlagToEnter(Act10Areas.FeedingTrough, Act10Areas.OriathDocks));
+        hands.Set(["a9q1-KilledBoss", "a10q3-OpenedGate"]).Enter(Act10Areas.FeedingTrough, travel: true);
+        Assert.Throws<QuestSimulator.StepFailed>(() => hands.Enter(Act10Areas.OriathDocks));
+        hands.Kill(Act10Monsters.Kitava).Enter(Act10Areas.OriathDocks);
     }
 
     /// <summary>The preset's flags of these quest prefixes (a regex alternation; a whole flag name matches itself), but

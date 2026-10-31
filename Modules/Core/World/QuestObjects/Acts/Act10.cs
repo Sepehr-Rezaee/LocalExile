@@ -79,17 +79,20 @@ sealed class Act10 : Act
                 On.Npc(OriathDocks, Act10Objects.BannonTown, "a10q2-BannonTransformed"),
                 On.Npc(OriathDocks, Act10Objects.InnocenceTown, null, transitionedBy: "a10q2-BannonTransformed", shownBy: "a10q2-BannonTransformed"),
             },
-            // a10q3 "An End to Hunger" (act10.md a10q3): the horns are seen (a10q3-SeenGate); Innocence in The Ravaged Square
-            // (InnocenceSquare 1462, a10q3-OpenedGate) breaks them: the horn blockage transitions, its twelve blockers lift and
-            // the horn gate into The Canals opens (The Canals' and The Feeding Trough's EndQuestFlags). In The Feeding Trough
-            // SinTrough's "Kitava" (1492, session SinPreKitavaTalk) starts the fight: Sin and Innocence fly off. Kitava cannot
-            // die (set_cannot_die; the real fight ends in a script): the hit that would kill him (or /kill) ends the fight,
-            // EndGameAvailable and he leaves. EndGameAvailable is QuestStaticRewards 39 (another −30% to elemental and chaos
-            // resistances: Game ResistancePenalty) and the Epilogue's gate (Karui Shores' and Oriath's EndQuestFlags); every
-            // character is given it for the Atlas, so it counts only once earned here (ClientState.UnearnedQuestFlags). Sin's
-            // portal back to the docks (EpiloguePortal, kitava.arm) opens with the fight's end: in the real game the post-fight
-            // Sin's 1942 opens it, a monster with an NPC component that is not created, so it opens with EndGameAvailable.
-            // Lani's "Kitava Reward" (offer 66, Oriath Docks 1416 or Karui Shores 1498) is a book of two passive points (QSR 29).
+            // a10q3 "An End to Hunger" (act10.md a10q3): the horns are seen (a10q3-SeenGate); Innocence in The Ravaged
+            // Square (InnocenceSquare 1462, a10q3-OpenedGate) breaks them: the horn blockage transitions, its twelve
+            // blockers lift and the horn gate into The Canals opens (The Canals' and The Feeding Trough's
+            // EndQuestFlags). In The Feeding Trough SinTrough's "Kitava" (1492, session SinPreKitavaTalk) starts the
+            // fight: Sin and Innocence fly off. Kitava cannot die (set_cannot_die; the real fight ends in a script):
+            // the hit that would kill him (or /kill) ends the fight, EndGameAvailable and he leaves. EndGameAvailable
+            // is QuestStaticRewards 39 (another −30% to elemental and chaos resistances: Game ResistancePenalty), the
+            // Epilogue's gate (Karui Shores' and Oriath's EndQuestFlags) and the condition of Lilly's 1433 and Lani's
+            // 1415/1416; every character is given it for the Atlas, but until earned here it is sent only in a hideout
+            // and the maps (Quests.EndgameOnly, ClientState.UnearnedQuestFlags). Sin's portal back to the docks
+            // (EpiloguePortal, kitava.arm) opens with the fight's end: in the real game the post-fight Sin's 1942 opens
+            // it, a monster with an NPC component that is not created, so it opens with EndGameAvailable. Lani's
+            // "Kitava Reward" (offer 66, Oriath Docks 1416 or Karui Shores 1498) is a book of two passive points (QSR
+            // 29).
             new Quest("a10q3")
             {
                 On.Near(RavagedSquare, Act10Objects.HornBlockage, "a10q3-SeenGate"),

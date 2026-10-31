@@ -629,12 +629,14 @@ Details in [act 10](../game/campaign/act10.md):
 - **a10q2**: Avarius drops his staff; Bannon's rows take it and set `a10q2-BannonTransformed`: Oriath Docks' town room
   lists BannonTown and InnocenceTown on one cell, and the two `On.Npc` rules (with their lines in `TownNpcs`) show one.
 - **a10q3**: InnocenceSquare's "Kitava" (`a10q3-OpenedGate`) breaks the horns (twelve blockers) and opens The Canals.
-  Kitava never dies (`On.Threshold` at 1%): his end sets `EndGameAvailable`, QuestStaticRewards 39 (−30% elemental and
-  chaos resistances, Game `ResistancePenalty`) and the Epilogue's gate (Karui Shores' and Oriath's EndQuestFlags).
-  Every character is given that flag for the Atlas; it counts for the penalty only once an event sets it
-  (`ClientState.UnearnedQuestFlags`), so the second −30% comes with Kitava, not before. Sin's EpiloguePortal home is a
-  quest portal gated by the same flag. Burnt Oriath has Act 5's tiles: an exit Act 5's rules send to an Act 5 area
-  (`On.Exists(…, to:)`) keeps the layout's destination here (`AreaTransitionCatalog.SameAct`).
+  Kitava never dies (`On.Threshold` at 1%): his end earns `EndGameAvailable`, QuestStaticRewards 39 (−30% elemental and
+  chaos resistances, Game `ResistancePenalty`), the Epilogue's gate (Karui Shores' and Oriath's EndQuestFlags) and the
+  condition of Lilly's "Set Sail from Oriath" (1433) and Lani's "Kitava" / "Kitava Reward" (1415/1416). Every character
+  is given that flag for the Atlas, but until an event sets it (`ClientState.UnearnedQuestFlags`) it is not the
+  character's and the client gets it only in a hideout and the maps (`Quests.EndgameOnly`): the Epilogue's gates, rows
+  and the second −30% come with Kitava, not before. Sin's EpiloguePortal home is a quest portal gated by the same flag.
+  Burnt Oriath has Act 5's tiles: an exit Act 5's rules send to an Act 5 area (`On.Exists(…, to:)`) keeps the layout's
+  destination here (`AreaTransitionCatalog.SameAct`).
 - **A11q0, a10q3a11** (the Epilogue): Lilly's "Set Sail from Oriath" (1433: `A10LillySailedAway`, `AreaTransitionTo`
   Karui Shores) and Lani's Kitava reward in Karui Shores need no rules; the Epilogue has no act file.
   **a10q4, a10q5, a10q6**: the Elixir and the Teardrop in their chests, Vilenta.
