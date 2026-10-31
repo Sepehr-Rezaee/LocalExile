@@ -173,8 +173,9 @@ each object once, where the client has it.
   `data/object-types.json` (since manifest v6 it has every room server object and the quest tile and room objects,
   `ot_components.py QUEST_TILE_TYPES`, `QUEST_ROOM_TYPES`); Chests.dat rows without an `.ot` (the Golden Hand's altar,
   Victario's stashes, Siosa's book stands) take their InheritsFrom's (QuestChest) with the row's model. Placements come
-  from the Gateway's own generation (the tile objects of `ServerLevels.Level` of a quest type: a tile record's height and
-  virtual model; `QuestObjectTypes.AreaPlacements`) or the room lines. The
+  from the Gateway's own generation (`ServerLevels.Level.TileQuestObjects`: a tile record's height and virtual model),
+  the room lines, or the generation's placed rooms (`ServerLevels.Level.RoomObjects`; `QuestObjectTypes.AreaPlacements`).
+  The
   blob writes Positioned, Animated, Transitionable, Chest, Stats, ObjectMagicProperties, TriggerableBlockage, NPC,
   InteractionAction and MinimapIcon as the traced objects do; it reproduces the Rhoa Nest's and the Glyph Wall's bytes.
 - **Rewards nothing can build**: an offer none of whose items the server can build (magic or rare jewellery) sets its

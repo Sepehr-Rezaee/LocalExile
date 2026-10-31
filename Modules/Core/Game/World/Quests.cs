@@ -91,12 +91,20 @@ static partial class Game
     // The quest flag an area transition needs (Quests.FlagToEnter), or null. Such an exit is created only once the character
     // has the flag: The Twilight Strand's gate into Lioneye's Watch appears when Hillock dies (a1q1, 12-quests.md §6).
     internal static string? TransitionFlag(ClientState conn, AreaTransitionObject transition) =>
-        AreaTransitionCatalog.IdOf(transition.DestinationHash16) is { } dest ? Quests.FlagToEnter(conn.Layout.Id, dest) : null;
+        QuestsRun(conn) && AreaTransitionCatalog.IdOf(transition.DestinationHash16) is { } dest ? Quests.FlagToEnter(conn.Layout.Id, dest) : null;
+
+    // Whether the quest tables run for this player: its league lists the module that registered them (QuestObjects). The
+    // area's layout is the same for every league, so what the tables add or gate there is decided here, per player.
+    internal static bool QuestsRun(ClientState conn) => Quests.RunFor(ModulesFor(conn));
+
+    // The flag a dialogue row sets when chosen: its QuestFlag4, unless the tables say only an event sets it.
+    internal static string? TalkStartFlag(ClientState conn, NpcCatalog.Talk talk) => QuestsRun(conn) ? Quests.TalkStartFlag(talk) : talk.StartFlag;
 
     // Shown: its tile type exists for the character (Quests.ExistsRule: the Control Blocks' exit to Oriath Square before
     // Avarius, the one to The Ruined Square after), and its quest flag is set or a script opened it on this instance.
+    // A quest portal (Quests.PortalRule) exists only where the tables run.
     internal static bool TransitionShown(ClientState conn, uint id, AreaTransitionObject transition) =>
-        Quests.Exists(transition.SourceType, f => ClientHasQuestFlag(conn, f))
+        (QuestsRun(conn) ? Quests.Exists(transition.SourceType, f => ClientHasQuestFlag(conn, f)) : !Quests.IsQuestPortal(transition.SourceType))
         && (conn.ScriptShownTransitions.Contains(id) || TransitionFlag(conn, transition) is not { } flag || ClientHasQuestFlag(conn, flag));
 
     // The area transitions whose shown state changed (a quest flag, an NPC script): created on the client or removed.

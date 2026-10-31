@@ -67,8 +67,9 @@ static class QuestObjectTypes
     }
 
     /// <summary>Where an area (at a seed) places quest objects: by type, its tile records (the Gateway's own generation:
-    /// a placement with the record's height <c>Z</c> and virtual model), else its rooms' lines (no height). Each source is
-    /// read once, on the first question.</summary>
+    /// a placement with the record's height <c>Z</c> and virtual model), else its rooms' lines (no height), else the
+    /// server's own placed rooms (rooms data/room-points.json does not keep, and objects a room's point list names). Each
+    /// source is read once, on the first question.</summary>
     public sealed class AreaPlacements(string area, uint seed, List<string> notes)
     {
         IReadOnlyList<PlacedTileObject>? tiles;
@@ -76,19 +77,16 @@ static class QuestObjectTypes
 
         public List<GlyphQuest.Placement> Of(string type)
         {
-            tiles ??= TileObjectsOf(ServerLevels.For(area, seed));
+            tiles ??= ServerLevels.For(area, seed)?.TileQuestObjects ?? [];
             var found = tiles.Where(o => o.Type == type).Select(o => new GlyphQuest.Placement(o.Type, o.Model, o.X, o.Y, o.Rotation, o.Z, o.Code)).ToList();
             if (found.Count > 0) return found;
             rooms ??= AreaPopulation.LoadObjects(area, seed, notes);
-            return [.. rooms.Where(o => o.Type == type).Select(o => new GlyphQuest.Placement(o.Type, o.Model, o.X, o.Y, o.Angle, null, 0))];
+            found = [.. rooms.Where(o => o.Type == type).Select(o => new GlyphQuest.Placement(o.Type, o.Model, o.X, o.Y, o.Angle, null, 0))];
+            if (found.Count > 0) return found;
+            // A room data/room-points.json does not keep (its objects are not quest objects: The Ascent's Resonator,
+            // Kitava's socket) or a chest on a room's point list (BlackFlagChest): the server's own placed rooms.
+            return [.. (ServerLevels.For(area, seed)?.RoomObjects ?? []).Where(o => o.Type == type)
+                .Select(o => new GlyphQuest.Placement(o.Type, o.Model, o.X, o.Y, o.Rotation, null, o.Code))];
         }
     }
-
-    /// <summary>The quest tile objects of a generated level (<see cref="IsTileQuestObject"/>): the ones it keeps, a1q4's
-    /// (<see cref="ServerLevels.Level.QuestObjects"/>), and its other tile objects of a quest type. Tile objects of the later
-    /// acts' types (seals, levers, quest doors) need the level generation to keep every quest tile type, and the rooms
-    /// data/room-points.json does not keep need the server's own placed rooms' objects: both come with the world's
-    /// generation (Agents/docs/game/campaign-quests.md, "Where objects come from").</summary>
-    static IReadOnlyList<PlacedTileObject> TileObjectsOf(ServerLevels.Level? level) =>
-        level is null ? [] : [.. level.QuestObjects, .. level.Objects.Where(o => IsTileQuestObject(o.Type) && !level.QuestObjects.Contains(o))];
 }

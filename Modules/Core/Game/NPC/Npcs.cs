@@ -30,10 +30,11 @@ static partial class Game
         if (Npcs.Value.Error is { } error) { Console.WriteLine($"[gateway] {remote} npcs: {error}"); return; }
         if (StashCatalog.FromArrival(conn.Layout.Hash))
             placements = [.. placements.Select(p => p with { X = conn.Layout.SpawnX + p.X, Y = conn.Layout.SpawnY + p.Y })];
+        bool questsRun = QuestsRun(conn);
         foreach (var p in placements)
         {
             // A town NPC a quest stages (DiallaTown / DiallaTownWithered …) comes with the quest NPCs (World/Quest/QuestNpcs.cs).
-            if (Quests.ManagesNpc(conn.Layout.Id, p.Id)) continue;
+            if (questsRun && Quests.ManagesNpc(conn.Layout.Id, p.Id)) continue;
             if (Npcs.Value.Place(p) is not { Supported: true } npc) { Console.WriteLine($"[gateway] {remote} npc {p.Id}: unknown or unsupported components"); continue; }
             if (!p.FromRoom && conn.Layout.Walkable is { } w && !w(p.X, p.Y)) Console.WriteLine($"[gateway] {remote} npc {npc.Name}: ({p.X}, {p.Y}) is not walkable");
             await SpawnNpc(remote, stream, ciphers, conn, npc, p.X, p.Y, p.Rotation);
@@ -128,8 +129,8 @@ static partial class Game
         if (!await GameEvents.AllowNpcOption(conn, talk)) return;
         // A row that sets a quest item's remove_flag takes the item (Nessa's Medicine Chest, Fairgraves' Allflame).
         if (!await HandInQuestItems(remote, stream, ciphers, conn, talk, npc.Npc.Id)) return;
-        if (Quests.TalkStartFlag(talk) is { } start) await SetQuestFlags(remote, stream, ciphers, conn, [start]);
-        if (Quests.OnTalkRow(talk.Row) is { Count: > 0 } byRow) await SetQuestFlags(remote, stream, ciphers, conn, byRow);
+        if (TalkStartFlag(conn, talk) is { } start) await SetQuestFlags(remote, stream, ciphers, conn, [start]);
+        if (QuestsRun(conn) && Quests.OnTalkRow(talk.Row) is { Count: > 0 } byRow) await SetQuestFlags(remote, stream, ciphers, conn, byRow);
         await OnQuestTalk(remote, stream, ciphers, conn, id, npc, talk);
         conn.NpcFinishFlag = talk.FinishFlag;
         conn.NpcTalkScript = null;

@@ -416,6 +416,13 @@ nothing about which in-area gate leads to which arrival (the Warden's Quarters, 
    `foothills_DelveEntrance01` into the mine, the mine's exit back to the hub).
 8. Arrivals: next to the exit back; through a one-way entrance, at that disabled entrance's point
    (`AreaTransitionCatalog.EntrancePoint`, `AreaLayout.EntranceFrom`).
+9. Quest rules ([12](12-quests.md) §5): every exit keeps its tile object's own type (`AreaTransitionObject.SourceType`),
+   which `On.Exists` shows or hides by flag. Two exits of one tile record that swap by a flag lead to their own version
+   of the area (`On.Exists` with `to`: the Chamber of Innocence's InnocenceToCourts / InnocenceToDestroyedCourts), and the
+   twin the layout left out is created from its record (`QuestExitDestinations`). A quest portal no tile or room places
+   (`On.Portal`: Maligaro's portals beside the Reverie Device, Sin's EpiloguePortal) is created where its object stands
+   and replaces the exit without a model (6.) to the same place (`AddQuestPortals`, `ReplacePointExits`); it exists only
+   for a league whose quest tables run.
 
 The model plays no part, so this covers the Reskin, the objects the atlas cannot see and shared models without a
 special case each. A gate or exit the game enables later is sent enabled (no Transitionable step, no disabled bit).

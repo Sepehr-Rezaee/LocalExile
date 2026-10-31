@@ -426,7 +426,7 @@ static partial class Game
             lock (conn.Monsters)
                 if (HardcoreProgressBlocked(conn)) continue;
             // Quests that start when the player comes near a monster (a1q1: Hillock, "Kill Hillock").
-            if (Quests.Watched(conn.Layout.Id) is { Count: > 0 } watched)
+            if (QuestsRun(conn) && Quests.Watched(conn.Layout.Id) is { Count: > 0 } watched)
             {
                 double now = conn.Clock.Elapsed.TotalSeconds;
                 List<string> seen;

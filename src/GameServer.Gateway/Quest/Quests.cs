@@ -241,6 +241,7 @@ static partial class Quests
     static readonly Dictionary<string, IReadOnlyList<Act>> Registered = new(StringComparer.Ordinal);
     static volatile IReadOnlyList<Quest> _all = [];
     static volatile Rule[] _rules = [];
+    static volatile string[] _sources = [];
 
     /// <summary>Gives the engine these acts' tables, replacing what <paramref name="source"/> gave before (a module's reload);
     /// disposing the result takes them away again (the module unloads). Every connection asks the same tables.</summary>
@@ -267,7 +268,21 @@ static partial class Quests
     {
         _all = [.. Registered.Values.SelectMany(a => a).OrderBy(a => a.Number).SelectMany(a => a.Table)];
         _rules = [.. _all.SelectMany(q => q.Rules)];
+        _sources = [.. Registered.Where(r => r.Value.Count > 0).Select(r => r.Key)];
     }
+
+    /// <summary>Whether the tables run for a connection whose league has these modules: one that lists a module which
+    /// registered them (the QuestObjects module). The queries below are the same for everyone; the Game module asks this
+    /// before it applies a rule to a player (Game.QuestsRun), as GameEvents runs a module's hooks only for its leagues.</summary>
+    public static bool RunFor(IReadOnlySet<string> modules)
+    {
+        foreach (string source in _sources) if (modules.Contains(source)) return true;
+        return false;
+    }
+
+    /// <summary>Whether an area transition of this type is one a quest rule adds (<see cref="PortalRule"/>): it exists
+    /// only where the tables run.</summary>
+    public static bool IsQuestPortal(string? type) => type is not null && RulesOf<PortalRule>().Any(r => r.Type == type);
 
     sealed class Registration(Action remove) : IDisposable
     {

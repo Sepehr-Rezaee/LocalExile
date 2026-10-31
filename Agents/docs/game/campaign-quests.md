@@ -24,8 +24,15 @@ The QuestObjects module finds every `Quests.Act` of its assembly when it loads a
 registered every query is empty and the hooks do nothing. The module also hands the engine its events: entering an
 area (`StartQuestArea`), a kill (`QuestKillEffects`, after the kill's flags), a click on a quest chest or object, and a
 read of item moves (`SyncQuestItems`). The Game module calls the rest directly (the flag commit, the player tick's
-sights and item sync, dialogue, rewards, thresholds, passive points, stat sources). Every playable league lists
-`Core/World/QuestObjects`.
+sights and item sync, dialogue, rewards, thresholds, passive points, stat sources).
+
+**Leagues.** The tables run only for a player whose league lists the module that registered them
+(`Quests.RunFor(modules)`, Game `QuestsRun(conn)`): the module's own hooks run per league anyway (GameEvents), and the
+Game module asks `QuestsRun` before it applies a table to a player (kill flags and levels, sightings, exit gates, a
+quest's NPC stages, bosses a quest brings, thresholds, dialogue rules). A layout is shared by every league, so the exits
+a quest adds there (quest portals) are hidden where the tables do not run. What the client's data says alone (quest
+items' `.it` flags, NPCTalk flags, QuestStaticRewards) applies in every league, as main's dialogue flags always did.
+Every playable league lists `Core/World/QuestObjects`.
 
 ## 2. An act file
 
@@ -94,8 +101,9 @@ sealed class Act1 : Act
 
 1. `Modules/Core/World/QuestObjects/Acts/Act<n>.cs`: `sealed class Act<n> : Quests.Act` with `Number` and `Table`, and
    the act's Id classes. No other engine file changes; if one seems needed, it is an engine change of its own.
-2. Town NPC stages a quest decides (a second placement of the same town NPC, `On.Npc` in a town) go in the town's list
-   in `NPC/TownNpcs.cs`.
+2. Town NPC stages a quest decides (a second placement of the same town NPC, `On.Npc` in a town: Highgate's
+   `DiallaTownWithered`, Oriath Docks' `InnocenceTown`) go in the town's list in `NPC/TownNpcs.cs`, in the same change as
+   their `On.Npc` rules: a town NPC no rule manages always stands, so without the rules both stages would.
 3. Code-driven pieces in the QuestObjects module; their oracle handlers.
 4. `QuestEngineTests`: the act's sequence (`internal static void Act<n>(QuestSimulator s)`) played after the earlier
    acts, its CharacterStartQuestState preset checked as Act 1's.
@@ -111,8 +119,8 @@ generation is marked.
 |---|---|---|
 | E1 | Numbered boss points (`mapboss<n>`, `WG`, `force:mapboss`, `mapbosspack`) | the population (MonsterPacks), not the engine; bosses a quest brings are left out (`Quests.QuestSpawned`) |
 | E2 | Room and tile quest objects: chests with their item, objects used (with items taken), Transitionable states | `On.Chest`, `On.Object`, `On.Used`/`UsedWith`, `QuestObjectTypes.AreaPlacements` (see §6) |
-| E3 | Blockers and gated exits | `On.Blocker`, `On.Wall`, `On.Exit`, `On.Portal` |
-| E4 | `serialisation_start_flag` / `serialisation_stop_flag` | `On.Exists` (NPCs, quest objects, area transitions by their tile type) |
+| E3 | Blockers and gated exits | `On.Blocker`, `On.Wall`, `On.Exit`, `On.Portal` (`AreaTransitionCatalog.AddQuestPortals`: replaces the layout's exit without a model to the same place), a disabled entrance a quest gates is created (`AreaTransitionCatalog.Gated`) |
+| E4 | `serialisation_start_flag` / `serialisation_stop_flag` | `On.Exists` (NPCs, quest objects, area transitions by their tile type, `AreaTransitionObject.SourceType`); with `to`, two exits of one tile record that swap lead to their own version of the area and the missing twin is created (`AreaTransitionCatalog.QuestExitDestinations`) |
 | E5 | NPCTalk scripts: `SetQuestFlag`, `ClearQuestFlag`, `SetSessionQuestFlag`, `DirtyTransition`, `ForEachOfType`/`IfType` transitions, `DoNPCChat`, `FinishNPCChat`, `SendOpenScreen`, `AreaTransitionTo` | `NpcCatalog.Talk`, Game `NpcScripts.cs`, `On.TalkRow` for flags no column sets |
 | E6 | NPCs outside towns and town NPC stages | `On.Npc` (`goneWith`, `transitionedBy`, `shownBy`, `freedBy`, `atObject`) |
 | E7 | NPCs that appear where a boss died | `On.Appears` |
@@ -125,14 +133,16 @@ generation is marked.
 
 ## 6. Where objects come from
 
-`QuestObjectTypes.AreaPlacements` places a type from the Gateway's own generation of the area (`ServerLevels.Level`:
-its tile objects of a quest type, with the tile record's height and virtual model), else from the rooms' lines
-(`AreaPopulation.LoadObjects`: the rooms `data/room-points.json` keeps). Act 1 needs only room lines (Fairgraves, the
-slave girl's chest, Piety, the blockers). The later acts' tile objects (seals, levers, quest doors) need the level
-generation to keep every quest tile type, and the room objects of rooms `room-points.json` does not keep (The Ascent's
-Resonator) need the generation's placed rooms' objects: both are the world's work (`ServerLevels`, `AreaObjects`), and
-`QuestObjectTypes.TileObjectsOf` is the one place that reads them. A boss that forms later (`On.Forms`) stands at its
-own boss point when the population records it (`ClientState.LaterFormPoints`), else where the last of the others died.
+`QuestObjectTypes.AreaPlacements` places a type from, in order: the Gateway's own generation of the area
+(`ServerLevels.Level.TileQuestObjects`, `AreaObjects.TileObjects`: every tile object of a quest type,
+`QuestObjectTypes.IsTileQuestObject`, with the tile record's height and virtual model, or the record's own `.ao` when that
+model is no file); the rooms' lines (`AreaPopulation.LoadObjects`: the rooms `data/room-points.json` keeps); and the
+generation's placed rooms (`ServerLevels.Level.RoomObjects`, `AreaObjects.RoomObjects(points: true)`: rooms
+`room-points.json` does not keep, such as The Ascent's Resonator, and objects a room's point list names, such as The
+Cavern of Anger's `BlackFlagChest`). Act 1 needs only room lines (Fairgraves, the slave girl's chest, Piety, the
+blockers). An area the Gateway does not generate has only the room lines. A boss that forms later (`On.Forms`) stands at
+its own numbered boss point (`AreaPopulation.LaterFormPoints`, kept in `ClientState.LaterFormPoints` when the area is
+populated), else where the last of the others died.
 
 ## 7. Quest passive skill points and respec points
 

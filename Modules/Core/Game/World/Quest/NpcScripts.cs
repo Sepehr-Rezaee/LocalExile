@@ -75,7 +75,7 @@ static partial class Game
             conn.InNpcTalk = true;
             conn.NpcFinishFlag = page.FinishFlag;
             conn.NpcTalkScript = EndsWithScript(page) ? page : null;
-            if (Quests.TalkStartFlag(page) is { } start) await SetQuestFlags(remote, stream, ciphers, conn, [start]);
+            if (TalkStartFlag(conn, page) is { } start) await SetQuestFlags(remote, stream, ciphers, conn, [start]);
             await OnQuestTalk(remote, stream, ciphers, conn, npcId, npc, page);
             await Send(remote, stream, ciphers, InstanceNpcs.Talk(npcId, (byte)page.Index),
                 $"0x0084 npc 0x{npcId:x} {npc.Npc.Name} talks on: NPCTalk row {page.Row} (index {page.Index}, DoNPCChat)");

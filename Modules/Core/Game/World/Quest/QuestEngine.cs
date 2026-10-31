@@ -99,7 +99,7 @@ static partial class Game
         // SetQuestFlag(…, "a2b-DeliveredAmulets")) takes them with that flag, in one save; so does a row a hand-in rule
         // names (Quests.HandInRule: Hargan's busts), for each of its items carried.
         var carried = QuestItems.Carried(ItemsOf(conn)).Select(c => ItemsFor(conn).ByHash(c.Item.Item.TypeHash)?.Id).OfType<string>().ToHashSet();
-        var ruled = Quests.HandsIn(npcId, talk.Option, talk.Row).Where(carried.Contains)
+        var ruled = (QuestsRun(conn) ? Quests.HandsIn(npcId, talk.Option, talk.Row) : []).Where(carried.Contains)
             .Select(i => ItemsFor(conn).Find(i)?.Quest?.Remove).OfType<string>();
         bool Has(string f) => ClientHasQuestFlag(conn, f);
         var carriedTypes = carried.Select(i => ItemsFor(conn).Find(i)?.Quest).OfType<QuestItemFlags>().ToList();
@@ -526,7 +526,7 @@ static partial class Game
         if (talk.ScriptSets is { Count: > 0 } sets) await SetQuestFlags(remote, stream, ciphers, conn, sets);
         if (talk.ScriptClears is { Count: > 0 } clears) await SetQuestFlags(remote, stream, ciphers, conn, clears, on: false);
         await RunTalkWorldScript(remote, stream, ciphers, conn, npcId, npc, talk);
-        foreach (var rule in Quests.TurnsInto(conn.Layout.Id).Where(r => r.NpcType == npc.Npc.Id && talk.TransitionsVarieties.Contains(r.Variety)))
+        foreach (var rule in (QuestsRun(conn) ? Quests.TurnsInto(conn.Layout.Id) : []).Where(r => r.NpcType == npc.Npc.Id && talk.TransitionsVarieties.Contains(r.Variety)))
         {
             bool already;
             lock (conn.Monsters) already = conn.Monsters.Values.Any(m => m.Variety?.Id == rule.Variety && !m.Dead && m.Life > 0);
@@ -556,7 +556,7 @@ static partial class Game
             await ConsumeQuestItemsAndSet(remote, stream, ciphers, conn, [.. rule.Flags.Where(f => !conn.HasQuestFlag(f))],
                 rule.ObjectType.Split('/')[^1]);
         }
-        foreach (var rule in Quests.NearExits(conn.Layout.Id))
+        foreach (var rule in QuestsRun(conn) ? Quests.NearExits(conn.Layout.Id) : [])
             if (!rule.Flags.All(conn.HasQuestFlag) && conn.Layout.AreaTransitions.Any(t => AreaTransitionCatalog.IdOf(t.Transition.DestinationHash16) == rule.To
                 && Dist(at, (t.Transition.GridX, t.Transition.GridY)) <= Quests.SightRange))
                 await SetQuestFlags(remote, stream, ciphers, conn, rule.Flags);

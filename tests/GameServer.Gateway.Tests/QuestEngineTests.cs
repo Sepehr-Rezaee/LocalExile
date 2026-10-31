@@ -26,11 +26,12 @@ public sealed class QuestEngineTests
     /// <summary>The engine's data-driven parts: quest items by their .it Quest component (flags, drops, the carried sync,
     /// hand-ins, pickups), QuestStaticRewards (passive, refund and ascendancy points, stats; refunds credited once in the
     /// save, session flags never saved), NPCTalk scripts, reward offers without a taken flag, the generic quest object blob,
-    /// the act registry, and every rule of every registered act naming real data.</summary>
+    /// the act registry and its league scoping, the world pieces the rules use (quest portals replacing an exit without a
+    /// model, later forms' boss points), and every rule of every registered act naming real data.</summary>
     [Fact]
     public void The_engine_reads_quest_items_rewards_dialogue_and_objects_from_the_data()
     {
-        using var registered = Register("tests", QuestObjectsModule.Acts());
+        using var registered = Register("QuestObjects", QuestObjectsModule.Acts());
 
         // Quest items: the .it Quest component's grant, extra, remove and use flags.
         Assert.Equal(new QuestItemFlags("a1q5-HaveMedicineChest", null, "a1q5-NessaCongratulated", null), Flags(Act1Items.MedicineChest));
@@ -137,14 +138,33 @@ public sealed class QuestEngineTests
         var altar = QuestObjectTypes.Find("Metadata/Chests/QuestChests/ChurchAltar")!;
         Assert.Equal(QuestObjectTypes.Find("Metadata/Chests/QuestChests/QuestChest")!.Components, altar.Components);
 
-        // The registry: the module's acts, in order, until the registration goes.
+        // The registry: the module's acts, in order, until the registration goes; they run only for a league that lists
+        // the module that gave them.
         Assert.Equal([1], QuestObjectsModule.Acts().Select(a => a.Number));
         Assert.Equal(["a1q1", "a1q5", "a1q4", "a1q8", "a1q7", "a1q2", "a1q6", "a1q3", "a1q9"], All.Select(q => q.Id));
-        using (Register("tests", []))
+        Assert.True(RunFor(new HashSet<string> { "Game", "QuestObjects" }));
+        Assert.False(RunFor(new HashSet<string> { "Game" }));
+        using (Register("QuestObjects", []))
+        {
             Assert.Empty(All);
+            Assert.False(RunFor(new HashSet<string> { "QuestObjects" }));
+        }
         Assert.Empty(All);
         registered.Dispose();
-        using var again = Register("tests", QuestObjectsModule.Acts());
+        using var again = Register("QuestObjects", QuestObjectsModule.Acts());
+
+        // World pieces the rules use: a quest portal replaces the layout's exit without a model to its destination (not
+        // a modelled one, a gate or a quest's own exit); a later form stands at its numbered boss point.
+        var exits = new List<AreaTransitionObject>
+        {
+            new(10, 10, 0x1234), new(20, 20, 0x1234, "Metadata/x.ao"), new(30, 30, 0x1234) { SourceType = "Metadata/QuestObjects/Portal" },
+            new(40, 40, 0x5678),
+        };
+        Assert.Equal(1, AreaTransitionCatalog.ReplacePointExits(exits, 0x1234));
+        Assert.Equal([(20, 20), (30, 30), (40, 40)], exits.Select(t => (t.GridX, t.GridY)));
+        var trinity = new PackCatalog.AreaPacks("2_9_8", 60, [], new Dictionary<string, PackCatalog.Pack>(), [7, 8]) { Absent = new HashSet<int> { 1 } };
+        Assert.Equal(new Dictionary<int, (int X, int Y)> { [8] = (50, 60) },
+            AreaPopulation.LaterFormPoints(trinity, [new("mapboss1", 10, 10), new("mapboss2", 50, 60)], (_, _) => true));
 
         // Every rule names real flags, monsters, items and NPCs, and the objects the engine creates are ones it can write.
         var flags = ParseRows(File.ReadAllText("data/tables/QuestFlags.json"));
@@ -231,7 +251,7 @@ public sealed class QuestEngineTests
     [Fact]
     public void Act1_plays_through_the_engine_to_its_preset()
     {
-        using var registered = Register("tests", QuestObjectsModule.Acts());
+        using var registered = Register("QuestObjects", QuestObjectsModule.Acts());
         var s = new QuestSimulator();
         try { Act1(s); }
         catch (QuestSimulator.StepFailed e) { Assert.Fail($"{e.Message}\nafter: {string.Join(" ", s.Log.TakeLast(12))}"); }
