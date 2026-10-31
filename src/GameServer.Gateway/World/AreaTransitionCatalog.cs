@@ -42,7 +42,7 @@ static class AreaTransitionCatalog
         // A layout the Gateway generates itself knows each object's room and graph node: that decides (§8).
         if (UseLayout && ServerLevels.For(id, seed) is { } level)
         {
-            var exits = QuestExitDestinations(level, FromLayout(area, level, notes), notes);
+            var exits = QuestExitDestinations(id, level, FromLayout(area, level, notes), notes);
             AddQuestPortals(exits, id, seed, notes);
             return [.. exits.Select((t, i) => (FirstId + (uint)i, t with { InTown = area.IsTown }))];
         }
@@ -165,14 +165,16 @@ static class AreaTransitionCatalog
     /// <summary>Two exits on one tile record that swap by a quest flag (Quests.ExistsRule with a destination): each leads to
     /// its own version of the area, and the one the layout left out (one object per record) is created beside its twin
     /// (the Control Blocks' ControlBlocksToDestroyedSquare into The Ruined Square after Avarius, the Chamber of Innocence's
-    /// InnocenceToDestroyedCourts into The Torched Courts).</summary>
-    static List<AreaTransitionObject> QuestExitDestinations(ServerLevels.Level level, List<AreaTransitionObject> placed, List<string> notes)
+    /// InnocenceToDestroyedCourts into The Torched Courts). Only in the destination's act (<see cref="SameAct"/>): Act 10's
+    /// burnt Oriath has Act 5's tiles, and The Desecrated Chambers' InnocenceToDestroyedCourts leads to Act 10's own Torched
+    /// Courts, as its layout says, not to Act 5's.</summary>
+    static List<AreaTransitionObject> QuestExitDestinations(string areaId, ServerLevels.Level level, List<AreaTransitionObject> placed, List<string> notes)
     {
         foreach (var rule in Quests.Everything.ExitRetargets())
         {
             string type = rule.ObjectType, to = rule.To!;
             string? source = Quests.Everything.SourceOf(rule);
-            if (HashOf(to) is not { } hash) continue;
+            if (HashOf(to) is not { } hash || !SameAct(areaId, to)) continue;
             // The layout's version stays for leagues without the tables; the quest's version leads where the rule says.
             for (int i = 0, n = placed.Count; i < n; i++)
                 if (placed[i].SourceType == type && placed[i].QuestSource is null && placed[i].DestinationHash16 != hash)
@@ -191,6 +193,29 @@ static class AreaTransitionCatalog
         }
         return placed;
     }
+
+    /// <summary>Whether two areas are of one act (WorldAreas Act; true when either is unknown or the table is missing).</summary>
+    internal static bool SameAct(string a, string b) =>
+        !AreaActs.Value.TryGetValue(a, out int x) || !AreaActs.Value.TryGetValue(b, out int y) || x == y;
+
+    // WorldAreas Id → Act (data/tables/WorldAreas.json).
+    static readonly Lazy<Dictionary<string, int>> AreaActs = new(() =>
+    {
+        const string file = "data/tables/WorldAreas.json";
+        var acts = new Dictionary<string, int>(StringComparer.Ordinal);
+        try
+        {
+            if (!File.Exists(file)) return acts;
+            using var doc = JsonDocument.Parse(File.ReadAllBytes(file));
+            foreach (var r in doc.RootElement.EnumerateArray())
+                if (r.GetProperty("Id").GetString() is { } id) acts.TryAdd(id, r.GetProperty("Act").GetInt32());
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or InvalidOperationException or KeyNotFoundException)
+        {
+            Console.WriteLine($"[gateway] {file}: {ex.Message}");
+        }
+        return acts;
+    });
 
     /// <summary>The exits of a generated layout (<see cref="ServerLevels.Level.Exits"/>, <c>AreaExits</c>): "entranceN" leads
     /// to the area's Connections[N − 1], "teleportN" within the area to its "telepadN" node; an unused object and a

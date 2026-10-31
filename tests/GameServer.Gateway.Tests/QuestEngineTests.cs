@@ -47,7 +47,8 @@ public sealed class QuestEngineTests
     /// hand-ins, pickups), QuestStaticRewards (passive, refund and ascendancy points, stats; refunds credited once in the
     /// save, session flags never saved), NPCTalk scripts, reward offers without a taken flag, the generic quest object blob,
     /// the act registry and its league scoping, the world pieces the rules use (quest portals replacing an exit without a
-    /// model, later forms' boss points), and every rule of every registered act naming real data.</summary>
+    /// model, later forms' boss points, an exit's own destination in its act only), and every rule of every registered act
+    /// naming real data.</summary>
     [Fact]
     public void The_engine_reads_quest_items_rewards_dialogue_and_objects_from_the_data()
     {
@@ -281,6 +282,17 @@ public sealed class QuestEngineTests
             if (created is not null)
                 Assert.True(QuestObjectTypes.Find(created) is { } info && QuestObject.CanSerialize(info.Components),
                     $"{rule}: {created} is not a quest object the engine can create ({string.Join(", ", QuestObjectTypes.Find(created)?.Components ?? [])})");
+        }
+
+        // Act 10's burnt Oriath has Act 5's tiles: an exit's own destination (ExistsRule.To: Act 5's InnocenceToDestroyedCourts
+        // to Act 5's Torched Courts) holds in its act only, so The Desecrated Chambers' way out leads to Act 10's.
+        Assert.True(AreaTransitionCatalog.SameAct(ChamberOfInnocence, TorchedCourts));
+        Assert.False(AreaTransitionCatalog.SameAct("2_10_4", TorchedCourts));
+        if (ServerLevels.For("2_10_4", 1) is not null) // needs the game files (Client/Content.ggpk)
+        {
+            var chambers = AreaTransitionCatalog.For(AreaTransitionCatalog.HashOf("2_10_4")!.Value, "2_10_4", 1, []);
+            var burnt = Assert.Single(chambers, e => e.Transition.SourceType == Act5Objects.InnocenceToDestroyedCourts);
+            Assert.Equal("2_10_3", AreaTransitionCatalog.IdOf(burnt.Transition.DestinationHash16));
         }
     }
 

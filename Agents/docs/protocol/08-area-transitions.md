@@ -421,7 +421,9 @@ nothing about which in-area gate leads to which arrival (the Warden's Quarters, 
 9. Quest rules ([12](12-quests.md) §5): every exit keeps its tile object's own type (`AreaTransitionObject.SourceType`),
    which `On.Exists` shows or hides by flag. Two exits of one tile record that swap by a flag lead to their own version
    of the area (`On.Exists` with `to`: the Chamber of Innocence's InnocenceToCourts / InnocenceToDestroyedCourts), and the
-   twin the layout left out is created from its record (`QuestExitDestinations`). A quest portal no tile or room places
+   twin the layout left out is created from its record (`QuestExitDestinations`), in the destination's act only
+   (`SameAct`, WorldAreas Act: Act 10's burnt Oriath has the same tiles, and The Desecrated Chambers' exit keeps its
+   layout's way to Act 10's Torched Courts). A quest portal no tile or room places
    (`On.Portal`: Maligaro's portals beside the Reverie Device, Sin's EpiloguePortal) is created where its object stands
    and stands in for the exit without a model (6.) to the same place (`AddQuestPortals`, `ReplacePointExits`). What a
    quest adds or replaces in the shared layout is marked with the module whose tables did it (`QuestSource`,
