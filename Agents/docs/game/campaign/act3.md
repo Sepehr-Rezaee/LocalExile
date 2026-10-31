@@ -20,17 +20,24 @@ Every quest of the act runs on the engine (`Modules/Core/World/QuestObjects/Acts
 [12](../../protocol/12-quests.md) §12) and was played unattended by the campaign runner
 (`scripts/dev/campaign/quests/a3q*.py`, `a2q8a3.py`) through to Highgate, with every flag of `Act3Complete`, before the
 game moved into modules; on the modules the oracle (`QuestEngineTests`) plays it after Acts 1 and 2 to `Act3Complete`.
-The sections after this one are the research done before the act was built (their "Risks" are what was expected then). Clarissa is freed by her guards' captain's death; Tolman's chair, Victario's stashes, the book
-stands (Chests.dat rows without an `.ot`) and the other quest chests open; the Sewer Keys and the Infernal Talc are built
-as rewards and used on the grating and the BioWall; Hargan's hand-in sets `a3q11-DeliveredBust1`–`3`; Fairgraves stands
-in The Docks after his Act 1 death; offer 21 builds a magic amulet (no fallback needed); the Library's candle opens the
-hidden door for the instance (an engine instance state); Dominus dies into his second form and Lady Dialla appears at
-the DeathPortalLocator; the tower top's exit to The Aqueduct (city_tower.arm's `entrance2disabled`, which the layout
-disables) is created because a3q10 gates it (`AreaTransitionCatalog.Gated`), and shown once `a3q10-KilledDominus` is
-set. The Library's way into The Archives (exit_1.arm's `entrance2disabled`) is created the same way, gated by the
-candle's instance state. The offline exit audit shows both: `dotnet run --project scripts/re/exits -c Release --
-"^1_3_1[78]" --quests` lists them as `gated` (seed 1 and its three other seeds); without `--quests` (no quest tables)
-they are dropped as arrival points ([08](../../protocol/08-area-transitions.md) §8).
+Clarissa is freed by her guards' captain's death; Tolman's chair, Victario's stashes, the book stands (Chests.dat rows
+without an `.ot`) and the other quest chests open; the Sewer Keys and the Infernal Talc are built as rewards and used on
+the grating and the BioWall; Hargan's hand-in sets `a3q11-DeliveredBust1`–`3`; Fairgraves stands in The Docks after his
+Act 1 death; offer 21 builds a magic amulet (no fallback needed); the Library's candle opens the hidden door for the
+instance (an engine instance state); Dominus dies into his second form and Lady Dialla appears at the
+DeathPortalLocator.
+
+The tower top's exit to The Aqueduct (city_tower.arm's `entrance2disabled`, which the layout disables) is created
+because a3q10 gates it (`AreaTransitionCatalog.Gated`), and shown once `a3q10-KilledDominus` is set. The Library's way
+into The Archives (exit_1.arm's `entrance2disabled`) is created the same way, gated by the candle's instance state. The
+offline exit audit ([08](../../protocol/08-area-transitions.md) §8) lists both as `gated` at seed 1 and its three other
+seeds; without `--quests` (no quest tables) both are dropped as arrival points:
+
+```powershell
+dotnet run --project scripts/re/exits -c Release -- "^1_3_1[78]" --quests
+```
+
+The sections after this one are the research done before the act was built: their "Risks" are what was expected then.
 
 ## Areas
 

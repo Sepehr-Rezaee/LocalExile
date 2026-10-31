@@ -250,5 +250,5 @@ file parsing. `CampaignCommandTests` checks `/state`'s JSON and reply lines and 
 
 Live history: the same driver (then in `Program.Campaign.cs`, before the game moved into modules) played all 82
 entries of `order.py` from a fresh level-1 Witch unattended in 1 h 00 min on 2026-10-31 (seed 1, copied save
-database, Acts 1–10 and the Epilogue, no `/goto`; per act 4–8 minutes). Acts 1–3 on the module quest engine, through
-this checkout's own ports and session client, are still to be run live.
+database, Acts 1–10 and the Epilogue, no `/goto`; per act 4–8 minutes).
+Acts 1–3 on the module quest engine, through this checkout's own ports and session client, are still to be run live.

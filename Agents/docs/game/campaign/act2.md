@@ -33,9 +33,9 @@ Quest passive points in Act 2:
 - Eramir's point for killing all three bandits (QSR 8).
 
 Sources: client tables (`data/tables`, 3.29.3b), the generated layouts (`lg.ps1 questobjects`, seed 1), room text
-(`lg.ps1 cat`), the unpacked `.ot`/`.it` text, the campaign's boss placement findings ([status](../../../status/quests.md)),
-and the wiki (Fandom mirror, 2026-10-30). The sections after the status are the research done before the act was
-built: their "Risks" are what was expected then, the status says how it went.
+(`lg.ps1 cat`), the unpacked `.ot`/`.it` text, the campaign's boss placement findings
+([status](../../../status/quests.md)), and the wiki (Fandom mirror, 2026-10-30). The sections after the status are the
+research done before the act was built: their "Risks" are what was expected then, the status says how it went.
 
 ## Status (implemented, played live 2026-10-30)
 

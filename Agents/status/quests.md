@@ -94,14 +94,17 @@ Part of [Status](../Status.md); what to build next in this area is in
   the gem), a2q8 (the Ancient Seal, the Dark Altar, the Vaal Oversoul, the pyramid's exit), a3q1–a3q5, a3q8, a3q9,
   a3q11–a3q13 and a3q10 (the Epic Door, Dominus' two forms, Lady Dialla on the tower, the exit to The Aqueduct) ran
   unattended in one pass and ended in Highgate with every flag of `Act2CompleteEramir` and `Act3Complete` and every
-  Act 2/3 quest log at "Quest Complete". Multi-item hand-ins take every item in one click (Eramir's amulets, Hargan's
-  busts, Siosa's pages, Fairgraves' plum and decanter). The Library's candle opens the hidden door for the instance
-  only; the two exits the layout disables and a quest gates (The Upper Sceptre of God → The Aqueduct, The Library → The
-  Archives) are created (`scripts/re/exits --quests`: `gated` at seed 1 and three other seeds). Every quest object,
-  chest and NPC the rules name is placed at seed 1. Driver step files `scripts/dev/campaign/quests/a2q*.py`,
-  `a3q*.py`.
+  Act 2/3 quest log at "Quest Complete".
+  Multi-item hand-ins take every item in one click (Eramir's amulets, Hargan's busts, Siosa's pages, Fairgraves' plum
+  and decanter).
+  The Library's candle opens the hidden door for the instance only.
+  The two exits the layout disables and a quest gates (The Upper Sceptre of God → The Aqueduct, The Library → The
+  Archives) are created (`scripts/re/exits --quests`: `gated` at seed 1 and three other seeds).
+  Every quest object, chest and NPC the rules name is placed at seed 1.
+  Driver step files: `scripts/dev/campaign/quests/a2q*.py`, `a3q*.py`.
   Code: `Acts/Act2.cs`, `Acts/Act3.cs` (QuestObjects module).
-  Docs: [12](../docs/protocol/12-quests.md) §11–12; [act 2](../docs/game/campaign/act2.md), [act 3](../docs/game/campaign/act3.md).
+  Docs: [12](../docs/protocol/12-quests.md) §11–12; [act 2](../docs/game/campaign/act2.md),
+  [act 3](../docs/game/campaign/act3.md).
 
 - New characters pick up their class weapon, talk to the dying exile and kill the biting zombie for their skill gem.
   The support gem comes from its chest, which requires the player to walk into range.
@@ -113,8 +116,9 @@ Part of [Status](../Status.md); what to build next in this area is in
   AreaTransition), and the arena doors are not created at all.
 - The bandit vote (a2q7's help path: talking to a bandit lord opens the client's vote panel through
   `DispatchRulesetEvent(BanditCallVote)`, VoteType/VoteState) is not implemented; its messages are not
-  reverse-engineered. The lords are hostile and the choice comes from the kills (the campaign runner kills all three);
-  the help rewards' stats (QuestStaticRewards 4–6) apply once their flags are set.
+  reverse-engineered.
+  The lords are hostile and the choice comes from the kills (the campaign runner kills all three); the help rewards'
+  stats (QuestStaticRewards 4–6) apply once their flags are set.
 - Characters whose activated waypoints carry a quest flag as an access flag (a1q1's Hillock for the Coast) skip that
   flag's world changes: with OfflineWitch, The Twilight Strand's wall was not created and its gate stood open.
 
