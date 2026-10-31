@@ -11,6 +11,7 @@
     "Core/NPC/NpcDialogue",
     "Core/NPC/Vendors",
     "Core/Player/Commands",
+    "Core/Player/Pantheon",
     "Core/Player/Social",
     "Core/World/Atlas",
     "Core/World/HideoutEditing",

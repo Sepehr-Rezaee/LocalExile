@@ -122,6 +122,15 @@ Part of [Status](../Status.md); what to build next in this area is in
   Code: `Acts/Act4.cs`, `Acts/Act5.cs`, `Acts/Act6.cs` (QuestObjects module), Highgate's two Diallas in `NPC/TownNpcs.cs`.
   Docs: [12](../docs/protocol/12-quests.md) §13–15; [act 4](../docs/game/campaign/act4.md),
   [act 5](../docs/game/campaign/act5.md), [act 6](../docs/game/campaign/act6.md).
+- The Pantheon (live 2026-10-30 before the game moved into modules: the campaign runner chose The Brine King and
+  Tukohama; on the modules checked by the oracle and the data test, not yet with the client): a god unlocks with its
+  boss's kill flag (Act 6's four, the later acts' as their tables come); C→S 0x1ee chooses the major or minor god of a
+  PantheonPanelLayout row in a town, a hideout, the Rogue Harbour or after Sin's god row (`CanChangePantheon`), saved
+  per character and shown by the Player component (creation blob and update 0x0080); the god's power (and the souls'
+  upgrades after An End to Hunger) joins the stat sources. `/pantheon` and /state's `pantheon` for the driver.
+  The panel's highlight of the choice is not checked; the souls (Divine Vessels) are not built.
+  Code: the Pantheon module (`Modules/Core/Player/Pantheon`), Gateway `Player/PantheonCatalog.cs`, Core
+  `InstancePantheon.cs`. Docs: [pantheon](../docs/game/campaign/pantheon.md).
 
 - New characters pick up their class weapon, talk to the dying exile and kill the biting zombie for their skill gem.
   The support gem comes from its chest, which requires the player to walk into range.

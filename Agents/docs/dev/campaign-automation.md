@@ -12,7 +12,7 @@ on the quest engine: Act 1 (`a1q1` … `a1q9`), Act 2 (`a2q1` … `a2q11`, `a2q8
 (`a3q1` … `a3q13`). An act's step files come with its tables
 ([campaign quests](../game/campaign-quests.md) "Adding an act"); until then its quests are "not implemented", which
 does not fail a run, and `steps.py` already has the verbs and town list the later acts use (`pantheon` needs the
-Pantheon's `/state` field, which comes with the Pantheon).
+Pantheon module's `/state` field).
 
 ## The whole order in one command
 
@@ -201,7 +201,7 @@ step may have:
 | `use_item` | `item` (as `pickup`), `timeout` 10 | Right-click use of a main-inventory item: `item:use` (C→S 0x58), then waits until that item left the inventory. A quest book sets its use_flag (its passive/refund points follow). With `expect_flag` already set and no match carried, nothing to do; else no match fails. |
 | `wait_flag` | `flag`, `timeout` 60 | Polls `/state brief` until the flag is set. |
 | `command` | `text`, `wait` 1.5 | Sends the slash command, logs the replies. |
-| `pantheon` | `major`, `minor` (optional: an Id or name substring, or a list in preference order), `timeout` 10 | For the later acts: per slot, the first unlocked god of the step's list, else the runner's order, among `/state` `pantheon.unlocked`; `pantheon:select <row>` (C→S 0x1ee), waits until `/state` shows it. Fails without a `pantheon` field in `/state` (it comes with the Pantheon), when `pantheon.canChoose` is false, and when the choice does not show within `timeout`. |
+| `pantheon` | `major`, `minor` (optional: an Id or name substring, or a list in preference order), `timeout` 10 | For the later acts: per slot, the first unlocked god of the step's list, else the runner's order, among `/state` `pantheon.unlocked`; `pantheon:select <row>` (C→S 0x1ee), waits until `/state` shows it. Fails without a `pantheon` field in `/state` (a league without the Pantheon module), when `pantheon.canChoose` is false, and when the choice does not show within `timeout`. |
 | `stash` | `area`, `timeout` 10 | In the area's Stash (towns, hideouts; without one, Lioneye's Watch's by waypoint and back afterwards): tp next to it, open it (`object:interact`), then Ctrl + click every carried non-quest item into tab 0 (`stash:deposit`, C→S 0xe0: the server takes the tab's first free cell), what a tab refuses into tabs 1–4. Quest items stay. |
 | `passives` | `timeout` 5 per point | Only with `--spend-passives`. While points are unspent: `passive:allocate` the first candidate (with `expansion` false), wait for `unspent` to drop; a refused node is skipped. Quiet with no points, candidates or `passives` field. |
 
@@ -229,12 +229,14 @@ out monsters, NPCs, objects, items, transitions, the waypoint and the inventory.
 ones within 120 cells (at most 60); `/state all` lists every monster. The objects are the server's interactive ones:
 the tutorial chest, Rhoa Nests, Glyph Wall, and the quest engine's chests and objects (`StateObjects`); `/tp` finds
 them by these ids, and the room objects quest rules watch (`On.Near`, `On.SpawnsNear`: `PietyBlockage`) by type.
-The Pantheon adds a `pantheon` field (`major`, `minor`, `unlocked`, `canChoose`) when it comes.
+In a league with the Pantheon module /state has `pantheon` {`major`, `minor` (the chosen gods' PantheonPanelLayout Ids
+or null), `unlocked` [{`id`, `name`, `major`, `row`}] (majors first), `canChoose` (a town, a hideout, the Rogue Harbour
+or `CanChangePantheon`)} (`GameEvents.StateBuilding`: a module adds its own fields).
 
 Dev commands used: `/state`, `/kill <target>` (`boss`: the unique monsters and those with the big boss life bar or a
 boss stage; a lethal hit of the monster's life through the skill-hit path: death,
 experience, drops, quest flags; a boss's stage is skipped), `/quest_preset <Id>`, `/quest_flag <flag> [off]`,
-`/tp …`, `/god immune` / `/god off` (immune: no damage from hits or ailment ticks; kept per character like `/god`).
+`/tp …`, `/pantheon [<god> …]` (the Pantheon module), `/god immune` / `/god off` (immune: no damage from hits or ailment ticks; kept per character like `/god`).
 
 ## Checks
 
