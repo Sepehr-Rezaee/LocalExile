@@ -10,7 +10,9 @@
 //   misplaced    an exit leads there, but none sits in (or next to) the room of that node
 //   unexpected   an exit leads to an area no enabled "entranceN" of the layout names (and not within the area), and
 //                the model matching does not lead there either (info unnamed-exit: Delve's mine; info gated: --quests, a
-//                disabled entrance a quest gates)
+//                disabled entrance a quest gates, its exit in that entrance's room)
+//   gated-duplicate / gated-misplaced  (--quests) more exits to a quest-gated disabled entrance's area than such
+//                entrances, or one not in (or next to) their rooms
 //   duplicate    more exits lead to an area than the layout's enabled entrances name it
 //   teleport     a node names "teleportN" (enabled) and no in-area exit there takes the player to the "telepadN" node
 //   unreachable  an exit (or teleport) the player cannot get to by walking and the layout's in-area exits, starting
@@ -55,11 +57,13 @@ for (int i = 0; i < args.Length; i++)
 
 if (!File.Exists("AGENTS.md") || !Directory.Exists("data/tables")) { Console.Error.WriteLine("run from the repository root (needs data/)"); return 2; }
 AreaTransitionCatalog.UseCaptures = false;
-// The act tables (Modules/Core/World/QuestObjects/Acts/), found as the module finds them: a quest's gate makes the catalog
-// create an exit the layout disables (AreaTransitionCatalog.Gated: The Upper Sceptre of God's way to The Aqueduct).
+// The act tables (Modules/Core/World/QuestObjects/Acts/, compiled into this tool: Exits.csproj), found as the module finds
+// them, in act order: a quest's gate makes the catalog create an exit the layout disables (AreaTransitionCatalog.Gated: The
+// Upper Sceptre of God's way to The Aqueduct).
 using var questTables = quests
-    ? Quests.Register("QuestObjects", typeof(GameServer.Modules.M_questobjects.QuestObjectsModule).Assembly.GetTypes()
-        .Where(t => t.IsSubclassOf(typeof(Quests.Act)) && !t.IsAbstract).Select(t => (Quests.Act)Activator.CreateInstance(t)!))
+    ? Quests.Register("QuestObjects", System.Reflection.Assembly.GetExecutingAssembly().GetTypes()
+        .Where(t => t.IsSubclassOf(typeof(Quests.Act)) && !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) is not null)
+        .Select(t => (Quests.Act)Activator.CreateInstance(t)!).OrderBy(a => a.Number))
     : null;
 
 // WorldAreas: id, name, act, hash, topologies; connections (by index) from the atlas (the JSON column is broken).
@@ -205,10 +209,17 @@ void Audit((string Id, string Name, int Act, ushort Hash) area, ServerLevels.Lev
     {
         if (g.Key == area.Hash) continue;
         // --quests: an entrance the layout disables that a quest gates is created on purpose (The Library's way into The
-        // Archives, the tower top's to The Aqueduct).
-        if (!expected.ContainsKey(g.Key) && Quests.FlagToEnter(area.Id, Name(g.Key)) is { } flag
-            && conns.Where(c => c.Hash == g.Key).Any(c => entrances.Any(e => e.N == c.Index && !e.Enabled)))
-            Info("gated", $"{g.Count()} exit(s) to {Name(g.Key)} at a disabled entrance, created because a quest gates it ({flag})");
+        // Archives, the tower top's to The Aqueduct): one exit at most per such entrance, each in (or next to) its room.
+        var disabledTo = entrances.Where(e => !e.Enabled && conns.Any(c => c.Hash == g.Key && c.Index == e.N)).ToList();
+        if (!expected.ContainsKey(g.Key) && disabledTo.Count > 0 && Quests.FlagToEnter(area.Id, Name(g.Key)) is { } flag)
+        {
+            if (g.Count() > disabledTo.Count)
+                Problem("gated-duplicate", $"{g.Count()} exits to {Name(g.Key)} for {disabledTo.Count} disabled entrance(s) a quest gates: {string.Join(", ", g.Select(e => $"({e.GridX}, {e.GridY})"))}");
+            else if (g.FirstOrDefault(e => !disabledTo.Any(d => Near(d.Room, e.GridX, e.GridY))) is { } away)
+                Problem("gated-misplaced", $"exit to {Name(g.Key)} at ({away.GridX}, {away.GridY}), not in {string.Join(" or ", disabledTo.Select(d => Path.GetFileName(d.Room.Room.Path)))}");
+            else
+                Info("gated", $"{g.Count()} exit(s) to {Name(g.Key)} at a disabled entrance ({string.Join(", ", disabledTo.Select(d => Path.GetFileName(d.Room.Room.Path)))}), created because a quest gates it ({flag})");
+        }
         else if (!expected.TryGetValue(g.Key, out int want) && matched.Any(m => m.DestinationHash16 == g.Key && m.TeleportTo is null))
             Info("unnamed-exit", $"{g.Count()} exit(s) to {Name(g.Key)}, which no node names; the model matching leads there too");
         else if (!expected.TryGetValue(g.Key, out want)) Problem("unexpected", $"{g.Count()} exit(s) to {Name(g.Key)} at {string.Join(", ", g.Select(e => $"({e.GridX}, {e.GridY})"))}, which no enabled entrance names");

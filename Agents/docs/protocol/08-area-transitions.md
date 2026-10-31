@@ -442,12 +442,14 @@ dotnet run --project scripts/re/exits -c Release -- [area regex] [--all] [--seed
 
 For every campaign area (WorldAreas "1_…" / "2_…" of acts 1–10 with a topology; `--all`: every area with one) that
 the Gateway generates, at seed 1 and N more seeds (default 3, fixed per area), it generates the layout, asks
-`AreaTransitionCatalog.For` for the exits as the Gateway does on entry (captures off; `--quests` registers the
-QuestObjects module's act tables first, as in a league that lists the module, so the disabled entrances a quest gates
-are created too) and checks them:
+`AreaTransitionCatalog.For` for the exits as the Gateway does on entry (captures off; `--quests` registers the act
+tables first, as in a league that lists the QuestObjects module, so the disabled entrances a quest gates are created
+too; the tool compiles `Modules/Core/World/QuestObjects/Acts/*.cs` in, so its build writes no module or Debug output)
+and checks them:
 - against the layout's descriptions and the WorldAreas connections: missing (an enabled `entranceN` whose room holds a
   transition object at which no exit was created, by position), misplaced, unexpected and duplicate destinations, a
-  `teleportN` without a gate to its `telepadN`;
+  `teleportN` without a gate to its `telepadN`; with `--quests`, more exits to a quest-gated disabled entrance's area
+  than such entrances, or one outside their rooms (`gated-duplicate`, `gated-misplaced`);
 - against §7's model matching over the same objects: a destination or a gate it had that no exit has now (this also
   covers areas without connections, such as Delve_Hub);
 - for reachability: walking from the exit back to Connections[0] within the Gateway's walk-up range, and through the
