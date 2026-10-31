@@ -56,7 +56,7 @@ time-dependent counts, the qualification snapshot); it runs on every call, as be
 rows, the default attack's hit and ailment rows, accuracy, critical and off-hand rows) is a pure function of
 `StatSnapshotTailInputs`: the head's stats in their order, the raw `/set_stat` values, the pools, the active set's
 hands (rows 2 and 3, immutable item records, and which are inactive), the hands' local stats, life and maximum life,
-Energy Shield recharge, Blood Charges held and shown, the elemental ailments, the suppression chance and the default
+Energy Shield recharge, whether the player is walking (the while-moving regeneration), Blood Charges held and shown, the elemental ailments, the suppression chance and the default
 attack's effect. Inputs are captured at each stage boundary; the stages read nothing else of the connection.
 `WithRampage` runs between the panel and offence stages on every call, at its original position.
 Ailment reconciliation runs between the offence and critical stages on every call, before capturing ailments,
@@ -75,7 +75,7 @@ clock, and compares with a connection that has no tail. The tests use the built 
 They do not start the global module host or register optional providers that would affect other tests.
 Regression coverage includes Rampage expiry with warm stages, additive action speed, base-speed floors and immunity
 reconciliation after a cache hit.
-Historical measurements before the three-stage integration (Release, one character in Lioneye's Watch): one snapshot 64 Âµs and 150 KB before, 20-22 Âµs and 61 KB after;
+Historical measurements before the three-stage integration (Release, one character in Lioneye's Watch): one snapshot 64 µs and 150 KB before, 20-22 µs and 61 KB after;
 an idle player (the connection's loops over loopback) allocates 13-14 MB/s before and 5.4-6.1 MB/s after, on The Coast
 16-18 MB/s and 7-9 MB/s; its process CPU, on a shared machine, 42-56 ms/s before and 29-37 ms/s after in town.
 

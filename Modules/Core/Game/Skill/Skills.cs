@@ -45,7 +45,7 @@ static partial class Game
         StatsScope.Value is { } scope && ReferenceEquals(scope.Conn, conn) ? scope : null;
 
     // The player's stats as the server sets them: what /set_stat set, then the attack's final values computed from them
-    // (the client derives nothing itself: 11-skills.md Â§4).
+    // (the client derives nothing itself: 11-skills.md §4).
     // FinalPlayerStats as a full 0x1b3, which only sets the stats it lists: every stat sent before that is gone now (a
     // stat only an unequipped item or a refunded passive gave) goes with 0, so the client does not keep its old value.
     internal static List<(uint, int)> PlayerStatsWithCleared(ClientState conn)
@@ -59,6 +59,13 @@ static partial class Game
             conn.SentStatKeys = now;
             RefreshPeerScale(conn, stats.Single(s => s.Item1 == ActorScale.Final).Item2);
         }
+        // The ground around a stationary player follows the stats the client was told (RunPlayerTick starts its ticker).
+        int Sent(string name) => Stats.Key(name) is uint key ? stats.FirstOrDefault(s => s.Item1 == key).Item2 : 0;
+        conn.FlaskGrounds.Configure(FlaskGrounds.StationaryRadius(Sent), Sent(FlaskGrounds.LingerStat));
+        // So do the player's debuffs on monsters (EnemyDebuffsTick): his passives' enemy auras and his taunt's increase.
+        ushort[] nodes;
+        lock (conn.Monsters) nodes = [.. conn.Passives, .. conn.MainAscendancy.Allocated];
+        conn.EnemyDebuffs = new(Sent("taunted_enemies_damage_taken_+%"));
         return stats;
     }
 
@@ -89,14 +96,14 @@ static partial class Game
         if (Stats.Key("main_hand_weapon_type") is uint weaponTypeKey && WeaponTypeStats.BowType(mainHand?.Type?.Class) is int bowType)
             stats.TryAdd(weaponTypeKey, bowType);
         // Both hands' weapon stats. A dual-wielded attack swings the off hand as well, and the client sets that strike's
-        // weapon up from the off hand's own final stats (it derives nothing itself, 11-skills.md Â§4).
+        // weapon up from the off hand's own final stats (it derives nothing itself, 11-skills.md §4).
         foreach (var (k, v) in WeaponStats(conn, WeaponOf(conn, mainHand), stats)) stats[k] = v;
         foreach (var (k, v) in CosmeticStats(conn).Where(s => !ActorScale.IsInput(s.Stat))) stats.TryAdd(k, v);
         return stats.Select(kv => (kv.Key, kv.Value));
     }
 
-    // The main hand's final weapon stats and, when the off hand holds a weapon, the off hand's too (off_hand_â€¦ instead of
-    // main_hand_â€¦). Until issue #167 the Gateway sent no off-hand stat at all, so the second weapon of a dual-wielded attack
+    // The main hand's final weapon stats and, when the off hand holds a weapon, the off hand's too (off_hand_… instead of
+    // main_hand_…). Until issue #167 the Gateway sent no off-hand stat at all, so the second weapon of a dual-wielded attack
     // had no attack time, damage or reach on the client; the off-hand animation of a Holy Strike on the ground then ran
     // with a null animation set and the next action crashed (0x141c988c1, AnimationController+0x180 = 0). Frida 2026-10-25:
     // while it creates the attack action the client reads off_hand_minimum/maximum_attack_distance.
@@ -208,18 +215,26 @@ static partial class Game
         // The utility flasks' plain stats (UtilityFlasks.RawStats: maximum resistances, crit, damage, cast speed), with
         // Mageblood's permanent flasks deduplicated against the running ones, plus the flask grounds.
         int FlaskGet(string name) => Stats.Key(name) is uint k ? stats.GetValueOrDefault(k) : 0;
-        UtilityFlasks.AddRawStats(stats, UtilityStats(conn, FlaskGet).Concat(conn.FlaskGrounds.PlayerStats()), Stats);
+        UtilityFlasks.AddRawStats(stats, UtilityStats(conn, FlaskGet)
+            .Concat(conn.FlaskGrounds.PlayerStats(FlaskGet("consecrated_ground_effect_+%"))), Stats);
         WithVaalPrevention(conn, stats);
+        AddSpiritLeadershipStats(conn, stats);
+        AddTotemAuraStats(conn, stats);
         WithRage(conn, stats);
         // The character panel's sums of base forms (PanelStats); a stat /set_stat set keeps its value.
         ActorScale.Project(stats, rawOverrides, CosmeticScaleSources(conn));
         int Get(string name) => Stats.Key(name) is uint k ? stats.GetValueOrDefault(k) : 0;
+        // Devout of Garukhan: the while-moving evasion rating, and the while-moving regeneration in the recovery below.
+        double statsAt = conn.Clock.Elapsed.TotalSeconds;
+        bool moving = statsAt < conn.Walk.ArrivesAt;
+        var recovery = PanelStats.WhileMoving(Get, moving);
+        if (Stats.Key("evasion_rating") is uint evasionKey && !devSet.Contains(evasionKey)) stats[evasionKey] = PlayerEvasion(conn, statsAt);
         ConfigureFortificationRecovery(conn, conn.Pools.Life, Get);
         ConfigureLeech(conn, Get, rawOverrides, CriticalOnLowLife(conn, stats));
         WithLeechConditions(conn, stats);
         // Capture the unmodified recovery baseline from this same snapshot, before the temporary contribution.
         // The resource writer integrates Fortification separately across exact expiry boundaries.
-        baselineLifePerSecond = PanelStats.LifePerMinute(Get, conn.Pools.Life) / 60;
+        baselineLifePerSecond = PanelStats.LifePerMinute(recovery, conn.Pools.Life) / 60;
         lock (conn.Monsters)
         {
             // Turtle Shell's exact one-second integral is consumed separately by the resource writer.
@@ -241,7 +256,7 @@ static partial class Game
             ? new(stats.ToFrozenDictionary(), devSet.ToFrozenSet(), conn.Pools.Level,
                 mainLocal.ToFrozenDictionary(), offLocal.ToFrozenDictionary()) : null;
         // The tail reuses its last result while its inputs are the same (StatSnapshotCache.cs); the head above ran as always.
-        var tailInputs = ReadStatSnapshotTailInputs(conn, stats, rawOverrides, devSet, mainLocal, offLocal, lifeRegenerationToEnergyShield);
+        var tailInputs = ReadStatSnapshotTailInputs(conn, stats, rawOverrides, devSet, mainLocal, offLocal, lifeRegenerationToEnergyShield, moving);
         stats = StatSnapshotTailFor(conn, tailInputs, StatSnapshotStage.Panels);
         WithRampage(conn, stats);
         stats = StatSnapshotTailFor(conn, tailInputs with { Stats = stats }, StatSnapshotStage.Offence);
@@ -312,7 +327,7 @@ static partial class Game
         int Get(string name) => RageStat(stats, name);
         var hit = PlayerHitDamage.Resolve(SupportedAttackDamage.Raw(weapon, Get), Get,
             conversion ?? new(), spell: false, melee: melee, projectile: !melee, wieldingWand: weapon.WieldingWand);
-        return RageStats.ApplyAttack(hit, Get).Scale(GamblerFor(stats).DamageFactor);
+        return MaximumAttackDamage.Apply(RageStats.ApplyAttack(hit, Get), Get).Scale(GamblerFor(stats).DamageFactor);
     }
 
     internal static double AddedEffectiveness(ClientState conn, int effect, int level) => SkillsFor(conn).DamageEffectiveness(effect, level) is int value and > 0 ? value / 10000.0 : 1;
@@ -345,7 +360,7 @@ static partial class Game
         }
         List<AuraCatalog.Aura> auras;
         lock (conn.Monsters) auras = [.. conn.Auras.Values];
-        foreach (var (k, v) in AuraCatalog.RawStats(auras, conn.Pools.AuraEffectPct, SkillsFor(conn), Stats))
+        foreach (var (k, v) in AuraCatalog.RawStats(auras, conn.Pools.AuraEffectPct, SkillsFor(conn), Stats).Concat(MinionAuraStats(conn, auras)))
             extra[k] = ActorScale.Saturate((long)extra.GetValueOrDefault(k) + v);
         // The mods' stats (Program.Mods.cs), added like /god's: the pools (life, mana) are not rebuilt from them.
         if (Program.ServerHooks.ChangesStats)
@@ -461,18 +476,29 @@ static partial class Game
                 stats[durationKey] = (int)Math.Round(1000 * SkillDurationModifiers.Seconds(own[baseDurationKey],
                     name => Stats.Key(name) is uint k ? playerStats.GetValueOrDefault(k) : 0,
                     name => Stats.Key(name) is uint k ? own.GetValueOrDefault(k) : 0));
+            // Devout of Lunaris: the client aims a self-targeted Nova at the cursor only on
+            // virtual_self_targeted_skills_target_location_instead, which its calculator (FUN_142896650) derives from these
+            // three stats; network stats run no calculators (04 §4.1a), so without it the Nova stayed on the caster (live).
+            if (new[] { "nova_spells_cast_at_target_location", "casting_spell", "skill_is_nova_skill" }
+                    .All(n => Stats.Key(n) is uint k && stats.GetValueOrDefault(k) != 0)
+                && Stats.Key("virtual_self_targeted_skills_target_location_instead") is uint novaKey)
+                stats[novaKey] = 1;
             if (SkillsFor(conn).IsSpell(effect) && !SkillsFor(conn).IsAttack(effect) && Stats.Key("spell_critical_strike_chance") is uint critKey)
                 stats[critKey] = SupportedCriticalChance(conn, id);
-            // The skill effects worn in the gem's Cosmetics tab slots: their stats (skill_art_variation â€¦) on this skill only.
+            // The skill effects worn in the gem's Cosmetics tab slots: their stats (skill_art_variation …) on this skill only.
             foreach (var (key, worn) in skillCosmetics)
                 if (CharacterSaves.SkillCosmeticGem(key) == gem && Mtx.Find(worn.Record) is { } record && MtxEffects.Of(record.MtxTypeHash) is { } fx)
                     foreach (var (k, v) in fx.Stats) stats[k] = v;
             // The native spell action divides virtual BASE time by cast speed itself. Keep the catalog base
             // intact; only the panel's final casts-per-second stat is adjusted here.
             int supportCastSpeed = Stats.Key("base_cast_speed_+%") is uint cs ? own.GetValueOrDefault(cs) : 0;
-            if (SpellCastTiming.ForSkill(SkillsFor(conn), effect, CastSpeedPct(stats) + supportCastSpeed) is { } spellTiming)
+            int castSpeedTotal = FinalCastSpeedPct(conn, stats, CastSpeedPct(stats) + supportCastSpeed);
+            if (SpellCastTiming.ForSkill(SkillsFor(conn), effect, castSpeedTotal) is { } spellTiming)
             {
                 spellTiming.ApplyTo(stats, Stats);
+                // The native action divides by this skill's cast_speed_+% (0x1419e7500): the total the server wait uses.
+                if (Stats.Key("cast_speed_+%") is uint castKey && castSpeedTotal != CastSpeedPct(stats))
+                    stats[castKey] = castSpeedTotal;
             }
             // Preserve the legacy non-spell/attack display path; attack timing is outside this fix.
             else if ((CastSpeedPct(stats) + supportCastSpeed) is int castSpeed and not 0 && SkillsFor(conn).CastMs(effect) is int castMs and > 0)
@@ -481,7 +507,7 @@ static partial class Game
                 if (Stats.Key("virtual_base_spell_cast_time_ms") is uint vk) stats[vk] = ms;
                 if (Stats.Key("hundred_times_casts_per_second") is uint hk) stats[hk] = (int)Math.Round(100_000.0 / Math.Max(1, ms));
             }
-            // A spell's tooltip DPS is its own hit (SpellDamage) Ã— casts per second, not the default attack's values that
+            // A spell's tooltip DPS is its own hit (SpellDamage) × casts per second, not the default attack's values that
             // came with the player's stats.
             int Get(string name) => Stats.Key(name) is uint k ? stats.GetValueOrDefault(k) : 0;
             // Cyclone's client effect reads the final radius, not the increased-area input. Match AreaSkillHit.
@@ -502,6 +528,10 @@ static partial class Game
                 if (Stats.Key("skill_area_of_effect_+%") is uint areaKey) stats[areaKey] = increased;
                 Console.WriteLine($"[gateway] Cyclone area: base {baseRadius}, radius {radius}, increased area {increased}%, radius scale {radiusPercent}%");
             }
+            // Other area skills: the client's effect builders read the final radius (0x4876) too; without it Ice Nova drew
+            // nothing (live 2026-10-30). The radius the server's hit uses (SkillRadius, AreaSkillHit).
+            else if (Get("active_skill_base_area_of_effect_radius") > 0 && Stats.Key("active_skill_area_of_effect_radius") is uint finalRadius)
+                stats[finalRadius] = SkillRadius(conn, own, SkillsFor(conn).IsSpell(effect), effect);
             // A trap or herald that deals secondary damage (Bear Trap carries the Spell type but no spell base damage,
             // Herald of Ice's shatter): its own secondary rows, before the attack/spell hit rows.
             if (!SkillsFor(conn).IsAttack(effect) && Get("display_skill_deals_secondary_damage") != 0
@@ -602,6 +632,9 @@ static partial class Game
                 stats[showAverage] = Get("base_skill_show_average_damage_instead_of_dps") != 0 ? 1 : 0;
             stats[OwnAuraRestriction.BaseAura] = own.GetValueOrDefault(OwnAuraRestriction.BaseAura);
             OwnAuraRestriction.PublishSkill(stats, OwnAuraRestrictionValue(conn));
+            // Published like the own-aura reason (never zero over another); the client also derives it (FUN_1428cf770).
+            if (CastingSpell(conn, effect) && Stats.Key("your_spells_are_disabled") is uint spellsOff
+                && playerStats.GetValueOrDefault(spellsOff) != 0) stats[OwnAuraRestriction.SkillDisabled] = 1;
             // These display aliases use the same raw snapshot as the character derivation. Apply them after
             // runtime radius calculations so an already-derived selected AoE alias cannot count its base twice.
             int RawPanel(string stat) => Stats.Key(stat) is uint key ? panelSources.Raw.GetValueOrDefault(key) : 0;
@@ -748,7 +781,7 @@ static partial class Game
         return (level, str, dex, intel);
     }
 
-    // The value the client's requirement checks compare (virtual_*_for_requirements, 13-items.md Â§2d): what /set_stat set,
+    // The value the client's requirement checks compare (virtual_*_for_requirements, 13-items.md §2d): what /set_stat set,
     // else the character's attribute.
     internal static int RequirementAttribute(ClientState conn, string attribute, int value)
     {
@@ -781,6 +814,8 @@ static partial class Game
     internal static string? ActorSkillDisabledCore(ClientState conn, int effect, ushort? skillId)
     {
         if (OwnAuraSkillRestricted(conn, effect, skillId)) return "own aura skills are disabled";
+        // Devout of Gruthkul: every spell, auras and triggered spells too (wiki: they cannot be cast or triggered).
+        if (CastingSpell(conn, effect) && SpellsDisabled(conn)) return "spells are disabled";
         return SkillsFor(conn).IsWarcry(effect) && Stats.Key("your_warcry_skills_are_disabled") is uint key
             && CharacterPlayerStats(conn).GetValueOrDefault(key) != 0 ? "warcry skills are disabled" : null;
     }
@@ -807,14 +842,14 @@ static partial class Game
     internal static string? GemSkillInstanceDisabled(ClientState conn, int effect, ushort skillId)
     {
         var gem = SupportedSkill(conn, skillId);
-        if (gem.Effect != effect || gem.SourceGem is null) return "skill is unavailable";
+        if (gem.Effect != effect || gem.SourceGem is null && !gem.Granted) return "skill is unavailable";
         if ((ActorSkillInstanceDisabled(conn, effect, skillId) ?? WeaponRestricted(conn, effect)
                 ?? GemRequirementsUnmet(conn, gem.SourceGem)) is { } disabled)
             return disabled;
         return SkillsFor(conn).EffectId(effect) is { } effectId ? ProjectileDefinition(effectId)?.Unavailable?.Invoke(conn) : null;
     }
 
-    // ItemClasses row 36: the hand type the client gives an empty main hand (11-skills.md Â§10a, Unarmed 37 = row + 1).
+    // ItemClasses row 36: the hand type the client gives an empty main hand (11-skills.md §10a, Unarmed 37 = row + 1).
     internal const int UnarmedClassRow = 36;
 
     // A skill neither active hand can use (its ActiveSkills weapon restriction, the client's FUN_141ee8410): the client
@@ -842,12 +877,13 @@ static partial class Game
     {
         string name = CharacterName(conn);
         return GemSkillEffectsAt(name, ItemsOf(conn).SocketedGemPlaces(),
-            InactiveItems.GetValueOrDefault(name), LeagueFor(conn));
+            InactiveItems.GetValueOrDefault(name), LeagueFor(conn), GrantedSkillsOf(conn));
     }
 
+    // The passives' granted skills (GrantedSkillsOf) follow the gems, with Gem 0 and their fixed level.
     internal static IEnumerable<(ushort Id, int Effect, string Name, int Level, int Quality, uint Gem)> GemSkillEffectsAt(
         string? character, IReadOnlyList<(byte Row, uint ItemId, int Socket, Item Gem)> places, IReadOnlySet<uint>? inactive,
-        LeagueRuntime league)
+        LeagueRuntime league, IReadOnlyList<PassiveGrantedSkills.Grant> granted)
     {
         var catalog = league.HardMode ? HardModeItems.Value : Items;
         string name = string.IsNullOrEmpty(character) ? "Exile" : character;
@@ -855,17 +891,21 @@ static partial class Game
             .Where(g => catalog.ByHash(g.Gem.TypeHash) is not { } type ? !league.HardMode : league.Rules.AllowsGemBase(type.Id))
             .SelectMany(g => catalog.GemEffects(g.Gem).Select(effect => (g.ItemId, g.Socket, g.Gem, Effect: effect))).ToList();
         var ids = GemSkillIdsOf.GetOrAdd(name, _ => new GemSkillIds())
-            .Assign([.. gems.Select(g => new GemSkillIds.Gem(g.ItemId, g.Socket, g.Effect))], GemSkillIdPool.Value);
+            .Assign([.. gems.Select(g => new GemSkillIds.Gem(g.ItemId, g.Socket, g.Effect)),
+                .. granted.Select(g => new GemSkillIds.Gem(g.Host, 0, g.Effect))], GemSkillIdPool.Value);
         // Gems in an inactive item grant nothing, but keep their id.
         for (int i = 0; i < gems.Count; i++)
             if (ids[i] is ushort id && inactive?.Contains(gems[i].ItemId) != true)
                 yield return (id, gems[i].Effect, catalog.GemName(gems[i].Gem), catalog.GemLevel(gems[i].Gem), gems[i].Gem.Quality, gems[i].Gem.TypeHash);
+        for (int i = 0; i < granted.Count; i++)
+            if (ids[gems.Count + i] is ushort id)
+                yield return (id, granted[i].Effect, granted[i].EffectId, granted[i].Level, 0, 0);
     }
 
     internal static double Dist((int X, int Y) a, (int X, int Y) b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
 
     // An attack gem used at the ground: a point beyond the weapon's reach is an attack-move (the client walks there);
-    // within reach it is a swing at the ground that pays the skill's mana even with nothing standing there (Â§5 of
+    // within reach it is a swing at the ground that pays the skill's mana even with nothing standing there (§5 of
     // 11-skills.md; live 2026-10-26: every empty point used to be walked, so swinging cost nothing).
     internal static bool GroundAttackWalks((int X, int Y) here, (int X, int Y) aim, double reach) => Dist(here, aim) > reach;
 
@@ -1037,7 +1077,7 @@ static partial class Game
         // and came back with the area change's 0x53), and a gem socketed again does not get its slot back by itself, so the
         // saved bar goes out again. Not when a skill the saved bar never had was added: the client binds a new skill to a free
         // slot itself (Câ†’S 0x4e), and the bar sent now would clear it there. A new gem skill gets an empty slot of the saved
-        // bar first (FillSkillBar: the right mouse button, then Q W E R T â€¦), so it goes out with the bar.
+        // bar first (FillSkillBar: the right mouse button, then Q W E R T …), so it goes out with the bar.
         FillSkillBar(conn);
         var saved = CharacterSaves.Load(CharacterName(conn))?.SkillBar?.Values;
         if (added.All(id => SkillEffectId(conn, id) is { } effect && saved?.Contains(effect) == true))

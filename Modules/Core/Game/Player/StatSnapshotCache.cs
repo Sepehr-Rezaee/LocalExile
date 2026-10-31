@@ -32,6 +32,8 @@ static partial class Game
         public required uint PlayerLife, PlayerMaxLife;
         public required bool EnergyShieldRecharging;
         public required double LifeRegenerationToEnergyShield;
+        /// <summary>Walking when the head was read: the while-moving regeneration in the Recovery rows (PanelStats.WhileMoving).</summary>
+        public required bool Moving;
         public required int BloodChargesHeld;
         public required bool BloodChargesShown;
         /// <summary>is_ignited, is_chilled, is_frozen, is_shocked, after reconciliation.</summary>
@@ -58,7 +60,7 @@ static partial class Game
             ReferenceEquals(Skills, o.Skills) && ReferenceEquals(Items, o.Items) && ClassRow == o.ClassRow
             && PlayerLife == o.PlayerLife && PlayerMaxLife == o.PlayerMaxLife
             && EnergyShieldRecharging == o.EnergyShieldRecharging
-            && LifeRegenerationToEnergyShield.Equals(o.LifeRegenerationToEnergyShield)
+            && LifeRegenerationToEnergyShield.Equals(o.LifeRegenerationToEnergyShield) && Moving == o.Moving
             && BloodChargesHeld == o.BloodChargesHeld && BloodChargesShown == o.BloodChargesShown
             && SuppressionChance == o.SuppressionChance && AttackEffectId == o.AttackEffectId
             && ActionFactor.Equals(o.ActionFactor) && Ailments.AsSpan().SequenceEqual(o.Ailments)
@@ -108,7 +110,7 @@ static partial class Game
     // Reads the tail's inputs. Called where the tail starts, after the head; stats is the head's (not copied).
     internal static StatSnapshotTailInputs ReadStatSnapshotTailInputs(ClientState conn, Dictionary<uint, int> stats,
         Dictionary<uint, int> rawOverrides, HashSet<uint> devSet, Dictionary<string, int> mainLocal, Dictionary<string, int> offLocal,
-        double lifeRegenerationToEnergyShield)
+        double lifeRegenerationToEnergyShield, bool moving)
     {
         var items = ItemsOf(conn);
         var mainRow = items.Items(PlayerInventories.Weapon1);
@@ -123,7 +125,7 @@ static partial class Game
             MainLocal = mainLocal, OffLocal = offLocal,
             PlayerLife = conn.PlayerLife, PlayerMaxLife = conn.PlayerMaxLife,
             EnergyShieldRecharging = conn.EnergyShield.Recharging,
-            LifeRegenerationToEnergyShield = lifeRegenerationToEnergyShield,
+            LifeRegenerationToEnergyShield = lifeRegenerationToEnergyShield, Moving = moving,
             BloodChargesHeld = bloodHeld, BloodChargesShown = bloodShown,
             Ailments = [], SuppressionChance = 0,
             AttackEffectId = SkillEffectId(conn, SkillCatalog.FirstSkillId),
@@ -193,7 +195,7 @@ static partial class Game
                 playerLevel: pools.Level)
                 .Concat(PanelStats.FromPools(Get, pools))
                 .Concat(PanelStats.Defence(Get, pools, Monsters.BaseDamage(pools.Level), Monsters.BaseAccuracy(pools.Level)))
-                .Concat(PanelStats.Recovery(Get, pools.Life, pools.Mana))
+                .Concat(PanelStats.Recovery(PanelStats.WhileMoving(Get, inputs.Moving), pools.Life, pools.Mana))
                 .Concat(LeechLimits.Compute(Get, pools.Life, pools.Mana, pools.EnergyShield,
                     name => Stats.Key(name) is uint key && rawOverrides.TryGetValue(key, out int value) ? value : null,
                     OnLowLife(stats)))
@@ -254,12 +256,18 @@ static partial class Game
                 if (Stats.Key(stat) is uint key && !devSet.Contains(key)) stats[key] = value;
             return stats;
         }
+        // The native walk (0x141e7c0b0), action clip (0x1419fad20) and animation rate (0x141e9deb0) read the final
+        // virtual_action_speed_+%, derived natively from the intermediary (0x14281c2d0) only in a calculator; network
+        // stats hold what is sent (04 §4.1a), so it is sent too. Only a clamp to -100 applies, so a reversed chill's
+        // positive value goes through. A freeze stays on is_frozen: -100 there would divide the native clip by zero.
         foreach (var (name, value) in new[] { "is_ignited", "is_chilled", "is_frozen", "is_shocked" }.Zip(inputs.Ailments))
             if (Stats.Key(name) is uint key && value != 0) stats[key] = stats.GetValueOrDefault(key) + value;
         if (Stats.Key("action_speed_-%") is uint actionSpeedKey && !devSet.Contains(actionSpeedKey))
             stats[actionSpeedKey] = (int)Math.Round(100 * (1 - inputs.ActionFactor));
         if (Stats.Key("intermediary_combined_action_speed_+%") is uint actionCombinedKey && !devSet.Contains(actionCombinedKey))
             stats[actionCombinedKey] = (int)Math.Round(100 * (inputs.ActionFactor - 1));
+        if (Stats.Key("virtual_action_speed_+%") is uint virtualActionKey && !devSet.Contains(virtualActionKey) && inputs.ActionFactor > 0)
+            stats[virtualActionKey] = (int)Math.Round(100 * (inputs.ActionFactor - 1));
         // The conditions as they are now; the player tick sends the chance again when they change.
         foreach (uint key in SuppressionChanceKeys) stats[key] = inputs.SuppressionChance;
         if (Stats.Key("main_hand_critical_strike_multiplier") is uint multiplier)
