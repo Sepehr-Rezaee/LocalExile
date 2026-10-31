@@ -60,9 +60,19 @@ sealed class QuestSimulator
 
     /// <summary>Whether the client has the flag: the character's own, a session flag, or a visited area's World panel flag.</summary>
     public bool Has(string flag) => Flags.Contains(flag) || SessionFlags.Contains(flag)
-        || Visited.Any(a => Quests.Names(visits.For(a)).Contains(flag) || areaFlags.GetValueOrDefault(a).Start?.Contains(flag) == true);
+        || Visited.Any(a => VisitFlags(a).Contains(flag));
 
-    IReadOnlySet<string> All => Flags.Concat(SessionFlags).Concat(Visited.SelectMany(a => Quests.Names(visits.For(a)).Concat(areaFlags.GetValueOrDefault(a).Start ?? []))).ToHashSet();
+    IReadOnlySet<string> All => Flags.Concat(SessionFlags).Concat(Visited.SelectMany(VisitFlags)).ToHashSet();
+
+    // A visited area's flags (its World panel visit and access flags, WorldAreas StartQuestFlags), the same every time: kept
+    // per area, as every Has asks them for every visited area.
+    readonly Dictionary<string, IReadOnlySet<string>> visitFlags = new(StringComparer.Ordinal);
+    IReadOnlySet<string> VisitFlags(string area)
+    {
+        if (!visitFlags.TryGetValue(area, out var names))
+            visitFlags[area] = names = Quests.Names(visits.For(area)).Concat(areaFlags.GetValueOrDefault(area).Start ?? []).ToHashSet(StringComparer.Ordinal);
+        return names;
+    }
 
     public QuestSimulator Set(IEnumerable<string> flags, bool on = true)
     {
