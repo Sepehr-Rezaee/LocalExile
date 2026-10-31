@@ -97,17 +97,17 @@ static partial class Game
     // its ways by these, so the server's checks follow them.
     internal static bool ClientHasQuestFlag(ClientState conn, string flag) => Quests.ClientHas(flag, conn.QuestFlagsSnapshot(), PlayerQuestFlags(conn));
 
-    // The first ground click in WashedUp sends this action instead of Move. It plays getup in place;
-    // treating its target coordinates as a walk would move only the server's position estimate.
+    // The first ground click in WashedUp sends this action instead of Move, and any other request to move gets it from the
+    // server (0x141e94fc0). It plays getup in place; treating a target as a walk would move only the server's position estimate.
     internal static async Task WakeUpOnBeach(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn,
-        InstanceProtocol.UseSkillAtLocation use, double requestedAt)
+        (int X, int Y)? target, ushort sequence, ushort flags, double requestedAt)
     {
         int action;
         (int X, int Y) here;
         using (ProjectileMutation(conn))
         {
             double now = ProjectileWorldTime(conn);
-            if (conn.Closed || conn.LeavingArea || conn.TutorialGettingUp || conn.PeerTemplate is not { WashedUp: true }
+            if (conn.Closed || conn.LeavingArea || conn.PlayerLife == 0 || !LyingOnBeach(conn)
                 || PlayerActionBlocked(conn, requestedAt, now)) return;
             requestedAt = Math.Max(requestedAt, conn.ProjectileRuntime?.Runtime.Now / 120000d ?? requestedAt);
             conn.TutorialGettingUp = true;
@@ -116,11 +116,20 @@ static partial class Game
             conn.Walk.Order(here.X, here.Y, requestedAt);
             conn.ChannelSkill = 0;
         }
+        var (x, y) = target ?? here;
         await Send(remote, stream, ciphers,
-            InstanceProtocol.ActionStarted(PlayerId, here.X, here.Y, use.X, use.Y, use.SkillId, use.Slot, use.Flags),
+            InstanceProtocol.ActionStarted(PlayerId, here.X, here.Y, x, y, TutorialObjects.WashedUpSkillId, sequence, flags),
             $"0x01ab player gets up on the beach at ({here.X}, {here.Y})",
-            still: () => PlayerActionCurrent(conn, action));
+            still: () =>
+            {
+                if (PlayerActionCurrent(conn, action)) return true;
+                // Dropped: the client is still down, so its next request tries again.
+                lock (conn.Monsters) conn.TutorialGettingUp = false;
+                return false;
+            });
     }
+
+    internal static bool LyingOnBeach(ClientState conn) => conn.PeerTemplate is { WashedUp: true } && !conn.TutorialGettingUp;
 
     // Ids of the invisible SunkenPassageBlockers on the server's walk estimate (blockers only: the client spawns them).
     internal const uint PassageBlockerFirstId = 0xff000000;

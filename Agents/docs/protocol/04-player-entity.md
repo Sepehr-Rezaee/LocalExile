@@ -341,6 +341,8 @@ For the beach introduction, Player's `+0x1b1` flag selects WashedUp (call site `
 and replaces the stance (call site `0x142192c50`). Both fields must agree or the character starts standing.
 All seven character `.act` files put WashedUp at stance 68; a first ground click sends action skill `0x37d9` and plays
 getup in place. Native checks with fresh Duelist and Witch characters confirmed both animations.
+Any other move request while down gets the action from the server instead (`0x141e94fc0`): skill `0x37d9` at the
+player's own cell, flags 0, with the sequence's top bit set. That path has not been checked in the client yet.
 The initial Positioned rotation uses the beach room's transformed `default` point angle, preserving its facing.
 Both belong to the owner's own object: the server relays no actions to observers, so a peer created in WashedUp would
 stay down on their screens. Peer creation clears the flag and the rotation, and the peer stands from the start.

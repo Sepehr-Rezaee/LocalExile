@@ -31,6 +31,11 @@ static partial class Game
     {
         lock (conn.Monsters)
             if (PlayerActionBlocked(conn, requestedAt, conn.Clock.Elapsed.TotalSeconds)) return;
+        if (LyingOnBeach(conn))
+        {
+            await WakeUpOnBeach(remote, stream, ciphers, conn, null, TutorialObjects.GetUpSequence, 0, requestedAt);
+            return;
+        }
         if (InTown(conn) && (SkillsFor(conn).IsGemSkill(use.SkillId) || use.SkillId == SkillCatalog.FirstSkillId)) return;
         if (SkillsFor(conn).IsGemSkill(use.SkillId) || use.SkillId == SkillCatalog.FirstSkillId)
             await EndGracePeriod(remote, stream, ciphers, conn, action: true);

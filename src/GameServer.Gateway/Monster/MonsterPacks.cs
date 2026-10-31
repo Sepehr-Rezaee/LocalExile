@@ -569,14 +569,13 @@ static class AreaPopulation
     }
 
     /// <summary>A room angle through a turn/flip [[a, b], [c, d]] (grid = M · room): a turn adds its own angle, a flip
-    /// mirrors the angle first. Only the identity is checked live (The Twilight Strand's town_entrance_exclude.arm,
-    /// whose captured doodads keep the room's angles mod 2π). For a flip this gives π − θ where
-    /// TutorialObjects.RoomPlacement.Place (and #236's town rooms, checked against the client) give 2π − θ; the flips'
-    /// matrices and codes are not matched here yet, so no mirrored room is relied on.</summary>
+    /// mirrors the angle and adds half a turn, the same angle as TutorialObjects.RoomPlacement.Place's codes 4..7 (#236's
+    /// town rooms, checked against the client). Here only the identity is checked live (The Twilight Strand's
+    /// town_entrance_exclude.arm, whose captured doodads keep the room's angles mod 2π).</summary>
     public static float TurnAngle(int a, int b, int c, int d, float angle)
     {
         float turn = MathF.Atan2(c, a);
-        if (a * d - b * c < 0) angle = -angle;
+        if (a * d - b * c < 0) { angle = -angle; turn += MathF.PI; }
         float r = (turn + angle) % (2 * MathF.PI);
         return r < 0 ? r + 2 * MathF.PI : r;
     }

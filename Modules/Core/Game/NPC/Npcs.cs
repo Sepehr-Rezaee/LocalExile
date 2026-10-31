@@ -77,8 +77,6 @@ static partial class Game
     {
         await GameEvents.RunNpcDialogueClosing(conn);
         uint id = conn.TalkingTo;
-        if (id != 0 && conn.InNpcTalk && IsWoundedExile() && conn.TutorialSceneRunning)
-            conn.TutorialDialogueSkipped?.TrySetResult();
         if (id != 0 && conn.InNpcTalk && !IsWoundedExile())
         {
             conn.InNpcTalk = false;

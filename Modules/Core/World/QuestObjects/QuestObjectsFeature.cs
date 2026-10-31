@@ -186,6 +186,7 @@ static class QuestObjectsFeature
         if (CharacterSaves.Load(CharacterName(conn))?.Tutorial is not { } tutorial) return;
         if (tutorial.Talked || conn.TutorialSceneRunning)
         {
+            TutorialObjects.SkipDialogue(conn);
             await Send(remote,stream,ciphers,InstanceNpcs.Talk(0),"0x0084 dying exile: opening scene already started");
             return;
         }

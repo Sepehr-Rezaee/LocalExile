@@ -15,13 +15,23 @@ static class TutorialObjects
     public const double BiteSeconds = 3.1;
     // ActionTypes WashedUp HASH16 47065, masked to its basic-action skill id.
     public const ushort WashedUpSkillId = 0x37d9;
+    // An action the server starts itself has the sequence's top bit set (0x141e94fc0); this is the character's first.
+    public const ushort GetUpSequence = 0x8001;
     public static (byte Option, double? BiteAt) Dialogue(bool armed, bool weaponPromptHeard) =>
         !armed ? ((byte)1, null) : weaponPromptHeard ? ((byte)3, 8.2) : ((byte)2, 22.8);
 
-    public static bool ShouldStartWashedUp(string area, CharacterSaves.OpeningTutorial? tutorial, bool weaponPending) =>
-        area == Strand && weaponPending && tutorial is
+    public static bool ShouldStartWashedUp(string area, bool weaponPending, Func<CharacterSaves.OpeningTutorial?> tutorial) =>
+        area == Strand && weaponPending && tutorial() is
         { WakeUpShown: false, WeaponPromptHeard: false, Talked: false, ZombieKilled: false,
           ChestOpened: false, SkillClaimed: false, SupportClaimed: false };
+
+    /// <summary>The exile's voice line ends when its window closes: the running scene goes on to the bite now.</summary>
+    public static void SkipDialogue(ClientState conn)
+    {
+        bool exile;
+        lock (conn.Npcs) exile = conn.Npcs.GetValueOrDefault(conn.TalkingTo)?.Npc.Id == Exile;
+        if (exile && conn.TutorialSceneRunning) conn.TutorialDialogueSkipped?.TrySetResult();
+    }
 
     public sealed record RoomPlacement(int X,int Y,int Width,int Height,int Code)
     {
@@ -31,7 +41,7 @@ static class TutorialObjects
             var (cx,cy)=Code switch {0=>(x,y),1=>(Height-y-1,x),2=>(Width-x-1,Height-y-1),3=>(y,Width-x-1),
                 4=>(Width-x-1,y),5=>(Height-y-1,Width-x-1),6=>(x,Height-y-1),7=>(y,x),_=>throw new ArgumentOutOfRangeException(nameof(Code))};
             // Mirrored codes 4..7 take 2π − θ, as the town rooms' NPC lines do (#236, TownNpcs.Room.Angle, from the client's
-            // own placements). AreaPopulation.TurnAngle gives π − θ for its flip matrices; only its identity is checked.
+            // own placements).
             float turn=MathF.PI*2,angle=(Code>=4?turn-point.Angle:point.Angle)+(Code&3)*MathF.PI/2;
             return new(point.Name,X+cx,Y+cy,(angle%turn+turn)%turn);
         }

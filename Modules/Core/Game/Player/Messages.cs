@@ -40,7 +40,7 @@ static partial class Game
                 double at = conn.ClockAt(readAt);   // when the client applied the click, not when this handler runs
                 if (use.SkillId == TutorialObjects.WashedUpSkillId)
                 {
-                    await WakeUpOnBeach(remote, stream, ciphers, conn, use, at);
+                    await WakeUpOnBeach(remote, stream, ciphers, conn, (use.X, use.Y), use.Slot, use.Flags, at);
                     continue;
                 }
                 // A gem skill cast at the ground (Fireball) stops the player where it stands; anything else (Move) walks there.

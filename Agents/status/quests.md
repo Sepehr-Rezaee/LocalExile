@@ -49,8 +49,10 @@ Part of [Status](../Status.md); what to build next in this area is in
   Their first arrival starts lying down, facing the room's fitted start direction, and the first click plays getup
   in place. The introduction is saved once and does not reset progressed characters.
   Other players in the instance see the character standing throughout.
-  A Gateway regression covers the wake-up state and spawn rotation alongside Vaal soul budgets,
-  including soul-only Actor payloads and characters whose wake-up introduction has already been shown.
+  A first click on an object gets the character up the same way, instead of walking to it.
+  That follows the client's own server code and has not been checked in the client yet.
+  A Gateway regression covers the get-up echo and retry, both room-angle formulas and the wake-up bytes alongside
+  Vaal soul budgets, including soul-only Actor payloads and progressed characters.
   The support gem comes from its chest, which requires the player to walk into range.
   Placements use captured room data and gem claims are saved once; existing characters keep their items and progress.
   The complete Witch weapon, zombie/gem and chest/support-gem sequence was checked live.

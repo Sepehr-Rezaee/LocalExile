@@ -337,6 +337,8 @@ radians, rather than the previous fixed zero (the opposite direction).
 The Player WashedUp flag and Actor stance 68 must both be sent ([04](04-player-entity.md) §4.6 and §4.9).
 The first ground click sends basic action `WashedUp` (ActionTypes HASH16 47065, skill id `0x37d9`), which plays getup
 in place; the server echoes that action without walking its position estimate toward the click.
+A first click on an object takes the server's path instead: `0x141e94fc0` answers a washed-up player's move request
+with `WashedUp` at the player's own cell and a top-bit sequence, so the object is not walked to.
 `Tutorial.WakeUpShown` saves the introduction once the player is sent; later logins and progressed saves start standing.
 Talking without an equipped weapon plays the weapon prompt and saves `Tutorial.WeaponPromptHeard`.
 With a weapon, the first conversation uses NPCTalk option 2; after the prompt it uses option 3.
@@ -346,7 +348,8 @@ The bite starts after the selected dialogue's 8.2 or 22.8 seconds, or immediatel
 Closing the unarmed weapon prompt does not start the bite.
 The scene zombie's rig gives its bite clip 3100 ms; after those 3.1 seconds it is replaced by the combat zombie.
 The bite wait starts at its actual transition time, so skipped speech does not leave the original voice-length delay.
-Both waits use the paused instance clock, skipping during pause waits for resume, and another exile click cannot restart it.
+Both waits use the paused instance clock, and skipping during pause waits for resume.
+Another exile click cannot restart the scene; it closes the dialogue, so it starts the bite as closing does.
 The former fixed 8.2-second bite and 22.8-second handoff started the bite before the long voice finished and left it still
 for approximately 11.5 seconds after its animation finished.
 Saves without `WeaponPromptHeard` default to the introductory dialogue; other saved progress is preserved.
