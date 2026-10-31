@@ -1303,6 +1303,20 @@ Live 2026-10-18 with the Witch's Fireball. Code: `SkillCatalog.EffectStats`, `Ge
   time: the Witch's `spell_projectile_wand` in `Art/Models/CHARACTERS/Witch/rig.amd` is 1066 ms long with `contact` at
   599 ms, so Fireball leaves after 56% of the cast. `python -I scripts/re/anim_contacts.py` writes every class's
   contacts to data/animation-contacts.json (`AnimationContacts`); the Gateway waits cast time × that fraction.
+  An area spell plays its action's Animation.dat row: the spell action base `0x1419e6e30` asks virtual +0x4e0 (the
+  base `0x1412402d0` returns 0x16, row 22 `SpellAreaOfEffect`); the IceNova action (ActionTypes 0x2748, constructor
+  `0x141bff6a0`, vtable `0x14353b5b0`) overrides it with `0x141241c10`, `mov eax, 0x21`: row 33
+  `SpellAreaOfEffectCold`. The class ACT maps that to `@SpellAreaOfEffect`, i.e. `spell_aoe_<stance>`
+  (`spellaoe_` in the StrDex/DexInt/StrInt/StrDexInt rigs); the Witch's is 766 ms with contact at 266, so a 700 ms
+  Ice Nova releases after 243 ms (`AnimationContacts.SpellAreaRelease`). `AreaSkillHit` waited the whole cast until
+  2026-10-31, about 450 ms after the client's nova. Other area spells use the same lookup; their own action
+  overrides were not read.
+  **Ice Nova's ring.** The IceNova action's update (`0x141c00180`, vtable slot 0x118) grows the ring by elapsed / 0.2 s
+  (0.25 s with `skill_art_variation` 3) × `active_skill_area_of_effect_radius` (`0x141c00430`) and hits every target
+  within it, so a victim at the edge is hit 0.2 s after one at the centre. `AreaSkillHit` sorts the victims by
+  distance and waits for each (`IceNovaRing`); once released, the ring no longer depends on the player's action.
+  Not modelled: `spell_repeat_count` repeats (0.3 s apart in the same update, each with `ice_nova_radius_+%_per_repeat`)
+  and Frostbolt casting (`active_skill_area_of_effect_+%_final_when_cast_on_frostbolt`).
 - **Cast speed (#192).** Genuine Spell/non-Attack skills keep the catalog milliseconds in both
   `base_spell_cast_time_ms` and `virtual_base_spell_cast_time_ms`. The native spell action already divides that
   virtual base by `1 + cast_speed_+% / 100`; pre-dividing it on the server applied cast speed twice.
@@ -1504,7 +1518,8 @@ Live 2026-10-18 with the Witch's Fireball. Code: `SkillCatalog.EffectStats`, `Ge
 
 Only projectile skills (Fireball) and Righteous Fire dealt damage: every other gem skill logged "no projectile". Now
 `AreaSkillHit` gives them one hit, at the attack's contact keyframe (attacks, as the default attack but without the
-walk-in offset) or after the cast (spells), on every living monster
+walk-in offset) or at the area cast clip's contact (spells: `AnimationContacts.SpellAreaRelease`, see Release in §9;
+until 2026-10-31 after the whole cast; Ice Nova's victims as its ring reaches them), on every living monster
 within the skill's `active_skill_base_area_of_effect_radius` (in cells, else 12, grown by area of effect as Righteous
 Fire's: `SkillArea`; halved before 2026-10-23, which the units do not support) of the aimed
 point, or of the player when a melee skill is aimed too far. Attacks use the default attack's hit (`WeaponFor`: the

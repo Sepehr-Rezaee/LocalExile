@@ -68,12 +68,12 @@ static partial class Game
     // The original per-type damage draws still precede the original critical Next(10000). Conditional luck adds
     // at most one following draw. This RNG order is a local policy, not evidence of the official server's sequence.
     internal static bool RollCriticalStrike(ClientState conn, int chance, IReadOnlyDictionary<uint, int>? own = null,
-        bool attack = true, SkillCriticalRoll? skillRoll = null)
+        bool attack = true, SkillCriticalRoll? skillRoll = null, IReadOnlyDictionary<uint, int>? player = null)
     {
         if (chance <= 0 && !HoldingFishingRod(conn)) return false;
         lock (conn.Monsters)
         {
-            var player = CharacterPlayerStats(conn);
+            player ??= CharacterPlayerStats(conn);
             if (AlwaysCritical(conn, name => Stats.Key(name) is uint key ? player.GetValueOrDefault(key) : 0))
                 return !CriticalProhibitedBy(player, attack, own);
             if (chance <= 0) return false;
