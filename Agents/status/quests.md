@@ -56,8 +56,8 @@ Part of [Status](../Status.md); what to build next in this area is in
   handed in, removed, used), dialogue flags and scripts, session flags and the rewards come from the client's data.
   Quest passive points (QuestStaticRewards) are counted from the flags into the tree's `extra_skill_points` and stay
   after a relog; refund points are credited once (the Book of Regrets: 54 → 56); QuestStaticRewards' stats are stat
-  sources. `QuestSimulator` plays an act's events through the engine; `QuestEngineTests` checks Acts 1–3 against
-  `Act1Complete`, `Act2CompleteEramir` and `Act3Complete`.
+  sources. `QuestSimulator` plays an act's events through the engine; `QuestEngineTests` checks Acts 1–6 against
+  `Act1Complete`, `Act2CompleteEramir`, `Act3Complete`, `Act4Complete` and every Act 5 and 6 quest's "complete" row.
   What existing saves see: a character with `a10q3-SeenBoss` but without `EndGameAvailable` earned no longer has the
   Act 10 −30% resistance penalty (it follows `EndGameAvailable`, QuestStaticRewards 39); a second copy of a quest book
   (from `/item`) is used up without its points once the first was used; a quest item lying on the ground after its
@@ -105,6 +105,23 @@ Part of [Status](../Status.md); what to build next in this area is in
   Code: `Acts/Act2.cs`, `Acts/Act3.cs` (QuestObjects module).
   Docs: [12](../docs/protocol/12-quests.md) §11–12; [act 2](../docs/game/campaign/act2.md),
   [act 3](../docs/game/campaign/act3.md).
+- Acts 4, 5 and 6 (live 2026-10-30, seed 1, on the engine before the modules: a fresh Witch from `/quest_preset
+  Act3Complete`, the campaign runner unattended; on the modules checked by the oracle, not yet with the client): a4q2
+  (Voll, Deshret's Banner, the seal opens the Mines), a4q6 (Deshret's spirit, the book), a4q3 and a4q4 (Dialla at the
+  Rapture, Kaom, Daresso, both Eyes handed in), a4q5 (the Rapture Device, Piety in the Belly and her talk, the three
+  guardians' organs in one click, the Black Core), a4q1 (Malachai's second form, the withered Dialla opening the Ascent,
+  her reward), a5q1a (the Resonator), a5q1b, a5q3, a5q2, a5q4 (the Templar Courts door, Avarius → Innocence, Sin's talk,
+  burnt Oriath's exits to their own versions of the areas), a5q5 (Bannon, Utula), a5q7 (the relic cases, one click) and
+  a5q6 (the Ossuary tomb, the Sign in its socket wakes Kitava, `/kill` reaches his threshold: `a5q6-CompletedBoss`,
+  −30 %; Lilly sails to Lioneye's Watch), then a6q4 (The Twilight Strand cleared), a6q5, a6q3 (Tukohama), a6q2
+  (Shavronne), a6q7 (Abberath, both phases), a6q6 (Ryslatha) and a6q1 (the three Nessas, the Beacon lit, the Black
+  Flag, the Brine King; Weylam sails to The Bridge Encampment). It ended in 2_7_town with every flag of `Act4Complete`
+  and the act 5/6 completion flags; every area change through an exit, a waypoint or an NPC-script transport. The god
+  Sins appear where the gods die. `a4q1-KillGuardians` is not set; the Beacon's fuel carts are left out (the lever
+  lights it). Driver step files `scripts/dev/campaign/quests/a4q*.py`, `a5q*.py`, `a6q*.py`.
+  Code: `Acts/Act4.cs`, `Acts/Act5.cs`, `Acts/Act6.cs` (QuestObjects module), Highgate's two Diallas in `NPC/TownNpcs.cs`.
+  Docs: [12](../docs/protocol/12-quests.md) §13–15; [act 4](../docs/game/campaign/act4.md),
+  [act 5](../docs/game/campaign/act5.md), [act 6](../docs/game/campaign/act6.md).
 
 - New characters pick up their class weapon, talk to the dying exile and kill the biting zombie for their skill gem.
   The support gem comes from its chest, which requires the player to walk into range.

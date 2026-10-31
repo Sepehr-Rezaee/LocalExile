@@ -118,13 +118,15 @@ static class TownNpcs
             new(Npc + "Act3/Maramoa", 305, 350, -1.36175f, Z: -62.5f),
             new(Npc + "Act3/ClarissaTown", 179, 376, -0.985034f, Z: 54.6875f),
         ]),
-        // town.dgr: R270. Also DiallaTownWithered at (250, 553), her later stage.
+        // town.dgr: R270. Both Diallas: DiallaTown, and DiallaTownWithered, her stage once the Rapture Device works
+        // (Acts/Act4.cs: a4q1-RaptureActivated decides which one stands there).
         new(0xb63e, "1_4_town", new("Metadata/Terrain/Act4/Town/Rooms/town.arm", 759, 943, 3),
         [
             new(Npc + "Act4/Kira", 252, 160, 2.82952f, Z: -335.938f),
             new(Npc + "Act4/Oyun", 260, 566, -0.469922f, Z: -695.313f),
             new(Npc + "Act4/PetarusVanja", 206, 213, 0.520564f, Z: -335.938f),
             new(Npc + "Act4/DiallaTown", 253, 555, 1.11073f, Z: -695.313f),
+            new(Npc + "Act4/DiallaTownWithered", 250, 553, 0.399797f, Model: "Metadata/NPC/Act4/DiallaWithered.ao"),
             new(Npc + "Act4/Tasuni", 311, 407, 0.00824316f, Z: -392.663f),
         ]),
         // 1_5_town.dgr: I.

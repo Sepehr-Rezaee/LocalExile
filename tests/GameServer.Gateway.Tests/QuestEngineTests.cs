@@ -4,6 +4,9 @@ using GameServer.Modules.M_questobjects;
 using static Act1Areas;
 using static Act2Areas;
 using static Act3Areas;
+using static Act4Areas;
+using static Act5Areas;
+using static Act6Areas;
 using static Quests;
 
 namespace GameServer.Gateway.Tests;
@@ -32,6 +35,13 @@ public sealed class QuestEngineTests
     const string Maramoa = "Metadata/NPC/Act3/Maramoa", Clarissa = "Metadata/NPC/Act3/ClarissaTown", Grigor = "Metadata/NPC/Act3/Grigor",
         Hargan = "Metadata/NPC/Act3/Hargan", Dialla = "Metadata/NPC/Act3/Dialla", Siosa = "Metadata/NPC/Act3/Siosa",
         FairgravesDocks = "Metadata/NPC/Act3/Fairgraves", DiallaTower = "Metadata/NPC/Act3/DiallaTower";
+    const string Oyun = "Metadata/NPC/Act4/Oyun", Tasuni = "Metadata/NPC/Act4/Tasuni", BookA4q6 = "Metadata/Items/QuestItems/Act4/Book-a4q6";
+    const string Lani = "Metadata/NPC/Act5/Lani", Vilenta = "Metadata/NPC/Act5/Vilenta", UtulaTown = "Metadata/NPC/Act5/Utula",
+        BookA5q3 = "Metadata/Items/QuestItems/Act5/Book-a5q3", BookA5q7 = "Metadata/Items/QuestItems/Act5/Book-a5q7";
+    const string Tarkleigh6 = "Metadata/NPC/Act6/Tarkleigh", Bestel6 = "Metadata/NPC/Act6/Bestel", Lilly6 = "Metadata/NPC/Act6/Lilly",
+        SinTown6 = "Metadata/NPC/Act6/SinTown";
+    const string BookA6q3 = "Metadata/Items/QuestItems/Act6/Book-a6q3", BookA6q4 = "Metadata/Items/QuestItems/Act6/Book-a6q4",
+        BookA6q6 = "Metadata/Items/QuestItems/Act6/Book-a6q6", BookA6q7 = "Metadata/Items/QuestItems/Act6/Book-a6q7";
 
     /// <summary>The engine's data-driven parts: quest items by their .it Quest component (flags, drops, the carried sync,
     /// hand-ins, pickups), QuestStaticRewards (passive, refund and ascendancy points, stats; refunds credited once in the
@@ -129,6 +139,8 @@ public sealed class QuestEngineTests
         Assert.Equal([Act3Items.Plum, Act3Items.Decanter], HandsIn(Act3Objects.Fairgraves, "A Swig of Hope", 496));
         Assert.Empty(HandsIn(Act3Objects.Fairgraves, "A Swig of Hope", 493));
         Assert.Equal(Act3Items.Busts, HandsIn(Act3Objects.Hargan, "Victario's Holdfasts", 355));
+        // Piety's "Malachai's Organs" (rows 624-627, one text) takes every organ carried.
+        Assert.Equal([Act4Items.Lungs, Act4Items.Heart, Act4Items.Entrails], HandsIn(Act4Npcs.PietyHarvest, "Malachai's Organs", 624));
 
         // A book offer has no taken flag: its book's flags tell it taken.
         var offers = QuestRewardCatalog.Load();
@@ -155,11 +167,13 @@ public sealed class QuestEngineTests
 
         // The registry: the module's acts, in order, until the registration goes; they run only for a league that lists
         // the module that gave them.
-        Assert.Equal([1, 2, 3], QuestObjectsModule.Acts().Select(a => a.Number));
+        Assert.Equal([1, 2, 3, 4, 5, 6], QuestObjectsModule.Acts().Select(a => a.Number));
         Assert.Equal(["a1q1", "a1q5", "a1q4", "a1q8", "a1q7", "a1q2", "a1q6", "a1q3", "a1q9"], All.Take(9).Select(q => q.Id));
         Assert.Equal(["a2q11", "a2q10", "a2q6", "a2q4", "a2q5", "a2q9", "a2q7", "a2q8"], All.Where(q => q.Id.StartsWith("a2")).Select(q => q.Id));
         Assert.Equal(["a3q1", "a3q2", "a3q11", "a3q3", "a3q4", "a3q5", "a3q8", "a3q12", "a3q13", "a3q9", "a3q10"],
             All.Where(q => q.Id.StartsWith("a3")).Select(q => q.Id));
+        Assert.Equal(["a4q1", "a4q2", "a4q3", "a4q4", "a4q5", "a4q6", "a5q1a", "a5q1b", "a5q2", "a5q3", "a5q4", "a5q5", "a5q6", "a5q7",
+            "a6q1", "a6q2", "a6q3", "a6q4", "a6q5", "a6q6", "a6q7"], All.Where(q => q.Id is ['a', '4' or '5' or '6', ..]).Select(q => q.Id));
         int own = All.Count;
         Assert.Same(Everything, For(new HashSet<string> { "Game", "QuestObjects" }));
         Assert.True(For(new HashSet<string> { "Game" }).IsEmpty);
@@ -375,6 +389,122 @@ public sealed class QuestEngineTests
             .Talk(DiallaTower, "Dominus").Talk(DiallaTower, "Highgate").Enter(Aqueduct).Enter("1_4_town");
     }
 
+    /// <summary>Act 4 as the driver plays it (order.py): a4q2 (with a4q1's first talks), a4q6, a4q3, a4q4, a4q5 (with a4q1's
+    /// Rapture and Piety), a4q1 (Malachai, the Rapture reward) and a5q1a, the Resonator into Act 5.</summary>
+    internal static void Act4(QuestSimulator s)
+    {
+        // a4q1's start, a4q2 Breaking the Seal (DiallaAqueduct's "Highgate", NPCTalk 509, is optional: only the log uses it)
+        s.Enter(Aqueduct, travel: true).Enter(Highgate).Talk(Act4Npcs.DiallaTown, "Oyun")
+            .Talk(Oyun, "Introduction").Talk(Oyun, "The Red Banner")
+            .Enter(DriedLake, travel: true).See(Act4Monsters.Voll).Kill(Act4Monsters.Voll).PickUp(Act4Items.RedBanner)
+            .Enter(Highgate, travel: true).Use(Act4Objects.Seal).Talk(Oyun, "The Red Banner").Reward(Oyun, "Red Banner Reward");
+        // a4q6 An Indomitable Spirit
+        s.Talk(Tasuni, "Deshret").Enter(Mines1).Enter(Mines2).Near(Act4Objects.DeshretSpirit).Use(Act4Objects.DeshretSpirit)
+            .Enter(Highgate, travel: true).Talk(Tasuni, "Deshret").Reward(Tasuni, "Deshret Reward").UseItem(BookA4q6);
+        // a4q3 The King of Fury (Dialla sends the player to the Rapture Device first)
+        s.Talk(Act4Npcs.DiallaTown, "Malachai").Enter(CrystalVeins, travel: true).Near(Act4Npcs.DiallaRapture)
+            .Talk(Act4Npcs.DiallaRapture, "The Rapture", 0)
+            .Enter(KaomsStronghold, travel: true).See(Act4Monsters.Kaom).Kill(Act4Monsters.Kaom).PickUp(Act4Items.KaomGem)
+            .Enter(CrystalVeins, travel: true).Talk(Act4Npcs.DiallaRapture, "The Eye of Fury");
+        // a4q4 The King of Desire
+        s.Enter(GrandArena, travel: true).See(Act4Monsters.Daresso).Kill(Act4Monsters.Daresso).PickUp(Act4Items.DaressoGem)
+            .Enter(CrystalVeins, travel: true).Talk(Act4Npcs.DiallaRapture, "The Eye of Desire");
+        // a4q5 Corpus Malachus: the Rapture Device, Piety in the Belly, the organs in The Harvest
+        s.Talk(Act4Npcs.DiallaRapture, "The Rapture", 8).Talk(Act4Npcs.DiallaRapture, "The Rapture", 9)
+            .Enter(Belly1).Enter(Belly2).See(Act4Monsters.PietyBeast).Kill(Act4Monsters.PietyBeast)
+            .Talk(Act4Npcs.PietyBelly, "Nightmare").Talk(Act4Npcs.PietyBelly, "Malachai")
+            .Enter(Harvest).Kill(Act4Monsters.Doedre).PickUp(Act4Items.Lungs).Kill(Act4Monsters.Maligaro).PickUp(Act4Items.Heart)
+            .Kill(Act4Monsters.Shavronne).PickUp(Act4Items.Entrails)
+            // Rows 624-627 share their text: one click hands in all three organs (1-3), then the Black Core (4).
+            .Talk(Act4Npcs.PietyHarvest, "Malachai's Organs", 1).Talk(Act4Npcs.PietyHarvest, "Malachai's Organs", 4);
+        // a4q1 The Eternal Nightmare: Malachai, then Highgate's withered Dialla
+        s.See(Act4Monsters.Malachai).Kill(Act4Monsters.Malachai).Kill(Act4Monsters.Malachai2)
+            .Enter(Highgate, travel: true).Talk(Tasuni, "Malachai", 23).Talk(Act4Npcs.DiallaTownWithered, "Malachai", 4)
+            .Talk(Act4Npcs.DiallaTownWithered, "The Rapture Device").Reward(Act4Npcs.DiallaTownWithered, "Rapture Reward");
+        // a5q1a Return to Oriath: the Resonator on The Ascent
+        s.Enter(Ascent).Near(Act4Objects.ResonatorLever).Use(Act4Objects.ResonatorLever).Enter(SlavePens);
+    }
+
+    /// <summary>Act 5 as the driver plays it: a5q1b, a5q3 and a5q2 (both in The Control Blocks), a5q4, a5q5, a5q7, a5q6
+    /// (Kitava's threshold) and Lilly's voyage to Act 6. (Act5Areas' ControlBlocks, Reliquary, Ossuary and CathedralRooftop
+    /// are named in full: Act 10 has areas of the same names.)</summary>
+    internal static void Act5(QuestSimulator s)
+    {
+        // a5q1b Return to Oriath
+        s.See(Act5Monsters.Krow).Kill(Act5Monsters.Krow).Enter(OverseersTower).Talk(Lani, "Overseer Krow").Reward(Lani, "Overseer Reward");
+        // a5q3 In Service to Science and a5q2 The Key to Freedom
+        s.Talk(Vilenta, "Miasmeter").Talk(UtulaTown, "Introduction").Talk(UtulaTown, "Justicar Casticus")
+            .Enter(Act5Areas.ControlBlocks, travel: true).OpenChest(Act5Objects.SupplyChest).PickUp(Act5Items.Miasmeter)
+            .See(Act5Monsters.Casticus).Kill(Act5Monsters.Casticus).PickUp(Act5Items.EyesOfZeal)
+            .Enter(OverseersTower, travel: true).Talk(Vilenta, "Miasmeter").Reward(Vilenta, "Miasmeter Reward")
+            .UseItem(BookA5q3).Talk(Lani, "Justicar Casticus").Reward(Lani, "Casticus Reward");
+        // a5q4 Death to Purity: the Templar Courts door, Avarius into Innocence, Sin
+        s.Enter(OriathSquare, travel: true).Use(Act5Objects.TemplarCourtsDoor).Enter(TemplarCourts).Enter(ChamberOfInnocence)
+            .See(Act5Monsters.Avarius).Kill(Act5Monsters.Avarius).See(Act5Monsters.Innocence).Kill(Act5Monsters.Innocence)
+            .Talk(Act5Npcs.SinInnocence, "Kitava")
+            .Enter(OverseersTower, travel: true).Talk(Lani, "High Templar Avarius").Reward(Lani, "Avarius Reward");
+        // a5q5 The King's Feast: Bannon, Utula in The Ruined Square
+        s.Enter(ChamberOfInnocence, travel: true).Talk(Act5Npcs.BannonInnocence, "Rescue")
+            .Enter(OverseersTower, travel: true).Talk(Act5Npcs.BannonTown, "Introduction").Talk(Act5Npcs.BannonTown, "Utula")
+            .Enter(RuinedSquare, travel: true).See(Act5Monsters.Utula).Kill(Act5Monsters.Utula)
+            .Enter(OverseersTower, travel: true).Talk(Act5Npcs.BannonTown, "Utula").Reward(Act5Npcs.BannonTown, "Utula Reward");
+        // a5q7 Kitava's Torments: Lani takes the three in one click
+        s.Talk(Lani, "Kitava's Torments").Enter(Act5Areas.Reliquary, travel: true)
+            .OpenChest(Act5Objects.RelicCases[0]).PickUp(Act5Items.TukohamasTooth)
+            .OpenChest(Act5Objects.RelicCases[1]).PickUp(Act5Items.HinekorasHair)
+            .OpenChest(Act5Objects.RelicCases[2]).PickUp(Act5Items.ValakosJaw)
+            .Enter(OverseersTower, travel: true).Talk(Lani, "Kitava's Torments").Reward(Lani, "Torments Reward").UseItem(BookA5q7);
+        // a5q6 The Ravenous God: the Sign of Purity, Kitava's threshold (he never dies), Lilly sails to Lioneye's Watch
+        s.Enter(TorchedCourts, travel: true).Enter(RuinedSquare, travel: true).Enter(Act5Areas.Ossuary)
+            .OpenChest(Act5Objects.PurityBox).PickUp(Act5Items.SignOfPurity)
+            .Enter(Act5Areas.CathedralRooftop, travel: true).Use(Act5Objects.ArenaSocket)
+            .See(Act5Monsters.Kitava).Kill(Act5Monsters.Kitava)
+            .Talk(Act5Npcs.SinKitava, "Kitava").Talk(Act5Npcs.Lilly, "Sail to Wraeclast").Enter(LioneyesWatchAct6, travel: true);
+    }
+
+    /// <summary>Act 6 as the driver plays it: a6q4, a6q5, a6q3 (with a6q1's first Nessa), a6q2, a6q7 (the second Nessa),
+    /// a6q6, a6q1 (the third, the Beacon, the Brine King) and Weylam's voyage to Act 7.</summary>
+    internal static void Act6(QuestSimulator s)
+    {
+        s.Talk(Tarkleigh6, "Introduction").Talk(Tarkleigh6, "Nessa").Talk(SinTown6, "Shavronne of Umbra");
+        // a6q4 Fallen from Grace
+        s.Talk(Lilly6, "Introduction").Talk(Lilly6, "The Twilight Strand").Enter(TwilightStrandAct6).Clear()
+            .Enter(LioneyesWatchAct6, travel: true).Talk(Lilly6, "The Twilight Strand").Reward(Lilly6, "Twilight Strand Reward")
+            .UseItem(BookA6q4);
+        // a6q5 Bestel's Epic
+        s.Talk(Bestel6, "Bestel's Epic").Enter(CoastAct6, travel: true).Enter(TidalIslandAct6)
+            .OpenChest(Act6Objects.BestelChest).PickUp(Act6Items.BestelsManuscript)
+            .Enter(LioneyesWatchAct6, travel: true).Talk(Bestel6, "Bestel's Epic").Reward(Bestel6, "Bestel's Epic Reward");
+        // a6q3 The Father of War (the first Nessa)
+        s.Enter(MudFlatsAct6, travel: true).Near(Act6Npcs.NessaMudFlats).Near(Act6Objects.MudFlatsKaruiDoor)
+            .Enter(LioneyesWatchAct6, travel: true).Talk(Tarkleigh6, "The Karui Fortress")
+            .Enter(MudFlatsAct6, travel: true).Kill(Act6Monsters.DishonouredQueen).PickUp(Act6Items.EyeOfConquest)
+            .Use(Act6Objects.MudFlatsKaruiDoor).Enter(KaruiFortress).Near(Act6Objects.FortressKaruiDoor)
+            .See(Act6Monsters.Tukohama).Kill(Act6Monsters.Tukohama).Talk(Act6Npcs.SinTukohama, "Tukohama")
+            .Enter(LioneyesWatchAct6, travel: true).Talk(Tarkleigh6, "Tukohama").Reward(Tarkleigh6, "Tukohama Reward").UseItem(BookA6q3);
+        // a6q2 Essence of Umbra
+        s.Enter(Ridge, travel: true).Enter(LowerPrisonAct6).Enter(ShavronnesTower).See(Act6Monsters.Shavronne).Kill(Act6Monsters.Brutus)
+            .Kill(Act6Monsters.Shavronne).Talk(Act6Npcs.SinShavronne, "Shavronne")
+            .Enter(LioneyesWatchAct6, travel: true).Talk(Tarkleigh6, "Shavronne of Umbra").Reward(Tarkleigh6, "Shavronne Reward");
+        // a6q7 The Cloven One (the second Nessa)
+        s.Talk(Bestel6, "Abberath").Enter(PrisonersGateAct6, travel: true).Near(Act6Npcs.NessaPrisonersGate)
+            .See(Act6Monsters.Abberath).Kill(Act6Monsters.Abberath).Kill(Act6Monsters.Abberath2).Talk(Act6Npcs.SinAbberath, "Abberath")
+            .Enter(LioneyesWatchAct6, travel: true).Talk(Bestel6, "Abberath").Reward(Bestel6, "Abberath Reward").UseItem(BookA6q7);
+        // a6q6 The Puppet Mistress
+        s.Talk(Tarkleigh6, "The Puppet Mistress").Enter(WetlandsAct6, travel: true).See(Act6Monsters.Ryslatha).Kill(Act6Monsters.Ryslatha)
+            .Talk(Act6Npcs.SinRyslatha, "Ryslatha")
+            .Enter(LioneyesWatchAct6, travel: true).Talk(Tarkleigh6, "The Puppet Mistress").Reward(Tarkleigh6, "Puppet Mistress Reward")
+            .UseItem(BookA6q6);
+        // a6q1 The Brine King: the third Nessa, the Black Flag, the Beacon, the Reef, Weylam to Act 7
+        s.Enter(CavernOfAngerAct6, travel: true).Near(Act6Npcs.NessaMerveilsCaverns)
+            .OpenChest(Act6Objects.BlackFlagChest).PickUp(Act6Items.BlackFlag)
+            .Enter(Beacon, travel: true).Near(Act6Objects.BeaconCamera).Use(Act6Objects.BeaconLever).Use(Act6Objects.BeaconStatue)
+            .Talk(Act6Npcs.WeylamBeacon, "Introduction").Talk(Act6Npcs.WeylamBeacon, "Sail to the Brine King's Reef")
+            .Enter(BrineKingsReef, travel: true).See(Act6Monsters.BrineKing).Kill(Act6Monsters.BrineKing)
+            .Talk(Act6Npcs.SinBrineKing, "The Brine King").Talk(Act6Npcs.WeylamReef2, "Sail to the Bridge Encampment")
+            .Enter(BridgeEncampment, travel: true);
+    }
+
     /// <summary>Plays an act's sequence, failing the test with the step the game would refuse.</summary>
     static void Play(QuestSimulator s, Action<QuestSimulator> act)
     {
@@ -488,5 +618,66 @@ public sealed class QuestEngineTests
         swig.Set(["a3q13-HavePlum", "a3q13-HaveDecanter"]).Talk(FairgravesDocks, "A Swig of Hope");
         Assert.True(swig.Has("a3q13-PlumDelivered") && swig.Has("a3q13-DecanterDelivered"));
         Assert.Empty(swig.Carried);
+
+        // Act 4 after Act 3: Act4Complete; a4q6's book (a passive and two refund points). a5q1a has no "complete" row (every
+        // state needs Visited-5_1 missing: it leaves the log in The Slave Pens).
+        Play(s, Act4);
+        PresetHolds(s, "Act4Complete");
+        Assert.Equal((8, 8), (s.PassivePoints, s.RefundPoints));
+        Assert.Equal(SlavePens, s.Area);
+        Assert.Empty(s.Carried);
+        Assert.True(s.Has("a5q1-UsedResonator") && s.Has("Visited-5_1"));
+        Assert.Null(states.Current("a5q1a", s.Has));
+        // Act 5: every quest complete, a5q3's and a5q7's books; Kitava never dies, his threshold sets a5q6-CompletedBoss
+        // (QuestStaticRewards 38: the −30% Game.ResistancePenalty mirrors).
+        Play(s, Act5);
+        string[] act5 = ["a5q1b", "a5q2", "a5q3", "a5q4", "a5q5", "a5q6", "a5q7"];
+        Assert.Empty(act5.Where(q => !states.Complete(q, s.Has)).Select(q => $"{q}: {states.Current(q, s.Has)?.Text ?? "not started"}"));
+        Assert.Equal((10, 10), (s.PassivePoints, s.RefundPoints));
+        Assert.True(s.Has("a5q6-CompletedBoss"));
+        Assert.Equal(50, ThresholdOf(Act5Areas.CathedralRooftop, Act5Monsters.Kitava)?.LifePct);
+        Assert.True(QuestSpawned(Act5Areas.CathedralRooftop, Act5Monsters.Kitava) && QuestSpawned(ChamberOfInnocence, Act5Monsters.Innocence));
+        Assert.Equal(LioneyesWatchAct6, s.Area);
+        Assert.Empty(s.Carried);
+        // Act 6: every quest complete, the books of a6q3, a6q4, a6q6 and a6q7, and Weylam's voyage to Act 7's town.
+        Play(s, Act6);
+        string[] act6 = ["a6q1", "a6q2", "a6q3", "a6q4", "a6q5", "a6q6", "a6q7"];
+        Assert.Empty(act6.Where(q => !states.Complete(q, s.Has)).Select(q => $"{q}: {states.Current(q, s.Has)?.Text ?? "not started"}"));
+        Assert.Equal((13, 12), (s.PassivePoints, s.RefundPoints));
+        Assert.Equal(BridgeEncampment, s.Area);
+        Assert.Empty(s.Carried);
+
+        // Highgate's Dialla: DiallaTown until the Rapture Device works, DiallaTownWithered after (both town room lines).
+        Assert.True(NpcPresent(Highgate, Act4Npcs.DiallaTown, With()) && !NpcPresent(Highgate, Act4Npcs.DiallaTownWithered, With()));
+        Assert.True(!NpcPresent(Highgate, Act4Npcs.DiallaTown, With("a4q1-RaptureActivated"))
+            && NpcPresent(Highgate, Act4Npcs.DiallaTownWithered, With("a4q1-RaptureActivated")));
+        // Oriath burns with Innocence: the Control Blocks' and the Chamber's exits lead to their own version of the area.
+        Assert.True(Exists(Act5Objects.ControlBlocksToSquare, With()) && !Exists(Act5Objects.ControlBlocksToDestroyedSquare, With()));
+        Assert.True(!Exists(Act5Objects.ControlBlocksToSquare, With("a5q4-KilledBoss")) && Exists(Act5Objects.ControlBlocksToDestroyedSquare, With("a5q4-KilledBoss")));
+        Assert.Equal(TorchedCourts, ExitTo(Act5Objects.InnocenceToDestroyedCourts));
+
+        // From /quest_preset Act3Complete (CampaignState.PresetFlags: the preset's quests completed): the Mines wait for the
+        // banner on Deshret's Seal, The Harvest for Piety's talk; one "Malachai's Organs" click takes
+        // all three organs.
+        var act3 = new QuestSimulator();
+        act3.Set(CampaignState.PresetFlags("Act3Complete", out _)!).Enter(Highgate, travel: true);
+        Assert.Throws<QuestSimulator.StepFailed>(() => act3.Enter(Mines1));
+        Assert.Throws<QuestSimulator.StepFailed>(() => act3.Use(Act4Objects.Seal));
+        act3.Set(["a4q1-RaptureActivated", "a4q1-DiallaOnTransformed"]).Enter(Belly2, travel: true);
+        Assert.Throws<QuestSimulator.StepFailed>(() => act3.Enter(Harvest));
+        act3.Set(["a4q5-QuestReceived"]).Enter(Harvest).Kill(Act4Monsters.Doedre).PickUp(Act4Items.Lungs).Kill(Act4Monsters.Maligaro)
+            .PickUp(Act4Items.Heart).Kill(Act4Monsters.Shavronne).PickUp(Act4Items.Entrails).Talk(Act4Npcs.PietyHarvest, "Malachai's Organs", 1);
+        Assert.All(new[] { "a4q5-DeliveredOrgan1", "a4q5-DeliveredOrgan2", "a4q5-DeliveredOrgan3" }, f => Assert.True(act3.Has(f), f));
+        Assert.Empty(act3.Carried);
+        // Without the Sign of Purity the rooftop stays shut (EndQuestFlags a5q6-SeenItem); the socket takes it.
+        var oriath = new QuestSimulator();
+        oriath.Set([.. CampaignState.PresetFlags("Act4Complete", out _)!, "a5q1-KilledBoss", "a5q2-KilledBoss", "a5q4-KilledBoss"])
+            .Enter(RuinedSquare, travel: true).Enter(Act5Areas.Ossuary);
+        Assert.Throws<QuestSimulator.StepFailed>(() => oriath.Enter(Act5Areas.CathedralRooftop, travel: true));
+        oriath.OpenChest(Act5Objects.PurityBox).PickUp(Act5Items.SignOfPurity).Enter(Act5Areas.CathedralRooftop, travel: true)
+            .Use(Act5Objects.ArenaSocket);
+        Assert.True(oriath.Has("a5q6-DeliveredItem") && !oriath.Has("a5q6-HaveItem") && !oriath.Has("a5q6-CompletedBoss"));
+        oriath.Kill(Act5Monsters.Kitava);
+        Assert.True(oriath.Has("a5q6-CompletedBoss"));
     }
 }

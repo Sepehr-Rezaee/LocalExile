@@ -4,7 +4,7 @@ The quest engine (§5: declarative tables per quest, quest items, dialogue, rewa
 all of Act 1: **a1q1 "Enemy at the Gate"** (§6), **a1q5 "Mercy Mission"** (§7), **a1q4 "Breaking Some Eggs"** in The Mud
 Flats (§1–4), which opens the Submerged Passage, **a1q8 "A Dirty Job"** and **a1q7 "The Dweller of the Deep"** (§8),
 **a1q2 "The Caged Brute"**, **a1q3 "The Siren's Cadence"** and Act 1's part of **a1q9 "The Way Forward"** (§9), and
-**a1q6 "The Marooned Mariner"** (§10), then Acts 2 and 3 (§11, §12).
+**a1q6 "The Marooned Mariner"** (§10), then Acts 2 to 6 (§11–15).
 Without a1q4's flag an invisible wall in front of the cave stops the player (§2).
 
 ## 1. The data model
@@ -200,7 +200,8 @@ each object once, where the client has it.
 up, talk, reward, use an item) played through the same tables, NPCTalk rows, item flags, static rewards, the Gateway's
 exits and the client's WorldAreas gates; a step the game would refuse throws. After Act 1 the flags contain
 `Act1Complete`'s and a1q1–a1q8 are complete; after Act 2 (all three bandits killed) `Act2CompleteEramir`'s, after
-Act 3 `Act3Complete`'s, each act's quests complete; later acts add their sequence and preset.
+Act 3 `Act3Complete`'s, after Act 4 `Act4Complete`'s, each act's quests complete (Acts 5 and 6 have no preset of their
+own: every quest of theirs reaches its "complete" row); later acts add their sequence and preset.
 Played live on 2026-10-30 with the real client (OfflineWitch in a copied save, seed 1 instances, the bridge, `/tp`, and a
 temporary kill command): a1q8, a1q7, a1q2, a1q9's part, a1q6 and a1q3 into Act 2, and
 a1q5 and a1q4 again on the engine; afterwards the save had every `Act1Complete` flag, 2 quest passive points and 2
@@ -516,6 +517,60 @@ Details in [act 3](../game/campaign/act3.md):
   into Dominus, Ascendant (`On.SecondForm`), whose death sets `a3q10-KilledDominus`; Lady Dialla (DiallaTower, no room
   line) appears at the DeathPortalLocator (`atObject`), and the tower top's exit to The Aqueduct (city_tower.arm's
   `entrance2disabled`: created because the quest gates it, [08](08-area-transitions.md) §8) appears.
+
+## 13. Act 4 (`Acts/Act4.cs`)
+
+Details in [act 4](../game/campaign/act4.md):
+
+- **a4q2**: Voll drops Deshret's Banner; the banner on Deshret's Seal (MineEntranceSeal, `UsedWith`) → `a4q2-UsedBanner`:
+  its MineEntranceSealBlockers lift and the Mines open. **a4q6**: Deshret's spirit in The Mines Level 2 come near
+  (`DeshretSpiritSeen`, no setter in the data) and used → `a4q6-DeshretFreed`; Tasuni's book.
+- **a4q3/a4q4**: Kaom and Daresso drop their Eyes; DiallaRapture's rows 530/531 take them (their remove_flags).
+- **a4q1/a4q5**: Lady Dialla stands on The Aqueduct, at the Rapture Device (coming near: `a4q1-SeenRaptureDialla`) and
+  in Highgate in two stages (`DiallaTown` until `a4q1-RaptureActivated`, `DiallaTownWithered` after: both town room
+  lines, `NPC/TownNpcs.cs`). NPCTalk 534 transitions the Rapture Device (an engine quest object, `ForEachOfType`) and
+  535 opens the wound into the Belly. Piety, the Abomination dies into PietyBelly where she fell (`On.Appears`), whose
+  621 opens The Harvest; PietyHarvest's rows 624–627 share one text: one click hands in every organ carried
+  (`On.HandIn`), then the Black Core. Malachai's second stage appears where the first falls (`On.SecondForm`) and its
+  death sets `a4q1-QuestComplete`; `a4q1-KillGuardians` is not set (no data sets it, the "complete" rows need it
+  missing). The withered Dialla's 521 (`DiallaOnMalachaiDead`) opens The Ascent.
+- **a5q1a**: the Resonator on The Ascent's summit (a room `room-points.json` does not keep: `AreaObjects.RoomObjects`);
+  the lever come near → `a5q1-SeenResonator`, pulled → `a5q1-UsedResonator`, the Oriath Portal to The Slave Pens.
+
+## 14. Act 5 (`Acts/Act5.cs`)
+
+Details in [act 5](../game/campaign/act5.md):
+
+- **a5q1b/a5q2/a5q3**: Krow guards the tower (`a5q1-SeenTown` from seeing its exit, `On.NearExit`); Casticus drops the
+  Eyes of Zeal and opens Oriath Square; the Experimental Supplies hold the Miasmeter.
+- **a5q4**: the Templar Courts door used with the Eyes → `a5q2-UsedKey` and `a5q4-QuestReceived` (no setter in the
+  data); the court gate exists from `a5q2-UsedKey` (`On.Exists`, its `serialisation_start_flag`). Avarius forms into
+  Innocence, whose death sets `a5q4-KilledBoss`: Oriath burns, the Control Blocks' and the Chamber's exits swap by
+  their serialisation flags and each leads to its own version of the area (`On.Exists(…, to:)`), and SinInnocence
+  appears where Innocence fell. **a5q5**: Bannon after Avarius, then in town; Utula leaves town and fights in The
+  Ruined Square. **a5q7**: the three Relic Cases; Lani takes the Torments in one click.
+- **a5q6**: the Ossuary tomb holds the Sign of Purity (`a5q6-SeenItem` lifts the Ruined Square's flame wall and opens
+  the rooftop); the Sign in its socket (`ArenaSocket`) brings Kitava (`On.Spawns`). Kitava never dies: a hit (or
+  `/kill`) that takes him to 50 % sets `a5q6-CompletedBoss` (`On.Threshold`) and he leaves; QuestStaticRewards 38's
+  −30 % to all resistances is the Game module's `ResistancePenalty` (`a5q6-CompletedBoss`, `SinOnKitavaDefeat`). Sin
+  and Lilly (her `serialisation_start_flag`) stand on the dock, and Lilly's 893 sails to Lioneye's Watch (2_6_town).
+
+## 15. Act 6 (`Acts/Act6.cs`)
+
+Details in [act 6](../game/campaign/act6.md):
+
+- **a6q1**: Nessa is seen three times (coming near sets `a6q1-SeenNessa1`–`3` and she transitions away); the Black
+  Flag chest is a point line of her room in Merveil's cavern; at the Beacon the ignition lever → `a6q1-RefueledBeacon`
+  (the fuel carts, a Movement object, are left out) and the statue takes the flag → `a6q1-DeliveredFlag`, which shows
+  WeylamBeacon; his 1006 sails to the Reef. The Brine King's death sets `a6q1-KilledBoss`, WeylamReef2 takes his throne
+  (`transitionedBy`) and SinBrineKing appears; WeylamReef2's 1010 sails to The Bridge Encampment.
+- **a6q2**: Shavronne's death sets `a6q2-KilledBoss` (the data does not say whose). **a6q3**: the Dishonoured Queen
+  drops the Eye of Conquest for the Mud Flats' totem door; Tukohama's death opens The Ridge and Lilly's ship leaves
+  town (`serialisation_stop_flag`). **a6q4**: The Twilight Strand cleared after Lilly's task (`On.Cleared`). **a6q5**:
+  Bestel's manuscript chest. **a6q6**: Ryslatha. **a6q7**: Abberath's second phase (`On.SecondForm`) sets the kill.
+- The god Sins (SinTukohama, SinAbberath, SinRyslatha, SinBrineKing; SinShavronne has no god) appear where the bosses
+  die (`On.Appears`, until their `Sin<God>Reward`); their row sets the session flag `CanChangePantheon` and opens the
+  Pantheon panel ([pantheon](../game/campaign/pantheon.md)).
 
 ## Open
 
