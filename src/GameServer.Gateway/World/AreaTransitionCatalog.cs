@@ -24,6 +24,9 @@ static class AreaTransitionCatalog
     /// <summary>The WorldAreas id of an area hash (from the atlas), or null without the atlas.</summary>
     public static string? IdOf(ushort hash) => Atlas.Value?.GetValueOrDefault(hash)?.Id;
 
+    /// <summary>The WorldAreas name of an area hash (from the atlas), or null.</summary>
+    public static string? NameOf(ushort hash) => Atlas.Value?.GetValueOrDefault(hash)?.Name;
+
     /// <summary>Every area /goto finds (<see cref="HashOf"/>): its id and name.</summary>
     public static IEnumerable<(string Id, string? Name)> Areas => Atlas.Value?.Values.Select(a => (a.Id, a.Name)) ?? [];
 

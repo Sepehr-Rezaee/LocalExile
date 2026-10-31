@@ -506,6 +506,8 @@ sealed partial class ClientState(AreaLayout layout, uint ticket, uint seed)
     public ushort RefundPoints;
     // /god (GodStats) and the running Righteous Fire, if any; buff instance ids (0x1c1) given out on this connection.
     public bool God;
+    // /god immune: god mode that also takes no damage (hits and ailment ticks); only with God.
+    public bool Immune;
     public readonly GracePeriod EntryProtection = new();
     public RighteousFireState? RighteousFire;
     /// <summary>The hands' part of the player model last sent (Program.HandsKey): null until the area's first model.</summary>

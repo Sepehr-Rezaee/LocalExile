@@ -23,5 +23,7 @@
     <ProjectReference Include="..\..\Modules\PhreciaAscendancies\PhreciaAscendancies.csproj" />
     <!-- The campaign oracle plays the act tables the QuestObjects module registers (QuestEngineTests). -->
     <ProjectReference Include="..\..\Modules\Core\World\QuestObjects\QuestObjects.csproj" />
+    <!-- The campaign driver's dev commands (CampaignCommandTests). -->
+    <ProjectReference Include="..\..\Modules\Core\Player\Commands\Commands.csproj" />
   </ItemGroup>
 </Project>
