@@ -76,13 +76,17 @@ static partial class QuestobjectsRules
                     await OpenTrialObject(remote, stream, ciphers, conn, door.Id, door.Object);
                 break;
             case LabyrinthTrials.Plaque:
-                if (!await OpenTrialObject(remote, stream, ciphers, conn, use.TargetId, o)) break;
-                await SetQuestFlags(remote, stream, ciphers, conn, [trial.Flag]);
-                List<KeyValuePair<uint, AreaPopulation.RoomObject>> portals;
-                lock (conn.Monsters) portals = [.. conn.TrialObjects.Where(t => t.Value.Type == LabyrinthTrials.Portal)];
-                foreach (var (id, portal) in portals)
-                    await Send(remote, stream, ciphers, InstanceEntities.TransitionableUpdate(id, LabyrinthTrials.TransitionableIndex(portal.Type), LabyrinthTrials.Open),
-                        $"0x02ba trial portal 0x{id:x} opens: trial {trial.Flag} complete");
+                if (await OpenTrialObject(remote, stream, ciphers, conn, use.TargetId, o))
+                {
+                    await SetQuestFlags(remote, stream, ciphers, conn, [trial.Flag]);
+                    List<KeyValuePair<uint, AreaPopulation.RoomObject>> portals;
+                    lock (conn.Monsters) portals = [.. conn.TrialObjects.Where(t => t.Value.Type == LabyrinthTrials.Portal)];
+                    foreach (var (id, portal) in portals)
+                        await Send(remote, stream, ciphers, InstanceEntities.TransitionableUpdate(id, LabyrinthTrials.TransitionableIndex(portal.Type), LabyrinthTrials.Open),
+                            $"0x02ba trial portal 0x{id:x} opens: trial {trial.Flag} complete");
+                }
+                // Every use shows the trials done (the window reads their flags itself).
+                await Send(remote, stream, ciphers, InstanceWaypoints.OpenUi(InstanceWaypoints.TrialPlaqueUi), "0x007b open the Trial Plaque window");
                 break;
             case LabyrinthTrials.Portal:
                 if (!TrialLit(conn, trial)) break;
@@ -117,8 +121,27 @@ static partial class QuestobjectsRules
             conn.DoorBarriers.Remove(id);
             conn.UpdateBarrier();
         }
+        _ = RecreateOpenDoor(remote, stream, ciphers, conn, id, o);
         return true;
     }
+
+    // Live (2026-10-31), 0x1c6 alone left a Locked Door's cells closed to the client's walking (a movement skill still
+    // crossed). Once its opening has played, the door is created again open: a TriggerableBlockage read unblocked from the
+    // 0x2b9 blob closes nothing, as on any later entry.
+    static async Task RecreateOpenDoor(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn, uint id,
+        AreaPopulation.RoomObject o)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(DoorOpeningSeconds));
+        if (conn.Closed) return;
+        await Send(remote, stream, ciphers, InstanceProtocol.RemoveObject(id), null);
+        await Send(remote, stream, ciphers, InstanceEntities.CreateObject(id, InstanceEntities.ObjectTypeHash(o.Type),
+                LabyrinthTrials.Blob(o.Type, o.Model, o.X, o.Y, o.Angle, o.Scale, LabyrinthTrials.Open)),
+            $"0x02b9 trial door 0x{id:x} {o.Type} created again open and unblocked");
+        await Send(remote, stream, ciphers, InstanceProtocol.EnterWakeZone(id), null);
+    }
+
+    // How long a door's opening plays before it is created again open (our own number: the animations' lengths are not read).
+    const double DoorOpeningSeconds = 1.5;
 
     // Whether the plaque is lit: the character has the trial's flag, or this instance's plaque was used.
     static bool TrialLit(ClientState conn, LabyrinthTrials.Trial trial)
