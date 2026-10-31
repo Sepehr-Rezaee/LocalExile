@@ -105,6 +105,21 @@ Part of [Status](../Status.md); what to build next in this area is in
   Code: `scripts/dev/live.ps1`, `scripts/dev/client_control.py`, `GatewayEndpoint.cs`.
   Docs: [live testing](../docs/dev/live-testing.md#several-stacks-and-clients).
 
+- Campaign automation: `scripts/dev/campaign.ps1` starts the checkout's servers if needed (`-PortBase`), opens its
+  own session client (`-Session`, default `campaign`; `-Nullifier`), logs in, creates a fresh character (or continues
+  one) and plays the quest order through the control bridge with `/god immune`, teleports and `/kill`; quest progress
+  comes from the quest engine reacting to the real kills, pickups, object use and NPC talk. Resumable (done quests and
+  steps are skipped), with diagnostics and recoveries for stuck steps; servers on its ports that are not the
+  checkout's, a missing `Game_SAVES_DB` (unless `-AllowDefaultSaves`), a Gateway on another save database and a second
+  run on the same session stop the run. Step files: Act 1 (a1q1-a1q9); the later acts' quests are "not implemented" until their act
+  is on the quest engine. Dev commands `/state`, `/kill`, `/quest_preset`, `/god immune`; `/tp` also finds the ids
+  `/state` reports and the objects quest rules watch.
+  The same driver played Acts 1-10 and the Epilogue live before the game moved into modules; on the quest engine's Act 1
+  it is checked offline only (runner tests against a simulated server, `test_client_control.py`,
+  `CampaignCommandTests`).
+  Code: `scripts/dev/campaign/`, `Modules/Core/Player/Commands/Rules.Campaign.cs`, `CampaignState.cs`.
+  Docs: [campaign automation](../docs/dev/campaign-automation.md), [10](../docs/protocol/10-chat-and-commands.md).
+
 - Debugging aids: timestamped server logs, whole exceptions with stack traces (a failing packet handler names its
   messages), the reason on every `DISCONNECT` line, archived logs of the last 10 full runs, each connection's last 256
   packets (printed after an error or an unexplained disconnect, dumped to `logs\packets`, `/lastpackets`), `Game_TRACE`
@@ -173,6 +188,8 @@ UI input.
 It targets the copied standalone 3.29.3b client and local services only.
 Login keeps waiting within its existing timeout when success 0 precedes authenticated state 3.
 Mocked execute/RPC regressions cover this wait, rejection 6 and timeouts; this fix has no new native verification.
+It also creates and deletes characters, travels by waypoint (by WorldAreas Id too), waits for an area and knows the
+current area; it uses items, deposits into the stash and picks up ground items (the campaign driver's requests).
 
 ## Doc caveats
 
