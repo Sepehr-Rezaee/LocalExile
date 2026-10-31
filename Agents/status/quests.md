@@ -48,15 +48,16 @@ Part of [Status](../Status.md); what to build next in this area is in
 - The quest engine and all of Act 1 on it, checked by the Act 1 oracle and not yet played with the client on the
   modules (a1q1, a1q4 and a1q5 under "Works" were played before they moved onto it; the other Act 1 quests below were
   played on the engine before the game moved into modules): flags per character in the save, one declarative table per
-  quest, one file per act (`Modules/Core/World/QuestObjects/Acts/Act1.cs`, registered by the QuestObjects module and run
-  only for the leagues that list it; [campaign quests](../docs/game/campaign-quests.md) "Adding a quest"), `/quest_flag`.
+  quest, one file per act (`Modules/Core/World/QuestObjects/Acts/Act1.cs` …, registered by the QuestObjects module and
+  run only for the leagues that list it; [campaign quests](../docs/game/campaign-quests.md) "Adding a quest"),
+  `/quest_flag`.
   Kills, sightings, room objects come near, exits, cleared areas, quest chests, room NPCs, NPCs that turn into
   monsters, second forms and mirrored blockers are rules; quest items (their `.it` Quest flags: held, picked up,
   handed in, removed, used), dialogue flags and scripts, session flags and the rewards come from the client's data.
   Quest passive points (QuestStaticRewards) are counted from the flags into the tree's `extra_skill_points` and stay
   after a relog; refund points are credited once (the Book of Regrets: 54 → 56); QuestStaticRewards' stats are stat
-  sources. `QuestSimulator` plays an act's events through the engine; `QuestEngineTests` checks Act 1 against
-  `Act1Complete`.
+  sources. `QuestSimulator` plays an act's events through the engine; `QuestEngineTests` checks Acts 1–3 against
+  `Act1Complete`, `Act2CompleteEramir` and `Act3Complete`.
   What existing saves see: a character with `a10q3-SeenBoss` but without `EndGameAvailable` earned no longer has the
   Act 10 −30% resistance penalty (it follows `EndGameAvailable`, QuestStaticRewards 39); a second copy of a quest book
   (from `/item`) is used up without its points once the first was used; a quest item lying on the ground after its
@@ -85,6 +86,22 @@ Part of [Status](../Status.md); what to build next in this area is in
   Gate sets `a1q9-SeenBlockage` and `a1q9-RoadBlocked`; the road to The Western Forest stays closed (Act 2 opens it).
   After all of Act 1 the save had every `Act1Complete` flag.
   Docs: [12](../docs/protocol/12-quests.md) §9.
+- Acts 2 and 3 (live 2026-10-30, seed 1, on the engine before the modules: the campaign runner on a character started
+  with `/quest_preset Act1Complete`; on the modules checked by the oracle and the offline exit audit, not yet with the
+  client): a2q11 (Arteri, his emblem, the Thaumetic Seal, Bestel's book), a2q10, a2q6 (Helena climbing up after
+  Fidelitas, the Strange Device), a2q1–a2q3 (the bandit lords killed, their amulets), a2q4, a2q5 (the crypt's altar,
+  Yeena's book), a2q7 (Eramir takes the amulets: a passive point; The Apex), a2q9 (the tree poisoned with the spike and
+  the gem), a2q8 (the Ancient Seal, the Dark Altar, the Vaal Oversoul, the pyramid's exit), a3q1–a3q5, a3q8, a3q9,
+  a3q11–a3q13 and a3q10 (the Epic Door, Dominus' two forms, Lady Dialla on the tower, the exit to The Aqueduct) ran
+  unattended in one pass and ended in Highgate with every flag of `Act2CompleteEramir` and `Act3Complete` and every
+  Act 2/3 quest log at "Quest Complete". Multi-item hand-ins take every item in one click (Eramir's amulets, Hargan's
+  busts, Siosa's pages, Fairgraves' plum and decanter). The Library's candle opens the hidden door for the instance
+  only; the two exits the layout disables and a quest gates (The Upper Sceptre of God → The Aqueduct, The Library → The
+  Archives) are created (`scripts/re/exits --quests`: `gated` at seed 1 and three other seeds). Every quest object,
+  chest and NPC the rules name is placed at seed 1. Driver step files `scripts/dev/campaign/quests/a2q*.py`,
+  `a3q*.py`.
+  Code: `Acts/Act2.cs`, `Acts/Act3.cs` (QuestObjects module).
+  Docs: [12](../docs/protocol/12-quests.md) §11–12; [act 2](../docs/game/campaign/act2.md), [act 3](../docs/game/campaign/act3.md).
 
 - New characters pick up their class weapon, talk to the dying exile and kill the biting zombie for their skill gem.
   The support gem comes from its chest, which requires the player to walk into range.
@@ -94,6 +111,10 @@ Part of [Status](../Status.md); what to build next in this area is in
   See [opening encounter](../docs/protocol/12-quests.md#opening-encounter-2026-10-25).
 - Quest exits with a Transitionable (Merveil's exit, the arena doors) open without their animation (plain
   AreaTransition), and the arena doors are not created at all.
+- The bandit vote (a2q7's help path: talking to a bandit lord opens the client's vote panel through
+  `DispatchRulesetEvent(BanditCallVote)`, VoteType/VoteState) is not implemented; its messages are not
+  reverse-engineered. The lords are hostile and the choice comes from the kills (the campaign runner kills all three);
+  the help rewards' stats (QuestStaticRewards 4–6) apply once their flags are set.
 - Characters whose activated waypoints carry a quest flag as an access flag (a1q1's Hillock for the Coast) skip that
   flag's world changes: with OfflineWitch, The Twilight Strand's wall was not created and its gate stood open.
 

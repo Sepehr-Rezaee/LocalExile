@@ -2,6 +2,8 @@ using GameServer.Core.Protocol.Instance;
 using GameServer.Data.Terrain.Generation;
 using GameServer.Modules.M_questobjects;
 using static Act1Areas;
+using static Act2Areas;
+using static Act3Areas;
 using static Quests;
 
 namespace GameServer.Gateway.Tests;
@@ -23,6 +25,13 @@ public sealed class QuestEngineTests
         Fairgraves = "Metadata/NPC/Act1/Fairgraves";
     const string BookA1q6 = "Metadata/Items/QuestItems/SkillBooks/Book-a1q6", BookA1q7 = "Metadata/Items/QuestItems/SkillBooks/Book-a1q7",
         BookA1q8 = "Metadata/Items/QuestItems/SkillBooks/Book-a1q8";
+    const string BookA1q9 = "Metadata/Items/QuestItems/SkillBooks/Book-a1q9", BookA2q5 = "Metadata/Items/QuestItems/SkillBooks/Book-a2q5";
+    const string Eramir = "Metadata/NPC/Act2/Eramir", Yeena = "Metadata/NPC/Act2/Yeena", Greust = "Metadata/NPC/Act2/Greust",
+        Silk = "Metadata/NPC/Act2/Silk", Helena = "Metadata/NPC/Act2/HelenaTown";
+    const string BookA3q11 = "Metadata/Items/QuestItems/SkillBooks/Book-a3q11v2", BookA3q9 = "Metadata/Items/QuestItems/SkillBooks/Book-a3q9";
+    const string Maramoa = "Metadata/NPC/Act3/Maramoa", Clarissa = "Metadata/NPC/Act3/ClarissaTown", Grigor = "Metadata/NPC/Act3/Grigor",
+        Hargan = "Metadata/NPC/Act3/Hargan", Dialla = "Metadata/NPC/Act3/Dialla", Siosa = "Metadata/NPC/Act3/Siosa",
+        FairgravesDocks = "Metadata/NPC/Act3/Fairgraves", DiallaTower = "Metadata/NPC/Act3/DiallaTower";
 
     /// <summary>The engine's data-driven parts: quest items by their .it Quest component (flags, drops, the carried sync,
     /// hand-ins, pickups), QuestStaticRewards (passive, refund and ascendancy points, stats; refunds credited once in the
@@ -115,6 +124,11 @@ public sealed class QuestEngineTests
         Assert.Null(TalkStartFlag(rows.Single(t => t.Option == "Thank You" && t.StartFlag == "a1q6-KilledFairgraves")));
         Assert.Equal(["a2q7-QuestRewardTaken", "a2b-DeliveredAmulets"],
             npcs.TalksOf(npcs.Find("Metadata/NPC/Act2/Eramir")!).First(t => t.Row == 95).ScriptSets);
+        // Several quest items to their NPC in one click: Fairgraves' "A Swig of Hope" row 496 (both carried) takes the plum
+        // and the decanter, his quest row 493 nothing; Hargan's "Victario's Holdfasts" every bust carried.
+        Assert.Equal([Act3Items.Plum, Act3Items.Decanter], HandsIn(Act3Objects.Fairgraves, "A Swig of Hope", 496));
+        Assert.Empty(HandsIn(Act3Objects.Fairgraves, "A Swig of Hope", 493));
+        Assert.Equal(Act3Items.Busts, HandsIn(Act3Objects.Hargan, "Victario's Holdfasts", 355));
 
         // A book offer has no taken flag: its book's flags tell it taken.
         var offers = QuestRewardCatalog.Load();
@@ -141,8 +155,12 @@ public sealed class QuestEngineTests
 
         // The registry: the module's acts, in order, until the registration goes; they run only for a league that lists
         // the module that gave them.
-        Assert.Equal([1], QuestObjectsModule.Acts().Select(a => a.Number));
-        Assert.Equal(["a1q1", "a1q5", "a1q4", "a1q8", "a1q7", "a1q2", "a1q6", "a1q3", "a1q9"], All.Select(q => q.Id));
+        Assert.Equal([1, 2, 3], QuestObjectsModule.Acts().Select(a => a.Number));
+        Assert.Equal(["a1q1", "a1q5", "a1q4", "a1q8", "a1q7", "a1q2", "a1q6", "a1q3", "a1q9"], All.Take(9).Select(q => q.Id));
+        Assert.Equal(["a2q11", "a2q10", "a2q6", "a2q4", "a2q5", "a2q9", "a2q7", "a2q8"], All.Where(q => q.Id.StartsWith("a2")).Select(q => q.Id));
+        Assert.Equal(["a3q1", "a3q2", "a3q11", "a3q3", "a3q4", "a3q5", "a3q8", "a3q12", "a3q13", "a3q9", "a3q10"],
+            All.Where(q => q.Id.StartsWith("a3")).Select(q => q.Id));
+        int own = All.Count;
         Assert.Same(Everything, For(new HashSet<string> { "Game", "QuestObjects" }));
         Assert.True(For(new HashSet<string> { "Game" }).IsEmpty);
         Assert.Empty(For(new HashSet<string> { "Game" }).OnMonsterKilled(Strand, Act1Monsters.Hillock));
@@ -151,7 +169,7 @@ public sealed class QuestEngineTests
         {
             // Each source on its own: a league runs only the tables of the modules it lists.
             Assert.True(For(new HashSet<string> { "Other" }).Includes("Other") && !For(new HashSet<string> { "Other" }).Includes("QuestObjects"));
-            Assert.Equal(2 * 9, All.Count);
+            Assert.Equal(own + 9, All.Count);
         }
         using (Register("QuestObjects", []))
         {
@@ -264,6 +282,113 @@ public sealed class QuestEngineTests
             .See(Act1Monsters.Merveil).Kill(Act1Monsters.Merveil).Kill(Act1Monsters.MerveilTwisted).Enter(SouthernForest);
     }
 
+    /// <summary>Act 2 as the driver plays it (order.py): a2q11 (a1q9's road and Bestel's book), a2q10, a2q6, a2q4, a2q5,
+    /// a2q9, a2q7 killing all three bandits, a2q8 and the step into Act 3. Areas off the main road are reached by waypoint
+    /// (travel), as the driver does; the client's own gates still apply.</summary>
+    internal static void Act2(QuestSimulator s)
+    {
+        // a2q11 The Way Forward: Arteri's emblem opens the pass; Bestel's book
+        s.Enter(ForestEncampment, travel: true).Talk(Silk, "Blocked Passage")
+            .Enter(WesternForest, travel: true).See(Act2Monsters.Arteri).Kill(Act2Monsters.Arteri).PickUp(Act2Items.ThaumeticEmblem)
+            .Use(Act2Objects.ThaumeticSeal).Enter(PrisonersGate)
+            .Enter(LioneyesWatch, travel: true).Talk(Bestel, "Inspirational Poem").Reward(Bestel, "Road Reward").UseItem(BookA1q9);
+        // a2q10 The Great White Beast
+        s.Enter(ForestEncampment, travel: true).Talk(Yeena, "The Great White Beast")
+            .Enter(OldFields, travel: true).Enter(Den).See(Act2Monsters.GreatWhiteBeast).Kill(Act2Monsters.GreatWhiteBeast)
+            .Enter(ForestEncampment, travel: true).Talk(Yeena, "The Great White Beast").Reward(Yeena, "Great White Beast Reward");
+        // a2q6 Intruders in Black: Helena below the ledge, Fidelitas, the Strange Device
+        s.Enter("1_2_6_1", travel: true).Enter(ChamberOfSins2).Near(Act2Objects.HelenaSins).Near(Act2Objects.PietySins)
+            .Kill(Act2Monsters.Fidelitas).Talk(Act2Objects.HelenaSins, "Rescued").OpenChest(Act2Objects.StrangeDevice).PickUp(Act2Items.BalefulGem)
+            .Enter(ForestEncampment, travel: true).Talk(Helena, "Rescued").Talk(Greust, "Helena").Reward(Greust, "Blackguard Reward");
+        // a2q4 Sharp and Cruel
+        s.Talk(Helena, "Maligaro's Spike").Talk(Silk, "Maligaro's Spike")
+            .Enter(WeaversChambers, travel: true).See(Act2Monsters.Weaver).Kill(Act2Monsters.Weaver).PickUp(Act2Items.MaligarosSpike)
+            .Enter(ForestEncampment, travel: true).Talk(Silk, "Maligaro's Spike").Reward(Silk, "Maligaro's Spike Reward");
+        // a2q5 Through Sacred Ground
+        s.Talk(Yeena, "The Fellshrine Hand").Enter(CryptLevel2, travel: true).OpenChest(Act2Objects.GoldenHandAltar).PickUp(Act2Items.GoldenHand)
+            .Enter(ForestEncampment, travel: true).Talk(Yeena, "The Fellshrine Hand").Reward(Yeena, "Fellshrine Reward").UseItem(BookA2q5);
+        // a2q9 The Root of the Problem
+        s.Talk(Helena, "Lorrata").Enter(Wetlands, travel: true).Near(Act2Objects.PoisonTree).Use(Act2Objects.PoisonTree).Enter(VaalRuins);
+        // a2q7 Deal with the Bandits: kill all three, Eramir's point and The Apex
+        s.Enter(ForestEncampment, travel: true).Talk(Eramir, "The Bandit Scourge")
+            .Enter(BrokenBridge, travel: true).Kill(Act2Monsters.Kraityn).PickUp(Act2Items.KraitynsAmulet)
+            .Enter(WesternForest, travel: true).Kill(Act2Monsters.Alira).PickUp(Act2Items.AlirasAmulet)
+            .Enter(Wetlands, travel: true).Kill(Act2Monsters.Oak).PickUp(Act2Items.OaksAmulet)
+            .Enter(ForestEncampment, travel: true).Talk(Eramir, "Bandit Lords").Talk(Eramir, "Bandit Amulets").Talk(Eramir, "Bandit Amulets")
+            .Reward(Eramir, "Take the Apex");
+        // a2q8 Shadow of the Vaal: the Ancient Seal, the Apex door, the Dark Altar, the Vaal Oversoul, Act 3
+        s.Enter(VaalRuins, travel: true).Use(Act2Objects.AncientSeal).Enter(NorthernForest)
+            .Enter(ForestEncampment, travel: true).Talk(Yeena, "The Darkness").Talk(Eramir, "Yeena's Vision")
+            .Enter(Caverns, travel: true).Near(Act2Objects.ApexDoor).Enter(AncientPyramid).Near(Act2Objects.DarkAltar).Use(Act2Objects.DarkAltar)
+            .See(Act2Monsters.VaalOversoul).Kill(Act2Monsters.VaalOversoul).Enter(CityOfSarn).Enter(SarnEncampment);
+    }
+
+    /// <summary>Act 3 as the driver plays it (order.py): a2q8a3 (arrived in Act 2), a3q1 with a3q2 (Clarissa, the bracelet,
+    /// the Sewer Keys), a3q11, a3q4 with a3q3, a3q5, a3q13, a3q8, a3q9, a3q12, a3q10 and the step into Act 4.</summary>
+    internal static void Act3(QuestSimulator s)
+    {
+        // a3q1 Lost in Love: Clarissa, Tolman's bracelet, Maramoa's reward; a3q2: the Sewer Keys open the sewers
+        s.Enter(SarnEncampment, travel: true).Talk(Maramoa, "Clarissa")
+            .Enter(CityOfSarn, travel: true).Near(Act3Objects.ClarissaSlums).Kill(Act3Monsters.GuardCaptain).Talk(Act3Objects.ClarissaSlums, "Tolman")
+            .Enter(Slums, travel: true).Enter(Crematorium).See(Act3Monsters.PietyEscape).OpenChest(Act3Objects.TolmanChair).PickUp(Act3Items.TolmansBracelet)
+            .Enter(SarnEncampment, travel: true).Talk(Clarissa, "Tolman").Talk(Maramoa, "Clarissa").Reward(Maramoa, "Clarissa Reward")
+            .Talk(Clarissa, "Tolman").Reward(Clarissa, "Take Sewer Keys")
+            .Enter(Slums, travel: true).Near(Act3Objects.SewerGrating).Use(Act3Objects.SewerGrating).Enter(Sewers);
+        // a3q11 Victario's Secrets
+        s.Enter(SarnEncampment, travel: true).Talk(Hargan, "Introduction").Talk(Hargan, "Victario").Enter(Sewers, travel: true);
+        for (int i = 0; i < 3; i++) s.OpenChest(Act3Objects.Stashes[i]).PickUp(Act3Items.Busts[i]);
+        s.Enter(SarnEncampment, travel: true).Talk(Hargan, "Victario's Holdfasts").Reward(Hargan, "Platinum Bust Reward").UseItem(BookA3q11);
+        // a3q3 The Gemling Queen and a3q4 The Ribbon Spool
+        s.Talk(Grigor, "The Gemling Queen").Enter(Battlefront, travel: true).OpenChest(Act3Objects.RibbonSpoolChest).PickUp(Act3Items.RibbonSpool)
+            .Enter(SolarisTemple2, travel: true).Talk(Dialla, "Introduction").Talk(Dialla, "The Ribbon Spool").Reward(Dialla, "Ribbon Spool Reward");
+        // a3q5 Fiery Dust
+        s.Talk(Dialla, "The Sewers").Talk(Dialla, "Thaumetic Sulphite")
+            .Enter(Docks, travel: true).OpenChest(Act3Objects.SulphiteChest).PickUp(Act3Items.ThaumeticSulphite)
+            .Enter(SolarisTemple2, travel: true).Talk(Dialla, "Thaumetic Sulphite").Talk(Dialla, "Infernal Talc").Reward(Dialla, "Take Infernal Talc")
+            .Enter(Sewers, travel: true).Near(Act3Objects.BioWall).Use(Act3Objects.BioWall).Enter(EbonyBarracks);
+        // a3q13 A Swig of Hope (Fairgraves died in Act 1): row 496 takes the plum and the decanter in one click
+        s.Enter(Marketplace, travel: true).OpenChest(Act3Objects.DecanterChest).PickUp(Act3Items.Decanter)
+            .Enter(ImperialGardens, travel: true).OpenChest(Act3Objects.PlumTree).PickUp(Act3Items.Plum)
+            .Enter(Docks, travel: true).Talk(FairgravesDocks, "Introduction");
+        while (!s.Has("a3q13-DeliveredItems")) s.Talk(FairgravesDocks, "A Swig of Hope");
+        s.Reward(FairgravesDocks, "Swig of Hope Reward");
+        // a3q8 Sever the Right Hand
+        s.Enter(SarnEncampment, travel: true).Talk(Maramoa, "General Gravicius").Enter(Battlefront, travel: true).Near(Act3Objects.BridgeBarrier)
+            .Enter(EbonyBarracks, travel: true).See(Act3Monsters.Gravicius).Kill(Act3Monsters.Gravicius)
+            .Enter(SarnEncampment, travel: true).Talk(Maramoa, "General Gravicius").Reward(Maramoa, "Gravicius Reward");
+        // a3q9 Piety's Pets
+        s.Talk(Grigor, "Piety").Enter(LunarisTemple2, travel: true).See(Act3Monsters.Piety).Kill(Act3Monsters.Piety).PickUp(Act3Items.TowerKey)
+            .Enter(SarnEncampment, travel: true).Talk(Grigor, "Piety").Reward(Grigor, "Piety Reward").UseItem(BookA3q9);
+        // a3q12 A Fixture of Fate: the loose candle opens the hidden door for the instance only
+        s.Enter(Library, travel: true).Talk(Siosa, "Introduction").Talk(Siosa, "Four Golden Pages")
+            .Use(Act3Objects.LooseCandle).Enter(Archives);
+        for (int i = 0; i < 4; i++) s.OpenChest(Act3Objects.BookStands[i]).PickUp(Act3Items.GoldenPages[i]);
+        s.Enter(Library).Talk(Siosa, "Four Golden Pages").Talk(Siosa, "Four Golden Pages").Reward(Siosa, "Golden Pages Reward");
+        // a3q10 The Sceptre of God, and Act 4
+        s.Enter(ImperialGardens, travel: true).Use(Act3Objects.EpicDoorLock).Enter(SceptreOfGod).Enter(UpperSceptreOfGod)
+            .See(Act3Monsters.Dominus).Kill(Act3Monsters.Dominus).Kill(Act3Monsters.DominusAscendant)
+            .Talk(DiallaTower, "Dominus").Talk(DiallaTower, "Highgate").Enter(Aqueduct).Enter("1_4_town");
+    }
+
+    /// <summary>Plays an act's sequence, failing the test with the step the game would refuse.</summary>
+    static void Play(QuestSimulator s, Action<QuestSimulator> act)
+    {
+        try { act(s); }
+        catch (QuestSimulator.StepFailed e) { Assert.Fail($"{e.Message}\nafter: {string.Join(" ", s.Log.TakeLast(12))}"); }
+    }
+
+    /// <summary>The CharacterStartQuestState preset's flags are all set (but <paramref name="later"/>, a later act's step a
+    /// preset also holds) and every quest of it with a log reached its "complete" row.</summary>
+    static void PresetHolds(QuestSimulator s, string presetId, params string[] later)
+    {
+        var states = QuestStates.Default.Value;
+        var preset = states.FindPreset(presetId)!;
+        Assert.Equal([], preset.Flags.Where(f => !s.Has(f) && !later.Contains(f)).ToArray());
+        // A quest without QuestStates rows (a3q2, the Sewer Keys: shown through a3q1's log) has no "complete" row to reach.
+        Assert.Empty(preset.Quests.Where(q => states.Of(q).Count > 0 && !states.Complete(q, s.Has))
+            .Select(q => $"{presetId} {q}: {states.Current(q, s.Has)?.Text ?? "not started"}"));
+    }
+
     /// <summary>The Act 1 oracle: the act's events give CharacterStartQuestState's Act1Complete and every quest's "complete"
     /// row, the books' points, and the way into Act 2; the exits stay closed until their bosses die.</summary>
     [Fact]
@@ -302,5 +427,50 @@ public sealed class QuestEngineTests
         merveil.Set(["a1q1-KilledHillock", GlyphQuest.PlacedGlyphs, "a1q2-KilledBrutus"]).Enter(CavernOfAnger, travel: true).Kill(Act1Monsters.Merveil);
         Assert.Throws<QuestSimulator.StepFailed>(() => merveil.Enter(SouthernForest));
         merveil.Kill(Act1Monsters.MerveilTwisted).Enter(SouthernForest);
+
+        // Act 2 after Act 1, killing all three bandits: Act2CompleteEramir (it also has Act 3's first step, Clarissa rescued
+        // in The City of Sarn); a1q9's and a2q5's books and Eramir's point, a2q5's refund points; The Apex went on the altar.
+        Play(s, Act2);
+        PresetHolds(s, "Act2CompleteEramir", "a3q1-RescuedGirl");
+        Assert.Equal((5, 4), (s.PassivePoints, s.RefundPoints));
+        Assert.Equal(SarnEncampment, s.Area);
+        Assert.Empty(s.Carried);
+        Assert.True(s.Has("FinishedVaalOversoulQuest") && s.Has("a1q9-RoadOpened"));
+        // Act 3 after Act 2: Act3Complete (the Act 2 preset's Clarissa too); a3q11's and a3q9's books, a3q11's refund points.
+        Play(s, Act3);
+        PresetHolds(s, "Act2CompleteEramir");
+        PresetHolds(s, "Act3Complete");
+        Assert.Equal((7, 6), (s.PassivePoints, s.RefundPoints));
+        Assert.Equal("1_4_town", s.Area);
+        Assert.Empty(s.Carried);
+        Assert.True(QuestSpawned(AncientPyramid, Act2Monsters.VaalOversoul) && QuestSpawned(UpperSceptreOfGod, Act3Monsters.DominusAscendant));
+
+        // The Thaumetic Seal and the tree need their items, the Strange Device Helena's rescue.
+        var seal = new QuestSimulator();
+        seal.Set(["a1q3-KilledSeaWitch", "a1q2-KilledBrutus"]).Enter(WesternForest, travel: true);
+        Assert.Throws<QuestSimulator.StepFailed>(() => seal.Use(Act2Objects.ThaumeticSeal));
+        Assert.Throws<QuestSimulator.StepFailed>(() => seal.Enter(PrisonersGate));
+        seal.Kill(Act2Monsters.Arteri).PickUp(Act2Items.ThaumeticEmblem).Use(Act2Objects.ThaumeticSeal).Enter(PrisonersGate);
+        Assert.DoesNotContain(Act2Items.ThaumeticEmblem, seal.Carried);
+        seal.Enter(Wetlands, travel: true);
+        Assert.Throws<QuestSimulator.StepFailed>(() => seal.Use(Act2Objects.PoisonTree));
+        Assert.Throws<QuestSimulator.StepFailed>(() => seal.Enter(VaalRuins));
+        seal.Enter(ChamberOfSins2, travel: true).Kill(Act2Monsters.Fidelitas);
+        Assert.Throws<QuestSimulator.StepFailed>(() => seal.OpenChest(Act2Objects.StrangeDevice));
+
+        // The Archives open with the loose candle for the instance only (nothing saved); the tower top's exit to The
+        // Aqueduct (disabled in the layout, created because a3q10 gates it) waits for Dominus' second form.
+        string[] sarn = ["a1q3-KilledSeaWitch", "a1q2-KilledBrutus", "FinishedVaalOversoulQuest", "a3q11-UsedSewerKeys", "a3q5-UsedTalc"];
+        var library = new QuestSimulator();
+        library.Set(sarn).Enter(Library, travel: true);
+        Assert.Throws<QuestSimulator.StepFailed>(() => library.Enter(Archives));
+        library.Use(Act3Objects.LooseCandle);
+        Assert.DoesNotContain(Act3Objects.HiddenDoorOpen, library.Flags);
+        library.Enter(Archives);
+        Assert.Equal("a3q10-KilledDominus", FlagToEnter(UpperSceptreOfGod, Aqueduct));
+        var tower = new QuestSimulator();
+        tower.Set([.. sarn, "a3q9-UsedTowerKey"]).Enter(UpperSceptreOfGod, travel: true).Kill(Act3Monsters.Dominus);
+        Assert.Throws<QuestSimulator.StepFailed>(() => tower.Enter(Aqueduct));
+        tower.Kill(Act3Monsters.DominusAscendant).Enter(Aqueduct);
     }
 }

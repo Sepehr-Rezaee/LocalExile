@@ -4,7 +4,7 @@ The quest engine (§5: declarative tables per quest, quest items, dialogue, rewa
 all of Act 1: **a1q1 "Enemy at the Gate"** (§6), **a1q5 "Mercy Mission"** (§7), **a1q4 "Breaking Some Eggs"** in The Mud
 Flats (§1–4), which opens the Submerged Passage, **a1q8 "A Dirty Job"** and **a1q7 "The Dweller of the Deep"** (§8),
 **a1q2 "The Caged Brute"**, **a1q3 "The Siren's Cadence"** and Act 1's part of **a1q9 "The Way Forward"** (§9), and
-**a1q6 "The Marooned Mariner"** (§10). Without a1q4's flag an invisible wall in front of the cave stops the player (§2).
+**a1q6 "The Marooned Mariner"** (§10), then Acts 2 and 3 (§11, §12). Without a1q4's flag an invisible wall in front of the cave stops the player (§2).
 
 ## 1. The data model
 
@@ -198,7 +198,8 @@ each object once, where the client has it.
 **The oracle** (`QuestSimulator`, `QuestEngineTests`): an act's events (enter, see, kill, near, open a chest, pick
 up, talk, reward, use an item) played through the same tables, NPCTalk rows, item flags, static rewards, the Gateway's
 exits and the client's WorldAreas gates; a step the game would refuse throws. After Act 1 the flags contain
-`Act1Complete`'s and a1q1–a1q8 are complete; later acts add their sequence and preset.
+`Act1Complete`'s and a1q1–a1q8 are complete; after Act 2 (all three bandits killed) `Act2CompleteEramir`'s, after
+Act 3 `Act3Complete`'s, each act's quests complete; later acts add their sequence and preset.
 Played live on 2026-10-30 with the real client (OfflineWitch in a copied save, seed 1 instances, the bridge, `/tp`, and a
 temporary kill command): a1q8, a1q7, a1q2, a1q9's part, a1q6 and a1q3 into Act 2, and
 a1q5 and a1q4 again on the engine; afterwards the save had every `Act1Complete` flag, 2 quest passive points and 2
@@ -461,6 +462,57 @@ in their last state, so he appears visible and targetable.
   `SetSessionQuestFlag("a1q6-FairgravesAggro")`): the NPC fades (Transitionable 2) and the boss appears in his place.
 - His death sets `a1q6-KilledFairgraves`; the NPC is not created again (his `.ot` `unblock_quest_flag`, `On.Npc`).
 - Bestel's "Captain Fairgraves" and "Fairgraves Reward" (offer 9): a Book of Skill, one passive point once used.
+
+## 11. Act 2 (`Acts/Act2.cs`)
+
+The quests step by step, their flags, objects and rewards are in [act 2](../game/campaign/act2.md); the table is what the
+data does not say:
+
+- **a2q11** (a1q9's road): Arteri (`mapboss2` of The Western Forest's passageblock.arm) seen → `a2q11-SeenCaptain`, killed →
+  `a2q11-SeenKey`, drops the Thaumetic Emblem; the Thaumetic Seal (`Spikes/SpikeBlockageButton`, a tile record) used with it
+  → `a1q9-RoadOpened`: the seal and the spike walls transition, the client's SpikeBlockageBlockers lift, the exits between
+  The Western Forest and Prisoner's Gate appear. Bestel's book (offer 11) gives a passive point.
+- **a2q10**: the Great White Beast seen/killed in The Den.
+- **a2q6**: HelenaSins below the ledge (Transitionable 1, untargetable) climbs up when Fidelitas dies (`a2q6-KilledDemon`);
+  her "Rescued" → `a2q6-RescuedHelena` lets the Strange Device (PoisonCart, Transitionable 1 → 2) be opened: the Baleful
+  Gem. HelenaSins and PietySins come near → `a2q6-SeenHelena`, `a2q6-SeenPiety`. Greust's start row needs
+  `a2b-StartNewQuests`, which nothing sets this early (the spike's `extra_flag2` would, later): the quest runs without it.
+- **a2q4**: the Weaver drops Maligaro's Spike; Silk's rows look at it without taking it.
+- **a2q5**: the crypt's altar (ChurchAltar: a Chests.dat row without an `.ot`, at a tile record) drops the Golden Hand;
+  Yeena's second "The Fellshrine Hand" (NPCTalk 134; 133 gave the quest and stays listed) takes it.
+- **a2q9**: the tree (PoisonTree, tile record) used with the spike and the gem → `a2q9-PoisonedTree` (both taken), its
+  IncaTreeTransitionBlockers lift and the exit into The Vaal Ruins (IncaTreeTransition) appears.
+- **a2q7**: each bandit lord's death sets his kill flag and drops his amulet; Eramir's "Bandit Amulets" (NPCTalk 95,
+  `SetQuestFlag("a2q7-QuestRewardTaken", "a2b-DeliveredAmulets")`) takes the three: one passive point; "Take the Apex"
+  (offer 17) gives The Apex. The bandit vote (help a lord) is not implemented ([status](../../status/quests.md)).
+- **a2q8**: the Ancient Seal (IncaDarknessRelease, tile record; its model is the record's `bossrelease.ao`) →
+  `a2q8-UnleashedDarkness`; the Apex door in The Caverns transitions with `a2b-SeenApexReward`; the Dark Altar
+  (IncaBossSpawner) takes The Apex (`a2q8-PlacedApex`) and brings the Vaal Oversoul (MV 158, no WorldAreas boss), whose
+  death sets `a2q8-KilledShadowMonster` and `FinishedVaalOversoulQuest` (no setter in the data; Act 3's areas need it) and
+  shows the pyramid's exit to The City of Sarn.
+
+## 12. Act 3 (`Acts/Act3.cs`)
+
+Details in [act 3](../game/campaign/act3.md):
+
+- **a3q1/a3q2**: ClarissaSlums kneels (Transitionable 1) until the Guard Captain dies (`freedBy`), her "Tolman" →
+  `a3q1-RescuedGirl`; Tolman's chair (a chest with an NPC component, 3 states) drops the bracelet, ClarissaTown takes it;
+  her Sewer Keys (offer 19) open the sewer gratings of The Slums and The Marketplace (`a3q11-UsedSewerKeys`, the gate of
+  seven areas).
+- **a3q11**: Victario's three stashes (Chests.dat rows without an `.ot`); no NPCTalk row sets `a3q11-DeliveredBust1`–`3`,
+  so Hargan's "Victario's Holdfasts" hands each carried bust in (`On.HandIn`).
+- **a3q3/a3q4/a3q5**: Lady Dialla in The Solaris Temple Level 2 (room NPC); the Ribbon Spool chest; the Supply Container's
+  sulphite, Dialla's Infernal Talc (offer 22) on the BioWall → `a3q5-UsedTalc` (its blockers lift, the west opens).
+  Offer 21 (amulets) and 25 (rings) count as taken when nothing in them can be built.
+- **a3q8**: the bridge barrier (a tile object) seen, Gravicius seen and killed. **a3q12**: Siosa and the four book stands
+  (no `.ot`); the loose candle (HiddenDoorTrigger) opens the hidden door for the instance (`Quests.InstanceFlag`, kept on
+  the instance, never saved) and the way into The Archives, a layout-disabled exit the rule gates, appears. **a3q13**: Fairgraves in The Docks only after his Act 1
+  death (`shownBy a1q6-KilledFairgraves`), the decanter and the plum tree (a tile chest).
+- **a3q9**: Piety (`mapboss1`) dies → `a3q9-KilledPiety`, `a3q10-QuestReceived` and the Tower Key.
+- **a3q10**: the Epic Door's lock used with the key → `a3q9-UsedTowerKey`; Dominus (`mapboss2` of city_tower.arm) dies into
+  Dominus, Ascendant (`On.SecondForm`), whose death sets `a3q10-KilledDominus`; Lady Dialla (DiallaTower, no room line)
+  appears at the DeathPortalLocator (`atObject`), and the tower top's exit to The Aqueduct (city_tower.arm's
+  `entrance2disabled`: created because the quest gates it, [08](08-area-transitions.md) §8) appears.
 
 ## Open
 

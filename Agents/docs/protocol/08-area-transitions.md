@@ -376,7 +376,9 @@ nothing about which in-area gate leads to which arrival (the Warden's Quarters, 
    `entranceN` (→ WorldAreas Connections[N − 1]), `entranceNdisabled` or `entranceN-disabled` (an arrival point only:
    not created, e.g. Lioneye's Watch's Twilight Strand marker, The Submerged Passage's Depths return boat, The Sarn
    Ramparts' spider tomb from The Temple of Decay; unless a quest gates that exit, `Quests.FlagToEnter`: then it is
-   created and shown by the quest's flag: a room point `…disabled` the game enables by script), `teleportN[disabled][-label]` (also `=label`: a gate within the
+   created and shown by the quest's flag, as The Upper Sceptre of God's way to The Aqueduct after Dominus (a3q10,
+   city_tower.arm's `entrance2disabled`) and The Library's into The Archives after the loose candle (a3q12), a room
+   point `…disabled` the game enables by script), `teleportN[disabled][-label]` (also `=label`: a gate within the
    area to `telepadN`), `telepadN[-label]` (an arrival); a space before the number occurs (`"telepad 1"` in every
    Peninsula topology). A room whose node names none places no exit (a sewer grate of a side area, an unused
    transition room's arch). `entranceNloot` (Descent's loot rooms) is not an exit.
