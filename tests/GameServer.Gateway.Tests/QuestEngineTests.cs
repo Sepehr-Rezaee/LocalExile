@@ -350,7 +350,12 @@ public sealed class QuestEngineTests
         s.Enter(Marketplace, travel: true).OpenChest(Act3Objects.DecanterChest).PickUp(Act3Items.Decanter)
             .Enter(ImperialGardens, travel: true).OpenChest(Act3Objects.PlumTree).PickUp(Act3Items.Plum)
             .Enter(Docks, travel: true).Talk(FairgravesDocks, "Introduction");
-        while (!s.Has("a3q13-DeliveredItems")) s.Talk(FairgravesDocks, "A Swig of Hope");
+        // The quest row, then the hand-in: an option that sets nothing new fails the test instead of looping.
+        for (int talks = 0; !s.Has("a3q13-DeliveredItems"); talks++)
+        {
+            Assert.True(talks < 3, "Fairgraves' \"A Swig of Hope\" does not deliver the plum and the decanter");
+            s.Talk(FairgravesDocks, "A Swig of Hope");
+        }
         s.Reward(FairgravesDocks, "Swig of Hope Reward");
         // a3q8 Sever the Right Hand
         s.Enter(SarnEncampment, travel: true).Talk(Maramoa, "General Gravicius").Enter(Battlefront, travel: true).Near(Act3Objects.BridgeBarrier)
@@ -389,10 +394,12 @@ public sealed class QuestEngineTests
             .Select(q => $"{presetId} {q}: {states.Current(q, s.Has)?.Text ?? "not started"}"));
     }
 
-    /// <summary>The Act 1 oracle: the act's events give CharacterStartQuestState's Act1Complete and every quest's "complete"
-    /// row, the books' points, and the way into Act 2; the exits stay closed until their bosses die.</summary>
+    /// <summary>The campaign oracle: each act's events, played in order after the earlier acts' (Acts 1–3; a later act
+    /// appends its sequence), give the act's CharacterStartQuestState preset (Act1Complete, Act2CompleteEramir,
+    /// Act3Complete) and every quest's "complete" row, the books' points and the way into the next act; the exits stay
+    /// closed until their bosses die or their quest items are used.</summary>
     [Fact]
-    public void Act1_plays_through_the_engine_to_its_preset()
+    public void The_campaign_oracle_plays_the_acts_through_the_engine_to_their_presets()
     {
         using var registered = Register("QuestObjects", QuestObjectsModule.Acts());
         var s = new QuestSimulator();
@@ -472,5 +479,14 @@ public sealed class QuestEngineTests
         tower.Set([.. sarn, "a3q9-UsedTowerKey"]).Enter(UpperSceptreOfGod, travel: true).Kill(Act3Monsters.Dominus);
         Assert.Throws<QuestSimulator.StepFailed>(() => tower.Enter(Aqueduct));
         tower.Kill(Act3Monsters.DominusAscendant).Enter(Aqueduct);
+
+        // One "A Swig of Hope" after the quest row (row 496, both carried) delivers the plum and the decanter, as online.
+        var swig = new QuestSimulator();
+        swig.Set([.. sarn, "a1q6-KilledFairgraves"]).Enter(Docks, travel: true)
+            .Talk(FairgravesDocks, "Introduction").Talk(FairgravesDocks, "A Swig of Hope");
+        swig.Carried.AddRange([Act3Items.Plum, Act3Items.Decanter]);
+        swig.Set(["a3q13-HavePlum", "a3q13-HaveDecanter"]).Talk(FairgravesDocks, "A Swig of Hope");
+        Assert.True(swig.Has("a3q13-PlumDelivered") && swig.Has("a3q13-DecanterDelivered"));
+        Assert.Empty(swig.Carried);
     }
 }
