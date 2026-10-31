@@ -296,6 +296,7 @@ static partial class Game
             $", life {life}/{m.MaxLife}{(life == 0 ? " (dies)" : "")}");
         if (life == 0) await MonsterKilled(remote, stream, ciphers, conn, use.TargetId, m);
         if (stageStarts) _ = RunBossStage(remote, stream, ciphers, conn, use.TargetId, m);
+        if (m.ThresholdReached) await QuestThreshold(remote, stream, ciphers, conn, use.TargetId, m);
     }
 
     // A gem skill used on a monster (C→S 0x24 with a skill id other than the default attack's). A spell stops and casts from
@@ -1082,6 +1083,7 @@ static partial class Game
         // One sweep's deaths (loot, experience, quests) wait until every monster of the sweep has its hit (AreaSkillHit).
         if (life == 0) { if (deaths is not null) deaths.Add((id, m)); else await MonsterKilled(remote, stream, ciphers, conn, id, m); }
         if (stageStarts) _ = RunBossStage(remote, stream, ciphers, conn, id, m);
+        if (m.ThresholdReached) await QuestThreshold(remote, stream, ciphers, conn, id, m);
     }
 
     // The hit reaction: one of the rig's TakeHit clips and its SoundEvent, S→C 0x1b2 kind 0 (see Attack and HitMonster).
@@ -1153,6 +1155,13 @@ static partial class Game
     {
         // While the stage runs the boss cannot die: its life fills up at the end anyway.
         if (m.StageRunning) return ((uint)Math.Max(1, (long)m.Life - damage), false);
+        // A quest threshold (Kitava): the hit that reaches it leaves the monster alive; it never dies.
+        if (m.Threshold is { } threshold)
+        {
+            long left = Math.Max(1, (long)m.Life - damage);
+            if (left * 100 <= (long)m.MaxLife * threshold.LifePct) m.ThresholdReached = true;
+            return ((uint)left, false);
+        }
         var (life, starts) = BossFights.Damage(m.Life, m.MaxLife, damage, m.StageTaken ? null : m.Stage);
         if (starts)
         {

@@ -33,6 +33,12 @@ static partial class Game
     internal static int LoadProgress(ClientState conn, int level)
     {
         var save = CharacterSaves.Load(CharacterName(conn));
+        // Quest flags whose refund points were never credited (QuestStaticRewards; a save from before the credit): now, once.
+        if (save is not null && QuestStaticRewards.Default.Value.NewRefunds(save.QuestFlags ?? [], save.QuestRefundsCredited ?? []).Points > 0)
+        {
+            CharacterSaves.CreditQuestRefunds(CharacterName(conn));
+            save = CharacterSaves.Load(CharacterName(conn));
+        }
         level = CharacterSaves.LevelOf(save, level);
         ValidateSavedProgress(conn, save);
         var ordinary = save?.Passives ?? [];
@@ -66,6 +72,7 @@ static partial class Game
             conn.Waypoints.UnionWith(save?.Waypoints ?? []);
             conn.Visited.UnionWith(save?.Visited ?? []);
             conn.QuestFlags = [.. save?.QuestFlags ?? [], .. Quests.EveryCharacter];
+            conn.UnearnedQuestFlags = [.. Quests.EveryCharacter.Except(save?.QuestFlags ?? [])];
             conn.ExtraPassivePoints = save?.ExtraPassivePoints ?? 0;
             conn.RefundPoints = save?.RefundPoints ?? 0;
             RestoreGod(conn);
@@ -120,7 +127,7 @@ static partial class Game
                         string.Join(", ", worn.Where(w => inactive.Contains(w.Id)).Select(w =>
                             $"{w.Id} {ItemsFor(conn).ByHash(w.Item.TypeHash)?.Name} (str {w.Strength}, dex {w.Dexterity}, int {w.Intelligence}, level {w.Level})")));
             }
-        return (GameEvents.WithPlayerStatSources(conn, WithAntiquarian(conn, WithFortification(conn, WithCharges(conn, sources)))), attributes);
+        return (GameEvents.WithPlayerStatSources(conn, WithQuestStats(conn, WithAntiquarian(conn, WithFortification(conn, WithCharges(conn, sources))))), attributes);
     }
 
     // Shared equipment/passive resolver. The requirement snapshot uses this without publishing caches or pools.
@@ -926,14 +933,14 @@ static partial class Game
     internal static (ushort Points, ushort RefundPoints, List<ushort> Nodes, Dictionary<ushort, ushort> Masteries) PassiveState(ClientState conn)
     {
         lock (conn.Monsters)
-            return ((ushort)Math.Min(ushort.MaxValue, Progression.PassivePoints(conn.Pools.Level) + conn.ExtraPassivePoints),
+            return ((ushort)Math.Min(ushort.MaxValue, Progression.PassivePoints(conn.Pools.Level) + conn.ExtraPassivePoints + QuestPassivePoints(conn)),
                 conn.RefundPoints, [.. conn.Passives], new(conn.MasteryEffects));
     }
 
     // Drops the last allocated passives beyond the level's points (call under the Monsters lock).
     internal static void TrimPassives(ClientState conn, int level)
     {
-        int points = Progression.PassivePoints(level) + conn.ExtraPassivePoints + AscendancyOrdinaryPoints(conn);
+        int points = Progression.PassivePoints(level) + conn.ExtraPassivePoints + QuestPassivePoints(conn) + AscendancyOrdinaryPoints(conn);
         TrimOrdinaryPassives(conn, conn.Passives, points);
         // A socket that had to be given up returns its jewel to the inventory (the normal case keeps jeweled sockets).
         NormalizePassiveJewels(conn);
@@ -1179,7 +1186,7 @@ static partial class Game
                     if (refundPoints) refundsSpent++;
                 }
             }
-            int ordinaryBudget = Progression.PassivePoints(conn.Pools.Level) + conn.ExtraPassivePoints + PassivesFor(conn).PointsGranted(next);
+            int ordinaryBudget = Progression.PassivePoints(conn.Pools.Level) + conn.ExtraPassivePoints + QuestPassivePoints(conn) + PassivesFor(conn).PointsGranted(next);
             if (error is null && ascendancyNodes.Count > 0)
             {
                 try
@@ -1206,7 +1213,7 @@ static partial class Game
                 && PassiveJewelRemovalRefusal(conn, conn.Passives.Where(n => !next.Contains(n))) is { } jewelError)
                 error = jewelError;
             if (error is null && next.Count + conn.ClusterPassives.Count > ordinaryBudget + Game.AscendancyRules.OrdinaryPointsGranted(baseClass, ascendancy))
-                error = $"not enough passive skill points ({Progression.PassivePoints(conn.Pools.Level) + conn.ExtraPassivePoints} at level {conn.Pools.Level}, {next.Count} wanted)";
+                error = $"not enough passive skill points ({Progression.PassivePoints(conn.Pools.Level) + conn.ExtraPassivePoints + QuestPassivePoints(conn)} at level {conn.Pools.Level}, {next.Count} wanted)";
             if (error is null && refundPoints && refundsSpent > conn.RefundPoints)
                 error = $"not enough refund points ({refundsSpent} needed, {conn.RefundPoints} held)";
             if (goldRespec) cost = PassivesFor(conn).GoldRespecCost(nodes, conn.Pools.Level);

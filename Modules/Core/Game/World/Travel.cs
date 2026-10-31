@@ -99,7 +99,7 @@ static partial class Game
             await OpenGuildStash(remote, stream, ciphers, conn, use, requestedAt);
             return;
         }
-        var (_, transition) = conn.Layout.AreaTransitions.FirstOrDefault(e => e.Id == use.TargetId);
+        var (transitionId, transition) = conn.Layout.AreaTransitions.FirstOrDefault(e => e.Id == use.TargetId);
         if (transition is null)
         {
             Console.WriteLine($"[gateway] {remote} <= 0x0024 use object {use} (not an area transition)");
@@ -107,9 +107,10 @@ static partial class Game
         }
         ushort dest = transition.DestinationHash16;
         // A quest can close an exit: The Twilight Strand's way into Lioneye's Watch needs Hillock dead (a1q1).
-        if (AreaTransitionCatalog.IdOf(dest) is { } destId && Quests.FlagToEnter(conn.Layout.Id, destId) is { } needed && !ClientHasQuestFlag(conn, needed))
+        if (!TransitionShown(conn, transitionId, transition))
         {
-            Console.WriteLine($"[gateway] {remote} <= 0x0024 area transition 0x{use.TargetId:x} to {destId}: closed until quest flag {needed}");
+            Console.WriteLine($"[gateway] {remote} <= 0x0024 area transition 0x{use.TargetId:x} to {AreaTransitionCatalog.IdOf(dest)}: closed " +
+                $"(quest flag {TransitionFlag(conn, transition)})");
             return;
         }
         // The client walks to the area transition first; follow it and act once the player is there (a move meanwhile cancels).

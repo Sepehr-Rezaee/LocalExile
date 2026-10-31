@@ -77,7 +77,6 @@ static class QuestObjectsFeature
     // PlacedGlyphs. The recorder writes the capture while the client generates the area: wait briefly for it.
     internal static async Task SpawnGlyphQuest(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn)
     {
-        await RemoveLeftoverGlyphs(remote, stream, ciphers, conn);
         if (conn.Layout.Id != GlyphQuest.Area) return;
         // Usually captured on an earlier visit: created at once, with the area. Else wait for the recorder in the background.
         if (LoadGlyphLayout(remote, conn) is { } now) { await CreateGlyphObjects(remote, stream, ciphers, conn, now); return; }

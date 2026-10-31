@@ -31,9 +31,11 @@ static class GameDataFiles
         ("data/tables/Words.json", "item names"),
         ("data/tables/VillageUniqueDisenchantValues.json", "unique drop weights"),
         ("data/tables/ItemVisualIdentity.json", "unique map artwork"),
-        // object-types manifest v4 combines inherited Life flags with Positioned/Animated collision metadata.
-        ("data/object-types.json", "monsters (emergence and inherited Life corpse flags), NPCs, area transitions, stationary collision footprints"),
-        ("data/item-types.json", "items"),
+        // object-types manifest v4 combines inherited Life flags with Positioned/Animated collision metadata; v6 adds the
+        // rooms' server objects (room-points.json) and the quest tile and room objects (ot_components.py QUEST_TILE_TYPES,
+        // QUEST_ROOM_TYPES). item-types v2: the quest items' .it Quest flags.
+        ("data/object-types.json", "monsters (emergence and inherited Life corpse flags), NPCs, area transitions, quest objects and chests, stationary collision footprints"),
+        ("data/item-types.json", "items, quest items' Quest flags"),
         ("data/area-transitions.json", "area transitions of fixed layouts"),
         ("data/room-points.json", "unique bosses (mapboss<n>[WG], force:mapboss, mapbosspack, sub-graph rooms), The Twilight Strand's encounters and support-gem chest, quest room objects"),
         ("data/hideouts.json", "hideouts and native stationary model collision radii"),

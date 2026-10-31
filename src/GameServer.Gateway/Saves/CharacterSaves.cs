@@ -50,7 +50,8 @@ static class CharacterSaves
     /// the picked record (<see cref="MtxCatalog"/>: a MtxTypes row + 1). SkillCosmetics: the Cosmetics tab's skill
     /// slots, <see cref="SkillCosmeticKey"/> (a gem's BaseItemTypes HASH32 and effect slot type) → the picked record
     /// (every gem of that type wears it). ClusterPassives: the cluster jewel nodes the client allocated (its expansion
-    /// layout ids, not PassiveSkillGraphIds).</summary>
+    /// layout ids, not PassiveSkillGraphIds). QuestRefundsCredited: the quest flags whose QuestStaticRewards refund
+    /// points the save has had (<see cref="CreditQuestRefunds(Save)"/>).</summary>
     public sealed record Save(Dictionary<byte, List<SavedPlacement>> Inventories, Dictionary<int, string>? SkillBar = null,
         uint? Experience = null, List<ushort>? Passives = null, List<string>? Waypoints = null, List<string>? Visited = null,
         List<string>? QuestFlags = null, ushort? ExtraPassivePoints = null,
@@ -63,7 +64,8 @@ static class CharacterSaves
         uint? Life = null, uint? Mana = null, VitalsSession? VitalsOwner = null, List<ushort>? ClusterPassives = null,
         ushort? Sulphite = null, Dictionary<ushort, string>? Tattoos = null,
         Dictionary<ushort, ushort>? TattooKeystones = null, List<List<ushort>>? AtlasPassivePresets = null,
-        ushort? AtlasPassivePoints = null, string? SelectedAtlasLayout = null, Dictionary<string, string>? ModuleData = null)
+        ushort? AtlasPassivePoints = null, string? SelectedAtlasLayout = null, Dictionary<string, string>? ModuleData = null,
+        List<string>? QuestRefundsCredited = null)
     {
         /// <summary>Fields this build doesn't know (a newer build wrote them): kept as they are by the next write.</summary>
         [JsonExtensionData] public Dictionary<string, JsonElement>? Unknown { get; init; }
@@ -312,13 +314,39 @@ static class CharacterSaves
     public static void ForgetExperience(string character) => UnsavedExperience.TryRemove(character, out _);
 
     /// <summary>Sets (or clears) quest flags (QuestFlags.dat Ids) in the save and keeps the others, so flags another
-    /// connection set meanwhile stay.</summary>
+    /// connection set meanwhile stay. Session flags (SessionQuestFlags.dat, e.g. a1q6-FairgravesAggro) are never saved. A
+    /// flag set for the first time with QuestStaticRewards refund points (a1q8-UsedRewardBook: 2) credits them in the same
+    /// write, once (<see cref="Save.QuestRefundsCredited"/>): refund points are spent, so they cannot be derived from the
+    /// flags as the passive points are.</summary>
     public static void ChangeQuestFlags(string character, IEnumerable<string> flags, bool on) => Update(character, s =>
     {
+        var states = QuestStates.Default.Value;
+        var changed = flags.Where(f => !states.IsSession(f)).ToList();
         var saved = new HashSet<string>(s.QuestFlags ?? []);
-        if (on) saved.UnionWith(flags); else saved.ExceptWith(flags);
-        return s with { QuestFlags = [.. saved.Order()] };
+        if (on) saved.UnionWith(changed); else saved.ExceptWith(changed);
+        s = s with { QuestFlags = [.. saved.Order()] };
+        return on ? CreditQuestRefunds(s) : s;
     });
+
+    /// <summary>The save with the refund points of its quest flags that it has not been credited yet (QuestStaticRewards).</summary>
+    internal static Save CreditQuestRefunds(Save s)
+    {
+        var (points, flags) = QuestStaticRewards.Default.Value.NewRefunds(s.QuestFlags ?? [], s.QuestRefundsCredited ?? []);
+        if (flags.Count == 0) return s;
+        return s with
+        {
+            RefundPoints = (ushort)Math.Min(ushort.MaxValue, (s.RefundPoints ?? 0) + points),
+            QuestRefundsCredited = [.. (s.QuestRefundsCredited ?? []).Union(flags).Order()],
+        };
+    }
+
+    /// <summary>Credits the refund points of quest flags the save has but was not credited for (a save from before the
+    /// credit, a flag set by hand in the database); the refund points afterwards.</summary>
+    public static ushort CreditQuestRefunds(string character)
+    {
+        Update(character, CreditQuestRefunds);
+        return Load(character)?.RefundPoints ?? 0;
+    }
 
     /// <summary>Records the allocated passives (PassiveSkillGraphId) with their mastery effects (node → effect HASH16), and
     /// the refund points when given, in one write.</summary>

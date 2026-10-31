@@ -673,8 +673,10 @@ static partial class Game
     internal static async Task PickUpGroundItem(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn, uint id, WorldItemObject ground,
         InstanceTransfer.UseSkillOnObject use, double requestedAt)
     {
-        // a1q4: a glyph is not needed once the glyphs are placed (a copy left in another instance): it goes, unpicked.
-        if (GlyphIndex(ground.Item) is not null && ClientHasQuestFlag(conn, GlyphQuest.PlacedGlyphs))
+        // A quest item done with (its remove_flag set: a glyph after the placement, a Medicine Chest after Nessa has one, a
+        // copy left in another instance) is not needed any more: it goes, unpicked.
+        var questFlags = QuestFlagsOf(conn, ground.Item);
+        if (questFlags is not null && QuestItems.Removed(questFlags, f => ClientHasQuestFlag(conn, f)))
         {
             bool removed;
             lock (conn.Monsters)
@@ -683,7 +685,7 @@ static partial class Game
                 removed = conn.Instance.Ground.Take(id) is not null;
             }
             if (removed)
-                await Send(remote, stream, ciphers, InstanceProtocol.RemoveObject(id), $"0x02bb remove glyph 0x{id:x}: the glyphs are placed");
+                await Send(remote, stream, ciphers, InstanceProtocol.RemoveObject(id), $"0x02bb remove quest item 0x{id:x}: {questFlags.Remove} is set");
             return;
         }
         if (!TryBeginObjectWalk(conn, requestedAt, ground.GridX, ground.GridY, PickupReach, out var objectWalk, centreRange: true)) return;
@@ -742,7 +744,7 @@ static partial class Game
             return;
         }
         InventoryItem? placed;
-        int? glyph;
+        List<string> pickupFlags;
         (byte X, byte Y) cell = (0, 0);
         lock (conn.Monsters)
         {
@@ -761,8 +763,8 @@ static partial class Game
             if (conn.Instance.IsStartWeapon(CharacterName(conn), id) && items.ClaimStartWeapon())
                 Console.WriteLine($"[gateway] {remote} start weapon picked up");
 
-            // A glyph (a1q4) sets its quest flags with the pickup, in the same save.
-            glyph = GlyphIndex(ground.Item);
+            // A quest item sets its flags (grant_flag, extra_flag) with the pickup, in the same save.
+            pickupFlags = questFlags is null ? [] : QuestItems.PickupFlags(questFlags, f => ClientHasQuestFlag(conn, f));
             placed = KeepOnGroundIfNotSaved(conn, ground, () =>
             {
                 InventoryItem Put() => items.Put(row, new InventoryItem(items.NewItemId(), cell.X, cell.Y, ground.Item));
@@ -770,14 +772,15 @@ static partial class Game
                     foreach (bool support in new[] { false, true })
                         if (conn.Instance.IsStartWeapon(TutorialObjects.DropKey(CharacterName(conn), tutorial, support), id))
                             return TutorialObjects.Claim(CharacterName(conn), support, ground.Item, Put);
-                return glyph is int g ? GlyphQuest.Claim(CharacterName(conn), g, Put) : Put();
+                return questFlags is not null ? QuestItems.Claim(CharacterName(conn), questFlags, Put) : Put();
             }, id);
         }
         await Send(remote, stream, ciphers, InstanceProtocol.RemoveObject(id), $"0x02bb remove world item 0x{id:x} (picked up from ({stop.X}, {stop.Y}))");
         if (placed is null) return;
         await Send(remote, stream, ciphers, InstanceItems.InventoryChange(PlayerInventories.InventoryId(row), items.NextRevision(row), [], [placed]),
             toCursor ? $"0x00bf cursor: hold item {placed.Id}" : $"0x00bf inventory 1: add item {placed.Id} at ({cell.X}, {cell.Y})");
-        if (glyph is int picked) await SetQuestFlags(remote, stream, ciphers, conn, GlyphQuest.PickupFlags(picked));
+        if (pickupFlags.Count > 0) await SetQuestFlags(remote, stream, ciphers, conn, pickupFlags);
+        if (questFlags is not null) await SyncQuestItems(remote, stream, ciphers, conn, removeItems: false);
     }
 
     internal static bool IsGold(WorldItemObject ground) => Items.ByHash(ground.Item.TypeHash)?.Class == ItemDrops.GoldClass;
@@ -870,6 +873,12 @@ static partial class Game
             return;
         }
         if (await GameEvents.AnyItemUse(conn, r, item, type)) return;
+        // A quest item with a use_flag (the quest books, Book of Regrets included): its flag, and QuestStaticRewards' points.
+        if (type.Quest?.Use is not null)
+        {
+            await UseQuestItem(remote, stream, ciphers, conn, items, r, item, type);
+            return;
+        }
         if (type.Name == SkillBook)
         {
             await UseSkillBook(remote, stream, ciphers, conn, items, r, item, type);

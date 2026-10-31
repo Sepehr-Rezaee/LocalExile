@@ -474,6 +474,11 @@ public sealed record AreaTransitionObject(int GridX, int GridY, ushort Destinati
     /// Server side only; the blob names the area itself as the destination.</summary>
     public (int X, int Y)? TeleportTo { get; init; }
 
+    /// <summary>The tile object's own type when it was created as a plain AreaTransition (a quest exit such as
+    /// Metadata/QuestObjects/Act4/AscentTransition, see AreaTransitionCatalog.Resolve): quest rules and NPC scripts name it.
+    /// Server side only.</summary>
+    public string? SourceType { get; init; }
+
     /// <summary>Whether the exit stands in a town. Only then does the client read the compact int (<see cref="Index"/>)
     /// after the destination: 0x141e5b870 reads it when the state is 0 and the byte at +0x14 of the current area's
     /// WorldAreas row (entity +8 → world +0x78 → +0xb0) is set, which is IsTown; the server-side writer 0x141e5b7a0

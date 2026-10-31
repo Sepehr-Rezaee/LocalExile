@@ -1,8 +1,10 @@
 # 12 — Quests
 
-The quest engine (§5), **a1q1 "Enemy at the Gate"** (§6) and **a1q4 "Breaking Some Eggs"** in The Mud Flats (§1–4),
-which opens the Submerged Passage, are in.
-Without a1q4's flag an invisible wall in front of the cave stops the player (§2).
+The quest engine (§5: declarative tables per quest, quest items, dialogue, rewards, the oracle; "Adding a quest") runs
+all of Act 1: **a1q1 "Enemy at the Gate"** (§6), **a1q5 "Mercy Mission"** (§7), **a1q4 "Breaking Some Eggs"** in The Mud
+Flats (§1–4), which opens the Submerged Passage, **a1q8 "A Dirty Job"** and **a1q7 "The Dweller of the Deep"** (§8),
+**a1q2 "The Caged Brute"**, **a1q3 "The Siren's Cadence"** and Act 1's part of **a1q9 "The Way Forward"** (§9), and
+**a1q6 "The Marooned Mariner"** (§10). Without a1q4's flag an invisible wall in front of the cave stops the player (§2).
 
 ## 1. The data model
 
@@ -11,7 +13,7 @@ Without a1q4's flag an invisible wall in front of the cave stops the player (§2
 | `Quest.json` | one row per quest: `Id`, `Act`, `Name`, `QuestId`, icon | row 2: `a1q4`, act 1, "Breaking Some Eggs", `QuestId` 4, `Art/2DArt/QuestIcons/mudflats.dds` |
 | `QuestFlags.json` | named boolean flags, `Id` + `HASH32` | rows 23–25, 29, 34–37, 50–52 below |
 | `QuestStates.json` | the quest log text per state: `Quest` (Quest row), `Order`, `FlagsPresent` / `FlagsMissing` (QuestFlags rows), `Text`, `Message`, `MapPinsKeys1`, `MapPinsTexts` | rows 20–28 |
-| `QuestItems.json` | quest item rules (`TriggeredQuestFlag`, `Script` …) | 53 rows; the glyph rows did not decode with our schema (open, not needed: each glyph's `.it` names its flags, below) |
+| `QuestItems.json` | league quest items (`TriggeredQuestFlag`, `Script` …) | 53 rows, none of the campaign's: the campaign's quest items name their flags in their `.it` Quest component (§5) |
 | `BaseItemTypes.json` | the items | rows 1531–1533: the glyphs |
 | `Chests.json` | chest types: `Id`, `Name`, `AOFiles`, `BaseItemTypesKey` | rows 183–185: the Rhoa Nests |
 
@@ -20,11 +22,16 @@ A quest's progress is the set of its flags; the quest log shows the first `Quest
 
 Quest rewards are `QuestRewardOffers` rows (their `QuestFlag` is the offer's "taken" flag) with their `QuestRewards`
 rows: `__col1 + 1` is the choice's inventory id, `Reward` the item, `RewardLevel` the gem's level or the item's level,
-`Characters` the class rows (empty for any) and `__col5` the rarity. NPCTalk's `QuestRewardOffersKey` points at the
-offer, and the row's QuestFlag1/2 lists decide when the client shows it. The Gateway offers every table row whose
-items it can build (`QuestRewardCatalog.Create`: level-1 items and normal flasks at their row's level); an offer with
-no such row opens nothing, and rows it cannot build yet (offer 8's level-8 magic armours, offer 15's magic belts) are
-skipped, so there is no per-offer allow list. Checked live 2026-10-26: offer 3 (Tarkleigh's a1q4 "Glyph Reward").
+`Characters` the class rows (empty for any), `__col5` the rarity and `__col16` the mode (0 both, 1 regular only, 2
+Ruthless only: offer 8's level-8 magic armours are Ruthless's alternatives). NPCTalk's `QuestRewardOffersKey` points at
+the offer, and the row's QuestFlag1/2 lists decide when the client shows it. The Gateway offers every table row whose
+items it can build (`QuestRewardCatalog.Create`: gems, currency and flasks at their row's level, gear rolled at its item
+level and rarity with the mode's `ItemRolls`); an offer with no such row opens nothing, so there is no per-offer allow
+list. Offers without a `QuestFlag` (the quest books 5, 6, 9, 11 and the later acts' keys and amulets) give a quest item
+whose own flags tell that it was taken: its grant_flag is held (a1q7-HaveRewardBook) or its remove_flag set
+(a1q7-UsedRewardBook), and the claim sets the grant flag in the same save; an offer whose item has no such flags either
+(the bandit respec books, heist coins) opens nothing yet. Checked live 2026-10-26: offer 3 (Tarkleigh's a1q4 "Glyph
+Reward").
 
 ### a1q4's flags
 
@@ -84,7 +91,7 @@ glyph, "Take the Glyphs to the Glyph Wall" with all three and the wall seen, "Ta
 | Piece | How |
 |---|---|
 | The Rhoa Nests | created at the captured records (`<area>_seed<seed>.objects.json`, the same capture as the tutorial chest's); the nests in cell order are shuffled by the seed, and then the first becomes `RhoaChest` (glyph 1), the next `RhoaChest2`, then `RhoaChest3`. They block the server's walk estimate like the client's (Chest.ot `blocking`, size 1). a1q4's objects have ids of their own (0x2e80: nests, 0x2e90 wall, 0x2e91 waterfall, 0x2ea0: opened nests), clear of the ids other code takes |
-| Open a nest (0x24), drop its glyph, pick it up | the player walks up (size 1); the nest is opened once per instance (`InstanceState.OpenChest`) and replaced by an opened one under an id of its own (the same id made the client log "Replacing awake object"). Its glyph drops on the nest unless the client has `PlacedGlyphs` or a copy is within reach: carried (any inventory or the cursor), in the personal stash, or on this instance's ground (`GlyphQuest.NestDrops`). A glyph lost another way (dropped in another instance, destroyed, sold) drops again. The pickup puts the glyph and sets the flags the save lacks (`KnowsAboutGlyphs`, `HaveGlyphN`) in one save transaction; once the glyphs are placed a glyph is not picked up but removed (a copy left in another instance), and carried ones are removed on entering an area (the `.it` `remove_flag`; on the message path, so the 0xbf keeps its order with the other inventory changes). About once a second the player tick sets and clears the HaveGlyph flags to follow the glyphs carried (`GlyphQuest.SyncFlags`), so a dropped, sold or stashed glyph clears its flag; it changes no inventory. Quest flags are changed under the Monsters lock and read from other threads as a copy (`ClientState.QuestFlagsSnapshot`, `HasQuestFlag`); a change and its 0x2ba send run one at a time per connection (`ClientState.QuestGate`, held by `SetQuestFlags` and the sync, which calls `SetQuestFlagsHeld`), so an older flag set is never sent last. Live 2026-10-25: the client drops a glyph from the cursor like any item (0x29), the flag cleared within a second, and in a new instance its nest dropped it again; a glyph given after the placement was removed (since then: on the next area entry) |
+| Open a nest (0x24), drop its glyph, pick it up | the player walks up (size 1); the nest is opened once per instance (`InstanceState.OpenChest`) and replaced by an opened one under an id of its own (the same id made the client log "Replacing awake object"). Its glyph drops on the nest unless the character no longer needs it (the engine's quest item rules, §5: `PlacedGlyphs` set, or a copy carried or on this instance's ground; the stash no longer counts since the engine, as for a1q5's chest). A glyph lost another way (dropped in another instance, destroyed, sold) drops again. The pickup puts the glyph and sets the flags the save lacks (`KnowsAboutGlyphs`, `HaveGlyphN`) in one save transaction (`QuestItems.Claim`); once the glyphs are placed a glyph is not picked up but removed (a copy left in another instance), and carried ones are removed on entering an area (the `.it` `remove_flag`; on the message path, so the 0xbf keeps its order with the other inventory changes). About once a second the player tick sets and clears the HaveGlyph flags to follow the glyphs carried (`QuestItems.Sync`), so a dropped, sold or stashed glyph clears its flag; it changes no inventory. Quest flags are changed under the Monsters lock and read from other threads as a copy (`ClientState.QuestFlagsSnapshot`, `HasQuestFlag`); a change and its 0x2ba send run one at a time per connection (`ClientState.QuestGate`, held by `SetQuestFlags` and the sync, which calls `SetQuestFlagsHeld`), so an older flag set is never sent last. Live 2026-10-25: the client drops a glyph from the cursor like any item (0x29), the flag cleared within a second, and in a new instance its nest dropped it again; a glyph given after the placement was removed (since then: on the next area entry) |
 | Quest flags S→C | 0x2ba to the Player component with update flag 0x02 replaces the set ([16](16-waypoints.md) §3, `InstanceEntities.PlayerQuestFlagsUpdate`); the client unblocks the blockers and updates the tracker by itself (§2, §3). Decompile pointers: Positioned's `.ot` keys `unblock_quest_flag` / `block_quest_flag` (`0x141e2dbb0`), flag name lookup (`0x141de7b20`, `Data/QuestFlags.dat`), interaction `required_quest_flag` / `disable_quest_flag` (`0x141e1cab0`, `0x141e5c790`) |
 | Glyph Wall | coming within 60 cells, or using it, sets `SeenGlyphWall`. Used (0x24, walk-up size 7) while the client lacks `PlacedGlyphs`, with the three glyphs in the main inventory or on the cursor: one transaction looks them up, removes them and sets `PlacedGlyphs` (clearing `HaveGlyph1–3`); transactions run one at a time, so a second quick use finds nothing. 0xbf removes them in the client |
 | The transition | **0x2ba to Transitionable** (component index 3 for both; data u8 target state, §6): the wall 1 → 2 runs `on_transition` (`DisableTargetable` and the animation: the label went away live), the waterfall 1 → 2 likewise. Created later with state 2 they run `create_transitioned`. Whether the waterfall's animation shows was not confirmed in screenshots |
@@ -96,32 +103,114 @@ glyph, "Take the Glyphs to the Glyph Wall" with all three and the wall seen, "Ta
 ## 5. The quest engine
 
 **Quest flags are the truth.** A character's quest progress is the set of its quest flags, `QuestFlags.dat` Ids (e.g.
-`a1q1-KilledHillock`), saved by name in its save (`data/saves.db`, `QuestFlags`; [saves](../saves.md)): names are readable
-and survive game patches, where row numbers do not. The client keeps its own copy as QuestFlags **rows** in the Player
-component ([16](16-waypoints.md) §3): the Gateway sends them with the player object and again (0x2ba, flag 0x02,
+`a1q1-KilledHillock`), saved by name in its save (`data/saves.db`, `QuestFlags`; [saves](../saves.md)): names are
+readable and survive game patches, where row numbers do not. The client keeps its own copy as QuestFlags **rows** in the
+Player component ([16](16-waypoints.md) §3): the Gateway sends them with the player object and again (0x2ba, flag 0x02,
 `PlayerQuestFlagsUpdate`) whenever one changes, together with the World panel's visit and access flags
-(`PlayerQuestFlags`). The client acts on them by itself: an area is reachable only when its WorldAreas `EndQuestFlags`
-are set (`0x140797750`), and blockers with `unblock_quest_flag` read them (§2). `/quest_flag [<id> [off]]` lists, sets
-or clears them (dev).
+(`PlayerQuestFlags`; WorldAreas `StartQuestFlags`, the `Visited-` flags, come from there). The client acts on them by
+itself: an area is reachable only when its WorldAreas `EndQuestFlags` are set (`0x140797750`), blockers with
+`unblock_quest_flag` read them (§2), and the quest log and tracker follow `QuestStates` (§1). `/quest_flag [<id> [off]]`
+lists, sets or clears them (dev). Session flags (`SessionQuestFlags.dat`, e.g. `a1q6-FairgravesAggro`) are kept in
+memory only: never saved, gone on the next area.
 
-**One script per quest** (`Quests.cs`, `Quests.Script`). The Gateway asks every script:
+**One table per quest**, one file per act (`Modules/Core/World/QuestObjects/Acts/Act<n>.cs`, a class deriving
+`Quests.Act`): a `Quests.Quest` with its rules. The QuestObjects module registers every act of its assembly while it is
+loaded (`Quests.Register`); the Gateway and the Game module ask the tables (`Quests.OnMonsterKilled`, `FlagToEnter` …,
+Gateway `Quest/Quests.cs`) and the engine's hooks (Game `World/Quest/`) do the rest. Where everything lives and the
+porting checklist: [campaign quests](../game/campaign-quests.md).
 
-| Question | What the Gateway does with the answer |
-|---|---|
-| `OnMonsterKilled(area, variety)` → flags | sets and saves them when a monster dies (`MonsterKilled` → `SetQuestFlags`) |
-| `FlagToEnter(from, to)` → flag | refuses that area transition (C→S 0x24) without the flag, even if the client lets the player reach it |
+| Rule | Reacts to / does | Example |
+|---|---|---|
+| `On.Killed(area, variety, flags…)` | a monster's death | Brutus → `a1q2-KilledBrutus` |
+| `On.Seen(area, variety, flags…)` | the player within 60 cells (`SightRange`) of a living one | Merveil → `a1q3-SeenMerveil` |
+| `On.Near(area, objectType, flags…)` | the player within 60 cells of a room object (from its room, below) | `PietyBlockage` → `a1q9-SeenBlockage`, `RoadBlocked` |
+| `On.NearExit(area, to, flags…)` | the player within 60 cells of an exit, shown or not | (none in Act 1) |
+| `On.Entered(area, flags…)` | entering the area | (Act 1's are the `Visited-` flags) |
+| `On.Used(area, objectType, flags…)` | a click (0x24) on a quest object the engine created | the Ancient Seal → `a2q8-UnleashedDarkness` |
+| `On.UsedWith(area, objectType, [needs], flags…)` | the same, only with the needs; the carried quest items whose remove_flag is among the flags are taken in the same save (`QuestItems.Consume`) | the tree with the spike and the gem → `a2q9-PoisonedTree` |
+| `On.Cleared(area, after, flags…)` | the instance's last hostile monster dying, once `after` is set | The Fetid Pool → `a1q8-Cleared` |
+| `On.Exit(from, to, flag)` | the exit needs the flag: refused (0x24) and only created once the client has it | 1_1_7_2 → 1_1_8: `a1q2-KilledBrutus` |
+| `On.LevelUp(area, variety, level)` | the kill tops experience up to the level | Hillock → 2 |
+| `On.Threshold(area, variety, lifePct, flags…)` | the monster never dies: the hit that takes it to `lifePct` % or below (a lethal hit and `/kill` too) leaves it at ≥ 1 life, sets the flags and it leaves the fight (removed: no death, drops or experience) | Kitava on the Cathedral Rooftop → `a5q6-CompletedBoss` |
+| `On.Chest(area, chestType, item, opensWith)` | a quest chest where its room or tile puts it; opened once per instance, drops the item while needed; with `opensWith` its Transitionable is 1 (untargetable) until the flag, then 2, and its last state once opened | `AllFlameSlaveGirl` → Allflame; the Strange Device after Helena's rescue |
+| `On.Drops(area, variety, item)` | the monster drops the quest item where it dies, while needed | Hailrake → Medicine Chest |
+| `On.Npc(area, npcType, goneWith, transitionedBy, shownBy, freedBy, atObject)` | a room NPC where its room puts it (or where `atObject` stands), until `goneWith`, from `shownBy`; Transitionable 2 with `transitionedBy` or once `freedBy` (a variety) dies; in a town the stage of a town NPC its room lists; created, removed and transitioned live as the flags change (Game `World/Quest/QuestNpcs.cs`) | Fairgraves on his ship; Helena climbing up after Fidelitas; Clarissa freed by her guards' captain; Dialla at Dominus' DeathPortalLocator |
+| `On.Object(area, objectType, transitionedBy)` | a room or tile quest object the engine creates (`QuestObjectTypes`, the generic `QuestObject` blob): Transitionable 1, its last state once the flag is set (0x2ba when it comes); a TriggerableBlockage (no update reader) is created again unblocked | the Thaumetic Seal, PoisonTree, the Ancient Seal, the Dark Altar, the sewer gratings, the BioWall, the Epic Door's lock |
+| `On.Spawns(area, objectType, variety)` | the object's use brings the monster where it stands; the area's population leaves it out | the Dark Altar → the Vaal Oversoul |
+| `On.HandIn(npc, option, item)` | a dialogue row of the NPC with the option takes every carried copy and sets its remove_flag | Hargan's busts (`a3q11-DeliveredBust1`–`3` have no NPCTalk setter) |
+| `On.Exists(objectType, from, until)` | the type exists only from / until a flag in every area: its `.ot` BaseEvents `serialisation_start_flag` / `serialisation_stop_flag`. Area transitions (by tile type), NPCs | Act 5 Lilly after `a5q6-CompletedBoss`; the Control Blocks' two exits |
+| `On.Appears(area, variety, npcType, goneWith)` | when the monster dies the NPC appears where it fell (no room places it); with `goneWith` also beside the boss on a later visit while the kill flags are set | the god Sins, `SinInnocence` |
+| `On.TurnsInto(area, npcType, variety)` | a dialogue row whose script names the variety (`IfVarietyContains( "…", { Transition(); } )`) turns the NPC into it: the NPC's Transitionable steps to 2 (it fades), the monster appears in its place; the area's population leaves that boss out | Fairgraves' "Thank You" |
+| `On.SecondForm(area, variety, next)` | the next form appears where the first died; the area leaves it out | Merveil, the Siren → the Twisted |
+| `On.Blocker(area, objectType, size, flag)` | objects the client spawns from the room and stops at until the flag: the server's walk estimate stops there too | `MerveilExitBlocker`, `SpikeBlockageBlocker` |
+| `On.Wall(area, objectType, flag)` | a room object the server creates as a blocking wall (BlockerObject, QuestBarriers) until the flag | the Strand's force wall |
 
-**Room server objects.** Rooms (`.arm`) list server objects next to their doodads: a type other than
-`Metadata/MiscellaneousObjects/Doodad`, e.g. `Metadata/NPC/Act1/Doorman` (the client spawns only plain doodads).
-`scripts/re/atlas room-points` marks them with their type in `data/room-points.json` (the room fit skips them, since the
-walk-map capture has only the client's doodads), and keeps the rooms that have a `default` start point. Quests do not
-create room objects yet: the first ones (§6) do not look or behave right.
+**Room objects.** Rooms (`.arm`) list server objects next to their doodads: a type other than
+`Metadata/MiscellaneousObjects/Doodad`, e.g. `Metadata/NPC/Act1/Fairgraves` (the client spawns only plain doodads, and
+objects whose `.ot` says `no_serialise`, like the blockers). `scripts/re/atlas room-points` keeps them in
+`data/room-points.json` with the rooms that have monster or start points and, since version 5, the rooms that hold a
+quest object (an NPC, a `Metadata/QuestObjects/` object, a quest chest); such a room takes its actual placement
+(captured or from the Gateway's own generation, [14](14-monster-packs.md) §3), so `AreaPopulation.LoadObjects` gives
+each object once, where the client has it.
 
-**The plan for later quests**, in the same shape:
-- more events: an area entered (WorldAreas `StartQuestFlags`, e.g. `Visited-1_1` for The Twilight Strand), an object
-  used (0x24), an item picked up (QuestItems `TriggeredQuestFlag`), an NPC talked to;
-- more effects: the quest log (`QuestStates`, §1), rewards, server objects of rooms (§6);
-- dev presets from `CharacterStartQuestState` (e.g. `Act1Complete`: its quests and flags) to start a character at any act.
+**Generic, from the client's data** (no rule needed):
+- **Quest items** (`QuestItems`): the `.it` Quest component (`data/item-types.json` "quest",
+  `ItemCatalog.BaseType.Quest`; `minus` in a name stands for `-` unless the literal name is a flag): `grant_flag` is
+  held while one is carried (synced after a pickup or an item move, on entering an area and about once a second),
+  `extra_flag` set when first carried, `remove_flag` takes carried copies away (on entering an area or after an item
+  move), removes a clicked copy from the ground and stops drops, and `use_flag` is set by using the item (the quest
+  books: C→S 0x58 uses it up). A quest item drops (`On.Drops`, `On.Chest`, a1q4's nests) unless its remove_flag is set,
+  one is carried or one lies on the instance's ground; the account stash does not count.
+- **Hand-ins**: a dialogue row whose `QuestFlag4` is a quest item's remove_flag takes one carried copy with the flag in
+  one save (Nessa's "The Medicine Chest", Fairgraves' "Thank You"); without one the option list comes back. A row whose
+  script sets remove_flags takes those items too (Eramir's "Bandit Amulets", NPCTalk 95:
+  `SetQuestFlag("a2q7-QuestRewardTaken", "a2b-DeliveredAmulets")`; a script call may name several flags). Every
+  hand-in takes all its items in one click and save, as online: a row whose flag finishes several carried item types
+  takes them all (Siosa's four pages share `a3q12-DeliveredPages`), and `On.HandIn(npc, option, item, row)` names one
+  row of a shared text (Fairgraves' row 496 takes the plum and the decanter, where the data's rows 497/498 took one
+  each).
+- **Quest objects** (`QuestObjectTypes`, Core `QuestObject`): a type's deserialized components come from
+  `data/object-types.json` (since manifest v6 it has every room server object and the quest tile and room objects,
+  `ot_components.py QUEST_TILE_TYPES`, `QUEST_ROOM_TYPES`); Chests.dat rows without an `.ot` (the Golden Hand's altar,
+  Victario's stashes, Siosa's book stands) take their InheritsFrom's (QuestChest) with the row's model. Placements come
+  from the Gateway's own generation (the tile objects of `ServerLevels.Level` of a quest type: a tile record's height and
+  virtual model; `QuestObjectTypes.AreaPlacements`) or the room lines. The
+  blob writes Positioned, Animated, Transitionable, Chest, Stats, ObjectMagicProperties, TriggerableBlockage, NPC,
+  InteractionAction and MinimapIcon as the traced objects do; it reproduces the Rhoa Nest's and the Glyph Wall's bytes.
+- **Rewards nothing can build**: an offer none of whose items the server can build (magic or rare jewellery) sets its
+  taken flag without an item, so its quest completes (a3q4, a3q13).
+- **Dialogue** ([17](17-npcs.md)): `QuestFlag4` set on choosing, `QuestFlag5` when the talk ends, and the scripts'
+  `SetQuestFlag`, `ClearQuestFlag`, `SetSessionQuestFlag` (Fairgraves' "Marooned": `a1q6-ReceivedQuest`, clears
+  `a1q6-DeliveredAllFlame`). `QuestFlag3` marks a row heard: of two rows with the same text (Tarkleigh's two "Dweller of
+  the Deep") the unheard one is the quest's next.
+- **Static rewards** (`QuestStaticRewards`, from `QuestStaticRewards.dat`): column 1 passive points, column 5 ascendancy
+  points, column 7 refund points, StatsKeys/StatValues permanent stats. Passive points are derived from the flags every
+  time and sent in the 0x33 tree's `extra_skill_points` ([15](15-progression.md) §2): the client's tree check knows only
+  `points_from_level`, `skill_points_from_passives` and `extra_skill_points`, so it does not count quest points itself.
+  Refund points are spent, so a flag credits its refund points once, in the save write that sets it
+  (`QuestRefundsCredited`; a save that has such a flag uncredited gets it at login). Stats are stat sources like a
+  passive's (Game `WithQuestStats`: Act 2's help rewards a2q1–a2q3, 8% movement speed, +15% resistances, +40 life;
+  the pools and the panel follow a change); Kitava's penalty stays `ResistancePenalty`'s.
+- **The quest log** (`QuestStates`): the first `QuestStates` row by Order whose flags match, Order 0 "Quest Complete";
+  `CharacterStartQuestState` presets (`Act1Complete` …) with their quests and flags.
+
+**The oracle** (`QuestSimulator`, `QuestEngineTests`): an act's events (enter, see, kill, near, open a chest, pick
+up, talk, reward, use an item) played through the same tables, NPCTalk rows, item flags, static rewards, the Gateway's
+exits and the client's WorldAreas gates; a step the game would refuse throws. After Act 1 the flags contain
+`Act1Complete`'s and a1q1–a1q8 are complete; later acts add their sequence and preset.
+Played live on 2026-10-30 with the real client (OfflineWitch in a copied save, seed 1 instances, the bridge, `/tp`, and a
+temporary kill command): a1q8, a1q7, a1q2, a1q9's part, a1q6 and a1q3 into Act 2, and
+a1q5 and a1q4 again on the engine; afterwards the save had every `Act1Complete` flag, 2 quest passive points and 2
+credited refund points, also after a relog. That run was on the engine before the Gateway moved the game into modules;
+the port to the modules has not been played with the client yet.
+
+### Adding a quest
+
+The checklist (data to read, the act file, the oracle, the docs) is [campaign quests](../game/campaign-quests.md)
+("Adding a quest", "Adding an act"). In short: read the quest's rows, add its `Quest` to its act's table
+(`Modules/Core/World/QuestObjects/Acts/Act<n>.cs`) with one rule per event the server must see and per world change,
+code only what the data cannot say (a1q4's Glyph Wall: `GlyphQuest`, with an oracle handler in
+`QuestSimulator.ObjectHandlers`), and extend the act's oracle sequence in `QuestEngineTests`.
 
 ## 6. a1q1 "Enemy at the Gate": The Twilight Strand
 
@@ -257,7 +346,7 @@ door, hidden by the tile).
 
 Nessa wants a medicine chest; Bestel says his ship ran aground on The Tidal Island (1_1_2a); Hailrake, the area's
 unique boss, drops the Medicine Chest; Nessa takes it and offers two rewards.
-Played through live on 2026-10-25 (`MercyMission.cs`, `Program.MercyMission.cs`).
+Played through live on 2026-10-25 (`MercyMission.cs`; since the quest engine, the generic quest items and `Act1.cs`).
 
 | QuestFlags row | Id | Set by |
 |---|---|---|
@@ -284,8 +373,8 @@ separate `…HailrakeGauntletNoQuest` variety exists.
 The rooms have too few doodads for the room fit, so they use their captured placement ([14](14-monster-packs.md) §3):
 seed 1 puts `mapboss` at (265, 437) on the wreck.
 `CannibalBossHailrake.ot` extends `Cannibal`, not `BossLifeBar`, and his row has no `BossHealthBar`: no big life bar.
-His death drops the chest where he fell, unless Nessa has one already, this character carries one or one lies on this
-instance's ground; a chest lost any other way drops again from the next Hailrake.
+His death drops the chest where he fell (`On.Drops`), unless Nessa has one already, this character carries one or one
+lies on this instance's ground; a chest lost any other way drops again from the next Hailrake.
 The stash is not counted: it is the account's, so another character's stashed chest must not block this one (whose
 tracker would still say "Find the Medicine Chest"); a character that stashes its own chest can get a second one.
 Hailrake is placed from the area's doodads and rooms: the captures (`1_1_2a_seed<seed>.doodads.json` and `.rooms.json`,
@@ -294,12 +383,11 @@ from `live.ps1 -Walkmaps`) when there are some, else the Gateway's own generatio
 **The item.** BaseItemTypes 1534 `Metadata/Items/QuestItems/MedicineSet1`, "Medicine Chest", 2×3, item class 31.
 Its `.it` Quest component has `grant_flag = "a1q5minusHaveMedicineChest"` and
 `remove_flag = "a1q5minusNessaCongratulated"`.
-The Gateway keeps 49 equal to "a chest is carried" (inventories and cursor): on entering an area, after a pickup,
-after a read with an item move (drop, place, pick-up, the stash, a sale, a chat command), and about once a second for
-the flag alone.
-Once 42 is set (or `QuestRewardTaken`), a carried chest is taken away (on entering an area or after an item move: the
-inventory changes stay on the message path, in revision order), and a click on a chest on the ground walks the player
-to it and removes it from the ground.
+The engine's quest item rules (§5) keep 49 equal to "a chest is carried" (inventories and cursor): on entering an area,
+after a pickup, after a read with an item move (drop, place, pick-up, the stash, a sale, a chat command), and about once
+a second for the flag alone.
+Once 42 is set, a carried chest is taken away (on entering an area or after an item move: the inventory changes stay on
+the message path, in revision order), and a click on a chest on the ground removes it from the ground.
 Stashed chests stay in the stash; one taken out by a character that is done goes at its next item move.
 Choosing Nessa's row 1 removes the chest and sets 42 and clears 49 in one save transaction; without a chest carried
 (or with it on offer to a vendor) nothing changes and the option list comes back.
@@ -312,12 +400,73 @@ Both are claimed like Hillock's reward (one save with the taken flag, once).
 QuestRewardOffers' `__col8` is set on offer 2 (and on a1q4b); its meaning is unknown, the client lists the option
 anyway.
 
+## 8. a1q8 "A Dirty Job" and a1q7 "The Dweller of the Deep"
+
+| Flag | Set by |
+|---|---|
+| `a1q8-QuestReceived` | Tarkleigh's "The Fetid Pool" (NPCTalk 44–46: after the Bone Rhoas, The Fetid Pool or Nessa's first reward) |
+| `a1q8-SeenUndeadRhoa`, `a1q8-SeenNecromancer` | seeing a Bone Rhoa (MonsterVarieties 469 `Rhoas/RhoaSkeleton`, The Fetid Pool's packs) and Kadavrus the Defiler (430 `NecromancerBossFetidPool`, `mapboss` of `Area3a/Rooms/miniboss.arm`) |
+| `a1q8-KilledNecromancer` | Kadavrus' death |
+| `a1q8-Cleared` | the last hostile monster of The Fetid Pool dying, after Kadavrus (QuestStates: "Wipe out the remaining monsters"; poedb: all monsters) |
+| `a1q8-Congratulated`, `-HaveRewardBook`, `-UsedRewardBook` | Tarkleigh's "The Necromancer", the Book of Regrets (offer 5) carried, then used: two refund points |
+| `a1q7-ReceivedQuest` | Tarkleigh's first "Dweller of the Deep" (after `PlacedGlyphs`) |
+| `a1q7-SeenDweller`, `-KilledDweller` | The Dweller of the Deep (541 `ShieldCrabBossSlowAura`, `mapboss` of The Flooded Depths' `boss_water_wet_unique_10a.arm`) |
+| `a1q7-Congratulated`, `-HaveRewardBook`, `-UsedRewardBook` | Tarkleigh's second "Dweller of the Deep", the Book of Skill (offer 6), used: one passive point |
+
+## 9. a1q2 "The Caged Brute", a1q3 "The Siren's Cadence", a1q9 "The Way Forward" (Act 1)
+
+**The Upper Prison** (1_1_7_2) is a dummy graph of two sub-graphs, "Prison" and "Warden" (`Area7Level2/filegroups.fgp`),
+joined by telepads. Brutus (150 `Brute/BossBrute`) is WorldAreas' second boss and stands at `mapboss2` of the
+`boss_cells_*` rooms before his arena (`boss_exit.arm`); the Necromancer is `mapboss1` (`special_necroboss1.arm`).
+Before the room-points generator followed sub-graphs (14-monster-packs.md §3) the area had no boss room and Brutus never
+appeared. On the way, Piety reads in `Piety.arm` (`NPC/Act1/PietyPrison`, not targetable): coming near her sets
+`SeenPietyPrison` (Act1Complete has it). His death sets `a1q2-KilledBrutus`, which opens the exit to Prisoner's Gate
+(its `EndQuestFlags`, and `On.Exit`). The arena's doors (`BruteArenaEntranceDoor`, `BossArenaExitDoor`:
+TriggerableBlockage, `start_blocked`, opened by script) are not created, so nothing blocks the way. Tarkleigh's "Brutus"
+gives `a1q2-ReceivedQuest` (after The Lower Prison is visited); Nessa's "Brutus" and "Prison Reward" (offer 8) help
+before; Tarkleigh's "Brutus Reward" is offer 7.
+
+**The Cavern of Anger** (1_1_11_2) embeds Merveil's arena (`_cave_river_boss1.dgr`, room `river_boss_1a.arm`, tag
+`act1endboss`, `mapboss2`): Merveil, the Siren (162 `seawitchillusion/BossMerveil`, `set_monster_has_second_form`, no
+drops) and on her death Merveil, the Twisted (164 `Seawitch/BossMerveil2`, in WorldAreas' Monsters, not placed by the
+area: `On.SecondForm`). The second form's death sets `a1q3-KilledSeaWitch`: the room's six
+`QuestObjects/MerveilExitBlocker` (`blocking`, `object_size 5`, `unblock_quest_flag a1q3-KilledSeaWitch`; the client
+spawns them) stop blocking, and the exit into The Southern Forest is created (`On.Exit`; 1_2_1's `EndQuestFlags` too).
+Ambrosia (518 `SeaWitchBossFirestorm`, `mapboss1`) is the daughter, not Merveil. Nessa's "Merveil", "Merveil's Lair" and
+"Merveil Reward" (offer 10) are dialogue; the quest is complete in Act 2 (`Visited-2_1` with `a1q3-QuestRewardTaken`).
+
+**Prisoner's Gate** (1_1_8): the road to The Western Forest is blocked (`Area8/Rooms/blocked_passage.arm`: `NPC/Act1/
+PietyBlockage`, the `SpikeBlockage` animations and seven `Spikes/SpikeBlockageBlocker`, `unblock_quest_flag
+a1q9-RoadOpened`; the exit `Spikes/BlockedPassageTransition` is hidden until then). Coming near Piety's blockage sets
+`a1q9-SeenBlockage` and `a1q9-RoadBlocked` (both in Act1Complete); `On.Exit(1_1_8 → 1_2_9)` needs `a1q9-RoadOpened`, set
+in Act 2 with the Thaumetic Emblem (`SpikeSealKey`: grant `a2q11-HaveKey`, extra `a1q9-RoadBlocked`, remove
+`a1q9-RoadOpened`). Tarkleigh's "Reaching the Forest" gives `a1q9-QuestReceived`; Bestel's reward (offer 11) comes
+after.
+
+## 10. a1q6 "The Marooned Mariner"
+
+Captain Fairgraves (`NPC/Act1/Fairgraves`, in `Area9/Rooms/intact_ship.arm` with the room's `mapboss`) stands on his
+ship in The Ship Graveyard (1_1_9). His boss (550 `Skeletons/SkeletonBossFairgraves`, base `SkeletonBossEmerge`: four
+Transitionable states, invisible in state 1) is not placed with the area (`On.TurnsInto`); unique monsters are created
+in their last state, so he appears visible and targetable.
+- "Introduction" and "Marooned" (script: `SetQuestFlag("a1q6-ReceivedQuest")`,
+  `ClearQuestFlag("a1q6-DeliveredAllFlame")`).
+- The Allflame (BaseItemTypes 1535 `AllFlameLantern1`: grant `a1q6-HaveAllFlame`, remove `a1q6-DeliveredAllFlame`) is
+  the wounded slave girl's (Chests 186 `QuestChests/Fairgraves/AllFlameSlaveGirl`, `BaseItemTypesKey` 1535) in The Ship
+  Graveyard Cave's treasure room (`Cave/Rooms_new/Unique/treasure1a.arm`, with Stranglecharm at `mapboss`): `On.Chest`.
+- "Thank You" (NPCTalk 170, needs `HaveAllFlame`; 171 again after `DeliveredAllFlame` while he lives and the session
+  flag is not set) hands the Allflame in (its remove_flag) and its script transitions him (`ForEachInRange( 100, {
+  IfVarietyContains( "…SkeletonBossFairgraves", { Transition(); } ) } )`,
+  `SetSessionQuestFlag("a1q6-FairgravesAggro")`): the NPC fades (Transitionable 2) and the boss appears in his place.
+- His death sets `a1q6-KilledFairgraves`; the NPC is not created again (his `.ot` `unblock_quest_flag`, `On.Npc`).
+- Bestel's "Captain Fairgraves" and "Fairgraves Reward" (offer 9): a Book of Skill, one passive point once used.
+
 ## Open
 
 - How the real server gives an AreaTransition subtype its Transitionable state (blob tasks?), so the Strand's gate and
   the Mud Flats' cave entrance play their opening.
 - Why the Doorman is not drawn; the list of u8 TriggerableBlockage reads while blocked (none sent).
-- The QuestItems row layout (which row is which glyph; `TriggeredQuestFlag`).
+- QuestItems.dat covers league items only; the campaign's items are their `.it` Quest components (§5).
 - Transitionable on inherited types (`WaterCaveAreaTransition`): how its state gets set.
 - How the real server chooses which nests hold which glyph (RhoaChest / 2 / 3); the Gateway shuffles them by the seed.
 - Whether the waterfall (`WaterTransition`, `waterdrop.ao`) shows its animation, and its height (the room line has

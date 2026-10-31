@@ -31,10 +31,18 @@ static partial class Game
             var had = wanted.ToDictionary(f => f, f => Quests.ClientHas(f, ownBefore, clientBefore));
             var changed = new List<string>();
             foreach (string flag in wanted)
-                if (on ? conn.QuestFlags.Add(flag) : conn.QuestFlags.Remove(flag)) changed.Add(flag);
+                // A flag every character is given (Quests.EveryCharacter) but has not earned yet is earned now: saved, though
+                // the client already had it (Kitava's death sets EndGameAvailable).
+                if (on ? conn.QuestFlags.Add(flag) | conn.UnearnedQuestFlags.Remove(flag) : conn.QuestFlags.Remove(flag)) changed.Add(flag);
             if (changed.Count == 0) return null;
             CharacterSaves.ChangeQuestFlags(CharacterName(conn), changed, on);
-            if (ChangesResistancePenalty(changed))
+            // A flag with refund points (QuestStaticRewards) was credited by the save: the balance follows it.
+            if (on && changed.Any(f => QuestStaticRewards.Default.Value.Find(f) is { RefundPoints: > 0 }))
+            {
+                conn.RefundPoints = CharacterSaves.Load(CharacterName(conn))?.RefundPoints ?? conn.RefundPoints;
+                conn.SavedPassiveProgress = new(conn.MainAscendancy, conn.Passives, conn.MasteryEffects, conn.RefundPoints);
+            }
+            if (ChangesResistancePenalty(changed) || ChangesQuestStats(changed))
             {
                 conn.Pools = PoolsFor(conn, conn.Pools.Level);
                 conn.ApplyMovementSpeed();
@@ -46,6 +54,7 @@ static partial class Game
             List<uint> gone = [.. conn.QuestRoomObjects.Where(o => effective.Contains(o.Value.Flag) && Has(o.Value.Flag)).Select(o => o.Key)];
             foreach (uint id in gone) conn.QuestRoomObjects.Remove(id);
             conn.UpdateBarrier();
+            if (conn.QuestBlockers.Any(b => effective.Contains(b.Rule.UnblockedBy))) UpdateQuestBlockers(conn);
             return new(changed, all, effective, gone);
         }
     }
@@ -64,22 +73,17 @@ static partial class Game
         foreach (string flag in change.Changed) Console.WriteLine($"[gateway] {remote} {CharacterName(conn)}: quest flag {flag} {(on ? "set" : "cleared")}");
         if (!conn.PlayerSent) return;
         await Send(remote, stream, ciphers, InstanceEntities.PlayerQuestFlagsUpdate(PlayerId, change.All), $"0x02ba player quest flags: {change.All.Count}");
-        if (ChangesResistancePenalty(change.Changed))
-            await SendCharacterStats(remote, stream, ciphers, conn, "Kitava resistance penalty changed");
-        bool Has(string flag) => ClientHasQuestFlag(conn, flag);
-        foreach (var (id, transition) in conn.Layout.AreaTransitions)
-        {
-            if (TransitionFlag(conn, transition) is not { } flag || !change.Effective.Contains(flag)) continue;
-            if (Has(flag))
-            {
-                await Send(remote, stream, ciphers, InstanceEntities.CreateObject(id, InstanceEntities.ObjectTypeHash(transition.Type), transition.Blob()),
-                    $"0x02b9 create area transition 0x{id:x} {transition} (quest flag {flag})");
-                await Send(remote, stream, ciphers, InstanceProtocol.EnterWakeZone(id), null);
-            }
-            else await Send(remote, stream, ciphers, InstanceProtocol.RemoveObject(id), $"0x02bb remove area transition 0x{id:x} (quest flag {flag} cleared)");
-        }
+        if (ChangesResistancePenalty(change.Changed) || ChangesQuestStats(change.Changed))
+            await SendCharacterStats(remote, stream, ciphers, conn, "quest static reward stats changed");
+        // Quest passive and refund points (QuestStaticRewards) are in the tree's numbers.
+        if (ChangesStaticRewards(change.Changed))
+            await SendPassives(remote, stream, ciphers, conn);
+        await UpdateShownTransitions(remote, stream, ciphers, conn, $"quest flags {string.Join(", ", change.Effective)}");
+        await UpdateQuestNpcs(remote, stream, ciphers, conn, $"quest flags {string.Join(", ", change.Effective)}");
         if (change.Effective.Contains(GlyphQuest.PlacedGlyphs))
-            await ChangeSubmergedPassage(remote, stream, ciphers, conn, Has(GlyphQuest.PlacedGlyphs));
+            await ChangeSubmergedPassage(remote, stream, ciphers, conn, ClientHasQuestFlag(conn, GlyphQuest.PlacedGlyphs));
+        // The quest engine's objects and chests whose state follows a flag (World/Quest/QuestEngine.cs).
+        await UpdateQuestObjectStates(remote, stream, ciphers, conn, change.Effective);
         foreach (uint id in change.Removed)
             await Send(remote, stream, ciphers, InstanceProtocol.RemoveObject(id), $"0x02bb remove room object 0x{id:x} (quest flag set)");
     }
@@ -89,13 +93,38 @@ static partial class Game
     internal static string? TransitionFlag(ClientState conn, AreaTransitionObject transition) =>
         AreaTransitionCatalog.IdOf(transition.DestinationHash16) is { } dest ? Quests.FlagToEnter(conn.Layout.Id, dest) : null;
 
-    internal static bool TransitionShown(ClientState conn, AreaTransitionObject transition) =>
-        TransitionFlag(conn, transition) is not { } flag || ClientHasQuestFlag(conn, flag);
+    // Shown: its tile type exists for the character (Quests.ExistsRule: the Control Blocks' exit to Oriath Square before
+    // Avarius, the one to The Ruined Square after), and its quest flag is set or a script opened it on this instance.
+    internal static bool TransitionShown(ClientState conn, uint id, AreaTransitionObject transition) =>
+        Quests.Exists(transition.SourceType, f => ClientHasQuestFlag(conn, f))
+        && (conn.ScriptShownTransitions.Contains(id) || TransitionFlag(conn, transition) is not { } flag || ClientHasQuestFlag(conn, flag));
+
+    // The area transitions whose shown state changed (a quest flag, an NPC script): created on the client or removed.
+    internal static async Task UpdateShownTransitions(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn, string why)
+    {
+        if (!conn.PlayerSent) return;
+        foreach (var (id, transition) in conn.Layout.AreaTransitions)
+        {
+            bool shown = TransitionShown(conn, id, transition);
+            bool sent;
+            lock (conn.ShownTransitions) sent = conn.ShownTransitions.Contains(id);
+            if (shown == sent) continue;
+            lock (conn.ShownTransitions) { if (shown) conn.ShownTransitions.Add(id); else conn.ShownTransitions.Remove(id); }
+            if (shown)
+            {
+                await Send(remote, stream, ciphers, InstanceEntities.CreateObject(id, InstanceEntities.ObjectTypeHash(transition.Type), transition.Blob()),
+                    $"0x02b9 create area transition 0x{id:x} {transition} ({why})");
+                await Send(remote, stream, ciphers, InstanceProtocol.EnterWakeZone(id), null);
+            }
+            else await Send(remote, stream, ciphers, InstanceProtocol.RemoveObject(id), $"0x02bb remove area transition 0x{id:x} ({why})");
+        }
+    }
 
     // A quest flag as the client has it: the character's own, or one the World panel's access flags carry (an activated
     // waypoint's area, 16-waypoints.md §4: the Submerged Passage's waypoint brings a1q4-PlacedGlyphs). The client opens
     // its ways by these, so the server's checks follow them.
-    internal static bool ClientHasQuestFlag(ClientState conn, string flag) => Quests.ClientHas(flag, conn.QuestFlagsSnapshot(), PlayerQuestFlags(conn));
+    internal static bool ClientHasQuestFlag(ClientState conn, string flag) =>
+        Quests.IsInstanceFlag(flag) ? conn.Instance.HasState(flag) : Quests.ClientHas(flag, conn.QuestFlagsSnapshot(), PlayerQuestFlags(conn));
 
     // Ids of the invisible SunkenPassageBlockers on the server's walk estimate (blockers only: the client spawns them).
     internal const uint PassageBlockerFirstId = 0xff000000;
@@ -131,23 +160,5 @@ static partial class Game
             if (id != 0)
                 await Send(remote, stream, ciphers, InstanceEntities.TransitionableUpdate(id, GlyphQuest.TransitionableIndex, state),
                     $"0x02ba {what} 0x{id:x} Transitionable → {state}");
-    }
-
-    // The HaveGlyph flags follow the glyphs the character carries (GlyphQuest.SyncFlags), whatever took them away (a drop,
-    // a sale, the stash). Runs from the player tick: it reads the flags as a snapshot and changes them inside
-    // conn.QuestGate, and it changes no inventory (RemoveLeftoverGlyphs does that on the message path).
-    internal static async Task SyncGlyphs(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn)
-    {
-        await conn.QuestGate.WaitAsync();
-        try
-        {
-            var carried = GlyphQuest.Carried(ItemsOf(conn)).Select(c => GlyphIndex(c.Item.Item)).OfType<int>().ToHashSet();
-            var own = conn.QuestFlagsSnapshot();
-            bool placed = Quests.ClientHas(GlyphQuest.PlacedGlyphs, own, PlayerQuestFlags(conn));
-            var (set, clear) = GlyphQuest.SyncFlags(own, placed, placed ? new HashSet<int>() : carried);
-            if (set.Count > 0) await SetQuestFlagsHeld(remote, stream, ciphers, conn, set, true);
-            if (clear.Count > 0) await SetQuestFlagsHeld(remote, stream, ciphers, conn, clear, false);
-        }
-        finally { conn.QuestGate.Release(); }
     }
 }

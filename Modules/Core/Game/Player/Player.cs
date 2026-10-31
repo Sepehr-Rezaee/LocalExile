@@ -439,11 +439,15 @@ static partial class Game
             if (conn.Glyphs?.Wall is { } glyphWall && !conn.HasQuestFlag(GlyphQuest.SeenGlyphWall)
                 && Dist(at, (glyphWall.X, glyphWall.Y)) <= Quests.SightRange)
                 await SetQuestFlags(remote, stream, ciphers, conn, [GlyphQuest.SeenGlyphWall]);
-            // a1q4: the HaveGlyph flags follow the glyphs carried (dropped, sold, stashed ones too), about once a second.
-            if (conn.Clock.Elapsed.TotalSeconds >= conn.GlyphSyncAt)
+            // The quest engine's sight rules (room objects, exits).
+            await CheckQuestSights(remote, stream, ciphers, conn, at);
+            if (conn.QuestNearSpawns.Count > 0) await CheckQuestNearSpawns(remote, stream, ciphers, conn, at);
+            // The quest items' grant flags follow the items carried (dropped, sold, stashed ones too), about once a second;
+            // no inventory change here (the message path removes items).
+            if (conn.Clock.Elapsed.TotalSeconds >= conn.QuestItemSyncAt)
             {
-                conn.GlyphSyncAt = conn.Clock.Elapsed.TotalSeconds + 1;
-                await SyncGlyphs(remote, stream, ciphers, conn);
+                conn.QuestItemSyncAt = conn.Clock.Elapsed.TotalSeconds + 1;
+                await SyncQuestItems(remote, stream, ciphers, conn, removeItems: false);
             }
         }
     }
@@ -652,19 +656,21 @@ static partial class Game
     // Act 10 pair. A change to any of them rebuilds the pools (SetQuestFlags), because the overcapped-resistance
     // modifiers (ResistanceOvercap) read the penalty.
     internal static readonly string[] ResistancePenaltyAct5 = ["a5q6-CompletedBoss", "SinOnKitavaDefeat"],
-        ResistancePenaltyAct10 = ["a10q3-SeenBoss", "a10q3-UsedRewardBook"];
+        ResistancePenaltyAct10 = [Quests.EndGameAvailable, "a10q3-UsedRewardBook"];
 
     // The permanent resistance penalty from Kitava: -30% after the Act 5 encounter and another -30% after the final
     // Act 10 Kitava. It is a quest penalty, not a buff/aura: the client keeps it through its quest flags, and the server
-    // mirrors it from the same flags. (In the 3.29.3b tables the flags are a5q6-CompletedBoss and a10q3-SeenBoss /
-    // a10q3-UsedRewardBook; a9q5-KilledBoss is the Act 9 boss and does not grant it.)
+    // mirrors it from the same flags. (In the 3.29.3b tables QuestStaticRewards 38 is a5q6-CompletedBoss and 39 is
+    // EndGameAvailable, set when Kitava dies in The Feeding Trough; a10q3-UsedRewardBook, Lani's book after him, implies
+    // it. EndGameAvailable counts only once earned: every character is given it for the Atlas, ClientState.UnearnedQuestFlags.
+    // a9q5-KilledBoss is the Act 9 boss and does not grant it.)
     internal static int ResistancePenalty(ClientState conn)
     {
         bool act5, act10;
         lock (conn.Monsters)
         {
             act5 = ResistancePenaltyAct5.Any(conn.QuestFlags.Contains);
-            act10 = ResistancePenaltyAct10.Any(conn.QuestFlags.Contains);
+            act10 = ResistancePenaltyAct10.Any(f => conn.QuestFlags.Contains(f) && !conn.UnearnedQuestFlags.Contains(f));
         }
         return (act5 ? -30 : 0) + (act10 ? -30 : 0);
     }
@@ -850,9 +856,12 @@ static partial class Game
         var (passives, passivesLabel) = PassivesMessage(conn);
         messages.Add((passivesLabel, passives));
         // Area transitions. Like the player they are queued by the world and created when 0x21 activates it.
-        foreach (var (id, transition) in layout.AreaTransitions.Where(t => TransitionShown(conn, t.Transition)))
+        foreach (var (id, transition) in layout.AreaTransitions.Where(t => TransitionShown(conn, t.Id, t.Transition)))
+        {
+            lock (conn.ShownTransitions) conn.ShownTransitions.Add(id);
             messages.Add(($"0x02b9 create area transition 0x{id:x} {transition}",
                 InstanceEntities.CreateObject(id, InstanceEntities.ObjectTypeHash(transition.Type), transition.Blob())));
+        }
         foreach (var (id, effect) in layout.Effects)
             messages.Add(($"0x02b9 create transition effect 0x{id:x} {effect}",
                 InstanceEntities.CreateObject(id, InstanceEntities.ObjectTypeHash(effect.Type), effect.Blob())));
@@ -883,7 +892,7 @@ static partial class Game
             }
             // Put the player in the wake zone so it is drawn and its actions/movement run.
             messages.Add(("0x01a9 player enters wake zone", InstanceProtocol.EnterWakeZone(PlayerId)));
-            foreach (var (id, _) in layout.AreaTransitions.Where(t => TransitionShown(conn, t.Transition)))
+            foreach (var (id, _) in layout.AreaTransitions.Where(t => TransitionShown(conn, t.Id, t.Transition)))
                 messages.Add(($"0x01a9 area transition 0x{id:x} enters wake zone", InstanceProtocol.EnterWakeZone(id)));
             foreach (var (id, _) in layout.Effects)
                 messages.Add(($"0x01a9 transition effect 0x{id:x} enters wake zone", InstanceProtocol.EnterWakeZone(id)));
