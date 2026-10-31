@@ -40,6 +40,8 @@ Part of [Status](../Status.md); what to build next in this area is in
   In a layout the Gateway generates, each exit leads where the graph node of its room says: "entranceN" to
   Connections[N − 1], "teleportN" to the "telepadN" slot as a gate within the area (the Upper Prison's way to the
   Warden's Quarters, boss arenas).
+  An exit the layout disables ("entranceNdisabled") is created when a quest gates it (`Quests.FlagToEnter`), and shown
+  once the character has the flag, as for any gated exit.
   Other areas use the walk-map recorder's capture and the atlas.
   The offline audit `scripts/re/exits` checks every generated area at several seeds;
   verified town ↔ The Coast ↔ The Tidal Island and The Coast ↔ The Mud Flats; area change through them;

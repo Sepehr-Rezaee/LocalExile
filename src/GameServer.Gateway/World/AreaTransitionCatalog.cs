@@ -59,7 +59,7 @@ static class AreaTransitionCatalog
                 // Delve's entrance and unused elevator are not a boss-arena gate pair.
                 if (id is "Delve_Hub" or "Delve_Main") continue;
                 var candidates = (best?.Transitions ?? []).Where(x => x.Model == o.Model).ToList();
-                var usable = candidates.Where(x => x.Enabled != false && x.DestinationHash16 is not null).ToList();
+                var usable = candidates.Where(x => Usable(id, x) && x.DestinationHash16 is not null).ToList();
                 var destinations = usable.Select(x => x.DestinationHash16!.Value).Distinct().ToList();
                 string what = $"{o.Model?.Split('/')[^1]} at ({o.X}, {o.Y})";
                 if (destinations.Count != 1)
@@ -98,7 +98,7 @@ static class AreaTransitionCatalog
             {
                 if (x.Grid is not { } g) continue;
                 string what = $"{x.Model?.Split('/')[^1]} at ({g.X}, {g.Y})";
-                if (x.Enabled == false || x.DestinationHash16 is null)
+                if (!Usable(id, x) || x.DestinationHash16 is null)
                 {
                     notes.Add($"{what}: {(x.Enabled == false ? "disabled" : x.Status)}, not created");
                     continue;
@@ -116,7 +116,8 @@ static class AreaTransitionCatalog
 
     /// <summary>The exits of a generated layout (<see cref="ServerLevels.Level.Exits"/>, <c>AreaExits</c>): "entranceN" leads
     /// to the area's Connections[N − 1], "teleportN" within the area to its "telepadN" node; an unused object and a
-    /// disabled entrance (an arrival point only, e.g. Lioneye's Watch's Twilight Strand marker) are not created. A
+    /// disabled entrance (an arrival point only, e.g. Lioneye's Watch's Twilight Strand marker) are not created, unless a
+    /// quest gates that exit (<see cref="Gated"/>). A
     /// disabled teleport (an arena's way in that the real game unlocks, e.g. the Upper Prison's into Brutus's room) is
     /// created open: the encounters that would unlock it are not modelled.</summary>
     static List<AreaTransitionObject> FromLayout(AtlasArea area, ServerLevels.Level level, List<string> notes) =>
@@ -146,7 +147,9 @@ static class AreaTransitionCatalog
             }
             switch (e.Kind)
             {
-                case ExitKind.Entrance when !e.Enabled:
+                // A disabled entrance a quest gates is the game's scripted exit: created, and shown by the quest's flag.
+                case ExitKind.Entrance when !e.Enabled && !(connections.FirstOrDefault(c => c.Index == e.Number) is { } gated
+                        && Gated(areaId, gated.Id)):
                     notes.Add($"{what}: entrance{e.Number}disabled ({e.Why}), an arrival point only, not created");
                     break;
                 case ExitKind.Entrance:
@@ -157,7 +160,7 @@ static class AreaTransitionCatalog
                     }
                     placed.Add(new AreaTransitionObject(o.X, o.Y, to.Hash16, o.Model, Rotation: o.Rotation, Height: height,
                         Type: Resolve(o.Type, what, notes)));
-                    notes.Add($"{what} → {to.Id} (entrance{e.Number}, {e.Why})");
+                    notes.Add($"{what} → {to.Id} (entrance{e.Number}{(e.Enabled ? "" : "disabled, gated by a quest")}, {e.Why})");
                     break;
                 case ExitKind.Teleport when e.Target is { } target:
                     // A Teleport (type 1) labelled with its ClientStrings key; "%areaname%" (or no key) shows the area's name.
@@ -274,6 +277,15 @@ static class AreaTransitionCatalog
             return null;
         }
     });
+
+    /// <summary>Whether an exit the atlas lists is created: a disabled one (its room point is named "…disabled": the game
+    /// enables it by script) only when a quest gates that very exit (<see cref="Gated"/>).</summary>
+    static bool Usable(string id, AtlasTransition x) => x.Enabled != false || x.Destination is { } to && Gated(id, to);
+
+    /// <summary>Whether a quest gates the exit from one area to the other (<see cref="Quests.FlagToEnter"/>): such an exit is
+    /// created even where the layout disables it, and shown only once the character has the flag (an exit the game
+    /// enables by script when a quest's boss dies).</summary>
+    static bool Gated(string fromArea, string toArea) => Quests.FlagToEnter(fromArea, toArea) is not null;
 
     /// <summary>Whether a scripts/walkmaps capture is read for an area the Gateway does not generate (on). A generated
     /// layout never reads one (<see cref="For"/>); scripts/re/exits turns captures off so that its comparison with the

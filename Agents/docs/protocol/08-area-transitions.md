@@ -317,7 +317,8 @@ takes each exit's destination from the graph node of the room it stands in (§8)
 - with a capture: picks the graph variant (topology) whose transition models cover the captured models best, then
   gives each captured AreaTransition the destination of the same model in that topology (resolved and enabled). Per
   topology only 53 of 6 474 models lead to more than one place; those are logged and skipped. Disabled one-way links
-  (e.g. town → The Twilight Strand, `entrance1disabled`) are not created;
+  (e.g. town → The Twilight Strand, `entrance1disabled`) are not created, unless a quest gates that exit
+  (`Quests.FlagToEnter`): then it is created, and shown once the character has the flag;
 - without a capture: the atlas's static placement for fixed layouts (26 areas, the town among them);
 - the town keeps a built-in fallback when there is no atlas.
 The objects get ids 0x2000, 0x2001, …, their model, rotation and fixed height, and their own object type. After 0x7d
@@ -374,7 +375,8 @@ nothing about which in-area gate leads to which arrival (the Warden's Quarters, 
    Kitava ladder lies 3 cells outside bossentry.arm), the last placed of them. Its node descriptions are its exits:
    `entranceN` (→ WorldAreas Connections[N − 1]), `entranceNdisabled` or `entranceN-disabled` (an arrival point only:
    not created, e.g. Lioneye's Watch's Twilight Strand marker, The Submerged Passage's Depths return boat, The Sarn
-   Ramparts' spider tomb from The Temple of Decay), `teleportN[disabled][-label]` (also `=label`: a gate within the
+   Ramparts' spider tomb from The Temple of Decay; unless a quest gates that exit, `Quests.FlagToEnter`: then it is
+   created and shown by the quest's flag: a room point `…disabled` the game enables by script), `teleportN[disabled][-label]` (also `=label`: a gate within the
    area to `telepadN`), `telepadN[-label]` (an arrival); a space before the number occurs (`"telepad 1"` in every
    Peninsula topology). A room whose node names none places no exit (a sewer grate of a side area, an unused
    transition room's arch). `entranceNloot` (Descent's loot rooms) is not an exit.
