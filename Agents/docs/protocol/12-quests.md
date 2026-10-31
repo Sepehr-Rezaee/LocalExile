@@ -4,7 +4,7 @@ The quest engine (§5: declarative tables per quest, quest items, dialogue, rewa
 all of Act 1: **a1q1 "Enemy at the Gate"** (§6), **a1q5 "Mercy Mission"** (§7), **a1q4 "Breaking Some Eggs"** in The Mud
 Flats (§1–4), which opens the Submerged Passage, **a1q8 "A Dirty Job"** and **a1q7 "The Dweller of the Deep"** (§8),
 **a1q2 "The Caged Brute"**, **a1q3 "The Siren's Cadence"** and Act 1's part of **a1q9 "The Way Forward"** (§9), and
-**a1q6 "The Marooned Mariner"** (§10), then Acts 2 to 6 (§11–15).
+**a1q6 "The Marooned Mariner"** (§10), then Acts 2 to 6 (§11–15) and Acts 7–10 with the Epilogue (§16–19).
 Without a1q4's flag an invisible wall in front of the cave stops the player (§2).
 
 ## 1. The data model
@@ -201,7 +201,11 @@ up, talk, reward, use an item) played through the same tables, NPCTalk rows, ite
 exits and the client's WorldAreas gates; a step the game would refuse throws. After Act 1 the flags contain
 `Act1Complete`'s and a1q1–a1q8 are complete; after Act 2 (all three bandits killed) `Act2CompleteEramir`'s, after
 Act 3 `Act3Complete`'s, after Act 4 `Act4Complete`'s, each act's quests complete (Acts 5 and 6 have no preset of their
-own: every quest of theirs reaches its "complete" row); later acts add their sequence and preset.
+own: every quest of theirs reaches its "complete" row); from `E3StartOfAct7` (the table has no preset at the end of
+Act 6) Acts 7 and 8 reach `E3EndOfAct8`'s act 7–8 flags, Acts 9 and 10 `EpilogueAtlasDemo`'s act 7–10 flags, every
+quest of acts 7–10 and the Epilogue completes with the campaign's 24 quest passive and 20 refund points, and Kitava's
+Act 10 penalty counts only once his end earns `EndGameAvailable` (`QuestSimulator.Unearned`, as
+`ClientState.UnearnedQuestFlags`); later acts add their sequence and preset.
 Played live on 2026-10-30 with the real client (OfflineWitch in a copied save, seed 1 instances, the bridge, `/tp`, and a
 temporary kill command): a1q8, a1q7, a1q2, a1q9's part, a1q6 and a1q3 into Act 2, and
 a1q5 and a1q4 again on the engine; afterwards the save had every `Act1Complete` flag, 2 quest passive points and 2
@@ -571,6 +575,69 @@ Details in [act 6](../game/campaign/act6.md):
 - The god Sins (SinTukohama, SinAbberath, SinRyslatha, SinBrineKing; SinShavronne has no god) appear where the bosses
   die (`On.Appears`, until their `Sin<God>Reward`); their row sets the session flag `CanChangePantheon` and opens the
   Pantheon panel ([pantheon](../game/campaign/pantheon.md)).
+
+## 16. Act 7 (`Acts/Act7.cs`)
+
+The quests step by step are in [act 7](../game/campaign/act7.md); the table is what the data does not say:
+
+- **a7q2/a7q3**: the Container of Sins in The Crypt drops Maligaro's Map (its `extra_flag` `a7q3-SpawnSilk` shows
+  SilkSins beside the Reverie Device, `shownBy`); the map used at the device (`MaligaroOrrery`, a tile record) sets
+  `a7q2-DeliveredItem` and opens Maligaro's portal (`On.Portal`: `MaligaroPortalTransition` beside the device, gated by
+  the flag). Black Death drops her venom (Silk's "Black Venom" takes it: the Obsidian Key, offer 48). With the key,
+  coming near `MaligaroSinsBarrier` sets `a7q2-ClearedSinBlock` (`On.NearWith`: its nine blockers lift, Level 2
+  opens); the key used at `MaligaroPassageCover` sets `a7q1-UsedKey` (the passage into The Den).
+- **a7q1**: Ralakesh's avatar (Greust, or the spared bandit lord) killed → `a7q1-KilledBoss`: The Ashen Fields' way
+  north, a disabled entrance the gate creates. Sin appears where he fell (`On.Appears`).
+- **a7q7/a7q4**: the seven Fireflies' chests have no room or tile: `On.ScatteredChest` spreads them over The Dread
+  Thicket's walk map; YeenaVaalCity's "Fireflies" takes all seven in one click (`a7q7-DeliveredItems`: she, the webs and
+  the temple entrance transition). Arakaali's death lowers her bridge into The Sarn Ramparts.
+- **a7q5, a7q6, a7q8, a7q9**: the locket and Kishara's Star in their lockboxes, the Azmeri shrine used with Greust's
+  Necklace, Gruthkul seen and killed.
+
+## 17. Act 8 (`Acts/Act8.cs`)
+
+Details in [act 8](../game/campaign/act8.md):
+
+- **a8q1**: Doedre killed → `a8q1-KilledBoss`, the gate of the rest of the act.
+- **a8q2/a8q3**: Dusk and Dawn drop the Moon and Sun Orbs; the fight starter on The Harbour Bridge used with both
+  (`a8q23-DeliveredItems`, both taken) brings Lunaris and Solaris (`On.Spawns`); both dead (`On.KilledAll`) →
+  `a8q23-KilledBosses`: the bridge's exit into The Blood Aqueduct, a disabled entrance the gate creates.
+- **a8q5**: Titucius' tomb (Transitionable) opens once he is dead (`opensWith`). **a8q6**: the Sealed Casket's Ankh;
+  ClarissaQuay's row 1153 takes it and completes the fight. **a8q7**: the Gemling Legion's seven (`On.KilledAll`).
+  **a8q4**: Yugul.
+
+## 18. Act 9 (`Acts/Act9.cs`)
+
+Details in [act 9](../game/campaign/act9.md):
+
+- **a9q1**: General Adus' death opens the Theurgic Precipitate Machine (the Trarthan Powder), The Basilisk drops its
+  acid; Sin's "_take_ingredients_" takes both in one click. SinQuarry's "The Beast" (`SinEnterBeast`) transitions the
+  membrane and lifts its seven blockers into The Belly of the Beast. In The Rotting Core the three spirits' deaths form
+  The Depraved Trinity at its own boss point (`On.Forms`); its death sets `a9q1-KilledBoss` and Lilly stands to sail
+  to Oriath Docks (NPCTalk 1395's `AreaTransitionTo`).
+- **a9q2**: rows that set flags no column names (`On.TalkRow`: `a9q2-QuestReceived`, `IrashaTakeFeather`,
+  `TasuniTakeFeather`); Garukhan drops the Sekhema Feather. **a9q3**: coming to the mummy event chest brings its sand
+  warriors (`On.SpawnsNear`); both dead end it and drop the Storm Blade. **a9q4**: Boulderback drops the calendar.
+- **a9q5**: the Bottled Storm carried to the sand barrier is used there (`On.NearWith`: the barrier has no interaction);
+  The Oasis opens. Shakari's second stage forms where the first falls (`On.SecondForm`).
+
+## 19. Act 10 and the Epilogue (`Acts/Act10.cs`)
+
+Details in [act 10](../game/campaign/act10.md):
+
+- **a10q1**: coming near BannonRooftop brings Plaguewing from its spawner; its death rescues him (Transitionable 2).
+- **a10q2**: Avarius drops his staff; Bannon's rows take it and set `a10q2-BannonTransformed`: Oriath Docks' town room
+  lists BannonTown and InnocenceTown on one cell, and the two `On.Npc` rules (with their lines in `TownNpcs`) show one.
+- **a10q3**: InnocenceSquare's "Kitava" (`a10q3-OpenedGate`) breaks the horns (twelve blockers) and opens The Canals.
+  Kitava never dies (`On.Threshold` at 1%): his end sets `EndGameAvailable`, QuestStaticRewards 39 (−30% elemental and
+  chaos resistances, Game `ResistancePenalty`) and the Epilogue's gate (Karui Shores' and Oriath's EndQuestFlags).
+  Every character is given that flag for the Atlas; it counts for the penalty only once an event sets it
+  (`ClientState.UnearnedQuestFlags`), so the second −30% comes with Kitava, not before. Sin's EpiloguePortal home is a
+  quest portal gated by the same flag. Burnt Oriath has Act 5's tiles: an exit Act 5's rules send to an Act 5 area
+  (`On.Exists(…, to:)`) keeps the layout's destination here (`AreaTransitionCatalog.SameAct`).
+- **A11q0, a10q3a11** (the Epilogue): Lilly's "Set Sail from Oriath" (1433: `A10LillySailedAway`, `AreaTransitionTo`
+  Karui Shores) and Lani's Kitava reward in Karui Shores need no rules; the Epilogue has no act file.
+  **a10q4, a10q5, a10q6**: the Elixir and the Teardrop in their chests, Vilenta.
 
 ## Open
 

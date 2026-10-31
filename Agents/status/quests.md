@@ -57,7 +57,8 @@ Part of [Status](../Status.md); what to build next in this area is in
   Quest passive points (QuestStaticRewards) are counted from the flags into the tree's `extra_skill_points` and stay
   after a relog; refund points are credited once (the Book of Regrets: 54 → 56); QuestStaticRewards' stats are stat
   sources. `QuestSimulator` plays an act's events through the engine; `QuestEngineTests` checks Acts 1–6 against
-  `Act1Complete`, `Act2CompleteEramir`, `Act3Complete`, `Act4Complete` and every Act 5 and 6 quest's "complete" row.
+  `Act1Complete`, `Act2CompleteEramir`, `Act3Complete`, `Act4Complete` and every Act 5 and 6 quest's "complete" row,
+  and Acts 7–10 from `E3StartOfAct7` against `E3EndOfAct8` and `EpilogueAtlasDemo`.
   What existing saves see: a character with `a10q3-SeenBoss` but without `EndGameAvailable` earned no longer has the
   Act 10 −30% resistance penalty (it follows `EndGameAvailable`, QuestStaticRewards 39); a second copy of a quest book
   (from `/item`) is used up without its points once the first was used; a quest item lying on the ground after its
@@ -132,6 +133,26 @@ Part of [Status](../Status.md); what to build next in this area is in
   The panel's highlight of the choice is not checked; the souls (Divine Vessels) are not built.
   Code: the Pantheon module (`Modules/Core/Player/Pantheon`), Gateway `Player/PantheonCatalog.cs`, Core
   `InstancePantheon.cs`. Docs: [pantheon](../docs/game/campaign/pantheon.md).
+- Acts 7–10 and the Epilogue (live 2026-10-31, seed 1, on the engine before the modules: one Witch from
+  `/quest_preset E3StartOfAct7`, the runner unattended per act, no `/goto`; on the modules checked by the oracle and
+  the offline exit audit, not yet with the client): a7q5, a7q2 (Maligaro's Map, the Reverie Device's portal into the
+  Sanctum, Black Death's venom), a7q3 (Silk's Obsidian Key, the Sins barrier, the passage into The Den), a7q1
+  (Greust), a7q8, a7q9, a7q7 (seven scattered Fireflies, Yeena burns the webs), a7q6, a7q4 (Arakaali, the bridge into
+  Act 8); a8q1, a8q5, a8q4, a8q6, a8q7 (the legion's multi-kill), a8q3 and a8q2 (both orbs at the fight starter,
+  Solaris and Lunaris, the bridge exit into Act 9); a9q3 (the mummy event), a9q5 (the Bottled Storm carried to the
+  barrier, both Shakaris), a9q4, a9q2 (the feather to Irasha), a9q1 (both ingredients in one click, the membrane, the
+  three spirits, the Trinity, Lilly's voyage); a10q1 (Plaguewing comes near Bannon), a10q6, a10q4, a10q5, a10q2
+  (Bannon becomes Innocence: Oriath Docks' two stages), a10q3 (the horns, Kitava's scripted end: `EndGameAvailable`
+  earned, −60% with Act 5's, before him −30%; Sin's portal home) and A11q0 (Lilly sails to Karui Shores). Every act
+  7–10 quest done with every act 7–10 flag of `EpilogueAtlasDemo`, 24 quest passive points and 20 refund points.
+  The exits the layouts disable and a quest gates (The Ashen Fields' way north, The Harbour Bridge's into Act 9, Sin's
+  portal home) are created (`scripts/re/exits --quests`: `gated` at seed 1 and three other seeds); burnt Oriath's
+  exits keep Act 10's destinations where Act 5's rules name Act 5's (`AreaTransitionCatalog.SameAct`). Every quest
+  object, chest and NPC the rules name is placed at seed 1 but The Crossroads' BanditBlock (its sight is optional).
+  Driver step files `scripts/dev/campaign/quests/a7q*.py` … `a10q*.py`, `A11q0.py`, `a10q3a11.py`.
+  Code: `Acts/Act7.cs` … `Acts/Act10.cs` (QuestObjects module), Oriath Docks' InnocenceTown line in `NPC/TownNpcs.cs`.
+  Docs: [12](../docs/protocol/12-quests.md) §16–19; [act 7](../docs/game/campaign/act7.md) …
+  [act 10](../docs/game/campaign/act10.md).
 
 - New characters pick up their class weapon, talk to the dying exile and kill the biting zombie for their skill gem.
   The support gem comes from its chest, which requires the player to walk into range.

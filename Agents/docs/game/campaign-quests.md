@@ -146,7 +146,10 @@ generation's placed rooms (`ServerLevels.Level.RoomObjects`, `AreaObjects.RoomOb
 `room-points.json` does not keep, such as The Ascent's Resonator, and objects a room's point list names, such as The
 Cavern of Anger's `BlackFlagChest`). Act 1 needs only room lines (Fairgraves, the slave girl's chest, Piety, the
 blockers); Acts 2 and 3 also use tile records (the Thaumetic Seal, the poisoned tree, the Ancient Seal, the Dark Altar,
-the sewer gratings, the Epic Door, the Library's candle). An area the Gateway does not generate has only the room lines.
+the sewer gratings, the Epic Door, the Library's candle); Acts 7–10 the Reverie Device, the Azmeri shrine, The
+Quarry's membrane and Kitava's horns, and chests no room or tile places (The Dread Thicket's Fireflies:
+`On.ScatteredChest` spreads them over the walk map, the same cells for the same seed). An area the Gateway does not
+generate has only the room lines.
 A boss that forms later (`On.Forms`) stands at
 its own numbered boss point (`AreaPopulation.LaterFormPoints`, kept in `ClientState.LaterFormPoints` when the area is
 populated), else where the last of the others died.

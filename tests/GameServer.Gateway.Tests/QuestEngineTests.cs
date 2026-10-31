@@ -42,6 +42,13 @@ public sealed class QuestEngineTests
         SinTown6 = "Metadata/NPC/Act6/SinTown";
     const string BookA6q3 = "Metadata/Items/QuestItems/Act6/Book-a6q3", BookA6q4 = "Metadata/Items/QuestItems/Act6/Book-a6q4",
         BookA6q6 = "Metadata/Items/QuestItems/Act6/Book-a6q6", BookA6q7 = "Metadata/Items/QuestItems/Act6/Book-a6q7";
+    const string Eramir7 = "Metadata/NPC/Act7/Eramir", Helena7 = "Metadata/NPC/Act7/Helena", Yeena7 = "Metadata/NPC/Act7/YeenaTown",
+        Sin7 = "Metadata/NPC/Act7/SinTown", Weylam7 = "Metadata/NPC/Act7/Weylam";
+    const string Hargan8 = "Metadata/NPC/Act8/Hargan", Maramoa8 = "Metadata/NPC/Act8/Maramoa", Clarissa8 = "Metadata/NPC/Act8/ClarissaTown",
+        Sin8 = "Metadata/NPC/Act8/SinTown";
+    const string PetarusVanja9 = "Metadata/NPC/Act9/PetarusVanja", Irasha9 = "Metadata/NPC/Act9/Irasha", Sin9 = "Metadata/NPC/Act9/SinTown";
+    const string Lani10 = "Metadata/NPC/Act10/Lani", Weylam10 = "Metadata/NPC/Act10/Weylam", Lilly10 = "Metadata/NPC/Act10/Lilly";
+    static string Book(int act, string quest) => $"Metadata/Items/QuestItems/Act{act}/Book-{quest}";
 
     /// <summary>The engine's data-driven parts: quest items by their .it Quest component (flags, drops, the carried sync,
     /// hand-ins, pickups), QuestStaticRewards (passive, refund and ascendancy points, stats; refunds credited once in the
@@ -168,13 +175,20 @@ public sealed class QuestEngineTests
 
         // The registry: the module's acts, in order, until the registration goes; they run only for a league that lists
         // the module that gave them.
-        Assert.Equal([1, 2, 3, 4, 5, 6], QuestObjectsModule.Acts().Select(a => a.Number));
+        Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], QuestObjectsModule.Acts().Select(a => a.Number));
         Assert.Equal(["a1q1", "a1q5", "a1q4", "a1q8", "a1q7", "a1q2", "a1q6", "a1q3", "a1q9"], All.Take(9).Select(q => q.Id));
         Assert.Equal(["a2q11", "a2q10", "a2q6", "a2q4", "a2q5", "a2q9", "a2q7", "a2q8"], All.Where(q => q.Id.StartsWith("a2")).Select(q => q.Id));
         Assert.Equal(["a3q1", "a3q2", "a3q11", "a3q3", "a3q4", "a3q5", "a3q8", "a3q12", "a3q13", "a3q9", "a3q10"],
             All.Where(q => q.Id.StartsWith("a3")).Select(q => q.Id));
         Assert.Equal(["a4q1", "a4q2", "a4q3", "a4q4", "a4q5", "a4q6", "a5q1a", "a5q1b", "a5q2", "a5q3", "a5q4", "a5q5", "a5q6", "a5q7",
             "a6q1", "a6q2", "a6q3", "a6q4", "a6q5", "a6q6", "a6q7"], All.Where(q => q.Id is ['a', '4' or '5' or '6', ..]).Select(q => q.Id));
+        Assert.Equal(["a7q1", "a7q2", "a7q3", "a7q4", "a7q5", "a7q6", "a7q7", "a7q8", "a7q9", "a8q1", "a8q2", "a8q3", "a8q4", "a8q5", "a8q6", "a8q7",
+            "a9q1", "a9q2", "a9q3", "a9q4", "a9q5", "a10q1", "a10q2", "a10q3", "a10q4", "a10q5", "a10q6"],
+            All.SkipWhile(q => q.Id != "a7q1").Select(q => q.Id));
+        // Kitava in The Feeding Trough never dies (set_cannot_die): the hit that would kill him ends the fight at a threshold
+        // and earns EndGameAvailable; no kill flag.
+        Assert.Equal([EndGameAvailable], ThresholdOf(Act10Areas.FeedingTrough, Act10Monsters.Kitava)!.Flags);
+        Assert.Empty(OnMonsterKilled(Act10Areas.FeedingTrough, Act10Monsters.Kitava));
         int own = All.Count;
         Assert.Same(Everything, For(new HashSet<string> { "Game", "QuestObjects" }));
         Assert.True(For(new HashSet<string> { "Game" }).IsEmpty);
@@ -561,6 +575,170 @@ public sealed class QuestEngineTests
             .Enter(BridgeEncampment, travel: true);
     }
 
+    /// <summary>A character at the start of Act 7 as /quest_preset E3StartOfAct7 makes it (CampaignState.PresetFlags; the
+    /// table has no preset at the end of Act 6): in The Bridge Encampment with the preset's quest item (Lilly's Book of
+    /// Regrets: a6q4-HaveRewardBook without its use flag), which it uses.</summary>
+    internal static QuestSimulator FromAct7()
+    {
+        var s = new QuestSimulator();
+        s.Set(CampaignState.PresetFlags("E3StartOfAct7", out _)!);
+        s.Carried.Add(Book(6, "a6q4"));
+        s.Enter(Act7Areas.BridgeEncampment, travel: true).UseItem(Book(6, "a6q4"));
+        return s;
+    }
+
+    /// <summary>Act 7 as the driver plays it (order.py): a7q5, a7q2, a7q3, a7q1, a7q8, a7q9, a7q7, a7q6, a7q4 and the step
+    /// into Act 8.</summary>
+    internal static void Act7(QuestSimulator s)
+    {
+        // a7q5 The Silver Locket
+        s.Talk(Weylam7, "The Broken Bridge").Talk(Weylam7, "The Silver Locket")
+            .Enter(Act7Areas.BrokenBridge, travel: true).OpenChest(Act7Objects.LocketChest).PickUp(Act7Items.SilverLocket)
+            .Enter(Act7Areas.BridgeEncampment, travel: true).Talk(Weylam7, "The Silver Locket").Reward(Weylam7, "Silver Locket Reward");
+        // a7q2 Essence of the Artist (with a7q3's start: Silk appears with the map), through the Reverie Device's portal
+        s.Talk(Sin7, "Inquisitor Maligaro").Talk(Helena7, "Maligaro")
+            .Enter(Act7Areas.Crypt, travel: true).OpenChest(Act7Objects.MaligaroMapChest).PickUp(Act7Items.MaligaroMap)
+            .Enter(Act7Areas.SinsLevel1, travel: true).Talk(Act7Objects.SilkSins, "Black Venom").Use(Act7Objects.Orrery)
+            .Enter(Act7Areas.MaligarosSanctum).See(Act7Monsters.Maligaro)
+            .Kill(Act7Monsters.BlackDeath).PickUp(Act7Items.BlackVenom).Kill(Act7Monsters.Maligaro).Talk(Act7Objects.SinMaligaro, "Maligaro")
+            .Enter(Act7Areas.BridgeEncampment, travel: true).Talk(Helena7, "Maligaro").Reward(Helena7, "Maligaro Reward");
+        // a7q3 Web of Secrets: the venom for the key, the barrier, the passage into The Den
+        s.Enter(Act7Areas.SinsLevel1, travel: true).Talk(Act7Objects.SilkSins, "Black Venom").Reward(Act7Objects.SilkSins, "Black Death Reward")
+            .Near(Act7Objects.SinsBarrier).Enter(Act7Areas.SinsLevel2).Use(Act7Objects.PassageCover).Enter(Act7Areas.Den);
+        // a7q1 The Master of a Million Faces (all three bandits died in Act 2: Greust is Ralakesh's avatar)
+        s.Enter(Act7Areas.BridgeEncampment, travel: true).Talk(Eramir7, "Greust")
+            .Enter(Act7Areas.AshenFields, travel: true).See(Act7Monsters.Greust).Kill(Act7Monsters.Greust).Talk(Act7Objects.SinRalakesh, "Ralakesh")
+            .Enter(Act7Areas.BridgeEncampment, travel: true).Talk(Eramir7, "Ralakesh").Reward(Eramir7, "Ralakesh Reward").UseItem(Book(7, "a7q1"));
+        // a7q8 In Memory of Greust
+        s.Talk(Helena7, "Greust's Necklace").Reward(Helena7, "Take Greust's Necklace")
+            .Enter(Act7Areas.NorthernForest, travel: true).Near(Act7Objects.GreustShrine).Use(Act7Objects.GreustShrine)
+            .Enter(Act7Areas.BridgeEncampment, travel: true).Talk(Helena7, "Greust's Necklace").Reward(Helena7, "Greust's Necklace Reward");
+        // a7q9 Queen of Despair
+        s.Talk(Sin7, "Gruthkul").Enter(Act7Areas.DreadThicket, travel: true).See(Act7Monsters.Gruthkul).Kill(Act7Monsters.Gruthkul)
+            .Talk(Act7Objects.SinGruthkul, "Gruthkul")
+            .Enter(Act7Areas.BridgeEncampment, travel: true).Talk(Eramir7, "Gruthkul").Reward(Eramir7, "Gruthkul Reward").UseItem(Book(7, "a7q9"));
+        // a7q7 Lighting the Way: Yeena at the webbed temple (seen: a7q4-SeenBlockage) asks for the seven scattered Fireflies
+        // and takes them in one click
+        s.Enter(Act7Areas.VaalCity, travel: true).Near(Act7Objects.TempleWeb).Talk(Act7Objects.YeenaVaalCity, "Fireflies")
+            .Enter(Act7Areas.DreadThicket, travel: true);
+        for (int n = 0; n < 7; n++) s.OpenChest(Act7Objects.FireflyChests[n]).PickUp(Act7Items.Fireflies[n]);
+        s.Enter(Act7Areas.VaalCity, travel: true).Talk(Act7Objects.YeenaVaalCity, "Fireflies");
+        // a7q6 Kishara's Star
+        s.Enter(Act7Areas.BridgeEncampment, travel: true).Talk(Weylam7, "Kishara's Star")
+            .Enter(Act7Areas.Causeway, travel: true).OpenChest(Act7Objects.KisharaStarChest).PickUp(Act7Items.KisharaStar)
+            .Enter(Act7Areas.BridgeEncampment, travel: true).Talk(Weylam7, "Kishara's Star").Reward(Weylam7, "Kishara's Star Reward")
+            .UseItem(Book(7, "a7q6"));
+        // a7q4 The Mother of Spiders, and Act 8 over Arakaali's bridge
+        s.Talk(Yeena7, "Silk").Enter(Act7Areas.VaalCity, travel: true).Enter(Act7Areas.TempleOfDecay1).Enter(Act7Areas.TempleOfDecay2)
+            .See(Act7Monsters.Arakaali).Kill(Act7Monsters.Arakaali).Talk(Act7Objects.SinArakaali, "Arakaali")
+            .Enter(Act7Areas.SarnRamparts);
+    }
+
+    /// <summary>Act 8 as the driver plays it (order.py): a8q1, a8q5, a8q4, a8q6, a8q7, a8q3 with a8q2 and the step into
+    /// Act 9.</summary>
+    internal static void Act8(QuestSimulator s)
+    {
+        // a8q1 Essence of the Hag
+        s.Enter(Act8Areas.SarnEncampment, travel: true).Talk(Sin8, "Doedre Darktongue").Talk(Hargan8, "Doedre Darktongue")
+            .Enter(Act8Areas.DoedresCesspool, travel: true).See(Act8Monsters.Doedre).Kill(Act8Monsters.Doedre).Talk(Act8Objects.SinDoedre, "Doedre")
+            .Enter(Act8Areas.SarnEncampment, travel: true).Talk(Hargan8, "Doedre Darktongue").Reward(Hargan8, "Doedre Reward");
+        // a8q5 The Wings of Vastiri: Titucius' tomb opens once he is dead
+        s.Talk(Hargan8, "The Wings of Vastiri").Enter(Act8Areas.BathHouse, travel: true).See(Act8Monsters.Titucius).Kill(Act8Monsters.Titucius)
+            .OpenChest(Act8Objects.TituciusChest).PickUp(Act8Items.WingsOfVastiri)
+            .Enter(Act8Areas.SarnEncampment, travel: true).Talk(Hargan8, "The Wings of Vastiri").Reward(Hargan8, "Wings of Vastiri Reward");
+        // a8q4 Reflection of Terror
+        s.Talk(Sin8, "Reflection of Terror").Enter(Act8Areas.HighGardens, travel: true).See(Act8Monsters.Yugul).Kill(Act8Monsters.Yugul)
+            .Talk(Act8Objects.SinYugul, "Yugul")
+            .Enter(Act8Areas.SarnEncampment, travel: true).Talk(Hargan8, "Yugul").Reward(Hargan8, "Yugul Reward").UseItem(Book(8, "a8q4"));
+        // a8q6 Love is Dead
+        s.Talk(Clarissa8, "Reviving Tolman").Enter(Act8Areas.Quay, travel: true).OpenChest(Act8Objects.AnkhChest).PickUp(Act8Items.AnkhOfEternity)
+            .Talk(Act8Objects.ClarissaQuay, "The Ankh of Eternity").Talk(Act8Objects.ClarissaQuay, "Tolman")
+            .Enter(Act8Areas.SarnEncampment, travel: true).Talk(Clarissa8, "Tolman").Reward(Clarissa8, "Tolman Reward").UseItem(Book(8, "a8q6"));
+        // a8q7 The Gemling Legion: done once none of the seven is left
+        s.Talk(Maramoa8, "The Gemling Legion").Enter(Act8Areas.GrainGate, travel: true).See(Act8Monsters.GemlingLegion[3]);
+        foreach (string legionnaire in Act8Monsters.GemlingLegion) s.Kill(legionnaire);
+        s.Enter(Act8Areas.SarnEncampment, travel: true).Talk(Maramoa8, "The Gemling Legion").Reward(Maramoa8, "Gemling Legion Reward")
+            .UseItem(Book(8, "a8q7"));
+        // a8q3 Solar Eclipse with a8q2 Lunar Eclipse: both orbs at the fight starter, Solaris and Lunaris, and Act 9
+        s.Talk(Maramoa8, "Solaris and Lunaris").Talk(Maramoa8, "The Moon Orb").Talk(Maramoa8, "The Sun Orb")
+            .Enter(Act8Areas.LunarisTemple2, travel: true).See(Act8Monsters.Dusk).Kill(Act8Monsters.Dusk).PickUp(Act8Items.LunarisOrb)
+            .Enter(Act8Areas.SolarisTemple2, travel: true).See(Act8Monsters.Dawn).Kill(Act8Monsters.Dawn).PickUp(Act8Items.SolarisOrb)
+            .Enter(Act8Areas.HarbourBridge, travel: true).Use(Act8Objects.GoddessFightStarter)
+            .Kill(Act8Monsters.Lunaris).Kill(Act8Monsters.Solaris).Talk(Act8Objects.SinSolarisLunaris, "Solaris and Lunaris")
+            .Enter(Act8Areas.BloodAqueduct);
+    }
+
+    /// <summary>Act 9 as the driver plays it (order.py): a9q3, a9q5, a9q4, a9q2, a9q1 (Lilly sails to Act 10).</summary>
+    internal static void Act9(QuestSimulator s)
+    {
+        // a9q3 The Storm Blade
+        s.Enter(Act9Areas.Highgate, travel: true).Talk(PetarusVanja9, "The Storm Blade")
+            .Enter(Act9Areas.VastiriDesert, travel: true).Near(Act9Objects.MummyEventChest)
+            .Kill(Act9Monsters.SandWarrior).Kill(Act9Monsters.SandGoliath).PickUp(Act9Items.StormBlade)
+            .Enter(Act9Areas.Highgate, travel: true).Talk(PetarusVanja9, "The Storm Blade").Reward(PetarusVanja9, "Storm Blade Reward");
+        // a9q5 Queen of the Sands: the Bottled Storm carried to the barrier, both Shakaris
+        s.Talk(Sin9, "Shakari").Talk(PetarusVanja9, "Bottled Storm").Reward(PetarusVanja9, "Take Bottled Storm")
+            .Enter(Act9Areas.VastiriDesert, travel: true).Near(Act9Objects.SandBarrierSeen).Near(Act9Objects.SandBarrier).Enter(Act9Areas.Oasis)
+            .See(Act9Monsters.Shakari).Kill(Act9Monsters.Shakari).Kill(Act9Monsters.Shakari2).Talk(Act9Objects.SinShakari, "Shakari")
+            .Enter(Act9Areas.Highgate, travel: true).Talk(Irasha9, "Shakari").Reward(Irasha9, "Shakari Reward").UseItem(Book(9, "a9q5"));
+        // a9q4 Fastis Fortuna
+        s.Talk(PetarusVanja9, "The Maraketh Calendar").Enter(Act9Areas.Foothills, travel: true).See(Act9Monsters.Boulderback)
+            .Kill(Act9Monsters.Boulderback).PickUp(Act9Items.Calendar)
+            .Enter(Act9Areas.Highgate, travel: true).Talk(PetarusVanja9, "The Maraketh Calendar").Reward(PetarusVanja9, "Maraketh Calendar Reward")
+            .UseItem(Book(9, "a9q4"));
+        // a9q2 The Ruler of Highgate: the feather to Irasha
+        s.Talk(Irasha9, "Oyun").Enter(Act9Areas.Quarry, travel: true).See(Act9Monsters.Garukhan).Kill(Act9Monsters.Garukhan)
+            .Talk(Act9Objects.SinGarukhan, "Garukhan").PickUp(Act9Items.SekhemaFeather)
+            .Enter(Act9Areas.Highgate, travel: true).Talk(Irasha9, "Feather of Sekhema").Reward(Irasha9, "Feather Reward").UseItem(Book(9, "a9q2"));
+        // a9q1 Recurring Nightmare: both ingredients in one click, the membrane, the three spirits, the Trinity, Act 10
+        s.Talk(Sin9, "The Dark Ember")
+            .Enter(Act9Areas.Refinery, travel: true).Kill(Act9Monsters.Adus).OpenChest(Act9Objects.TheurgicPrecipitate).PickUp(Act9Items.TrarthanPowder)
+            .Enter(Act9Areas.BoilingLake, travel: true).Kill(Act9Monsters.Basilisk).PickUp(Act9Items.BasiliskAcid)
+            .Enter(Act9Areas.Highgate, travel: true).Talk(Sin9, "_take_ingredients_").Talk(Sin9, "The Dark Ember")
+            .Enter(Act9Areas.Quarry, travel: true).Talk(Act9Objects.SinQuarry, "The Beast").Enter(Act9Areas.BellyOfTheBeast).Enter(Act9Areas.RottingCore)
+            .Talk(Act9Objects.SinCore, "The Dark Ember")
+            .Kill(Act9Monsters.DoedreSoul).Kill(Act9Monsters.MaligaroSoul).Kill(Act9Monsters.ShavronneSoul)
+            .Talk(Act9Objects.SinCore, "United Trio").Kill(Act9Monsters.DepravedTrinity)
+            .Talk(Act9Objects.Lilly, "Oriath").Talk(Act9Objects.Lilly, "Sail to Oriath").Enter(Act10Areas.OriathDocks, travel: true);
+    }
+
+    // The NPC's option index of an NPCTalk row, for rows that share their text (Lani's "Kitava": 1408 gossip, 1415 the
+    // reward's start); the driver picks them by row.
+    static readonly Lazy<NpcCatalog> Npcs = new(() => NpcCatalog.Load());
+    static int IndexOf(string npc, int row) => Npcs.Value.TalksOf(Npcs.Value.Find(npc)!).First(t => t.Row == row).Index;
+
+    /// <summary>Act 10 as the driver plays it (order.py): a10q1, a10q6, a10q4, a10q5, a10q2, a10q3 and A11q0 (Lilly sails to
+    /// Karui Shores; a10q3a11, a10q3's reward in the Epilogue, is complete with the reward taken in Oriath Docks).</summary>
+    internal static void Act10(QuestSimulator s)
+    {
+        // a10q1 Safe Passage: Plaguewing comes as the player reaches Bannon
+        s.Talk(Lani10, "Bannon").Enter(Act10Areas.CathedralRooftop, travel: true).Near(Act10Objects.BannonRooftop)
+            .See(Act10Monsters.Plaguewing).Kill(Act10Monsters.Plaguewing).Talk(Act10Objects.BannonRooftop, "Thank You")
+            .Enter(Act10Areas.OriathDocks, travel: true).Talk(Act10Objects.BannonTown, "Welcome Back").Talk(Lani10, "Bannon").Reward(Lani10, "Bannon Reward");
+        // a10q6 Vilenta's Vengeance
+        s.Talk(Lani10, "Vilenta").Enter(Act10Areas.ControlBlocks, travel: true).See(Act10Monsters.Vilenta).Kill(Act10Monsters.Vilenta)
+            .Enter(Act10Areas.OriathDocks, travel: true).Talk(Lani10, "Vilenta").Reward(Lani10, "Vilenta Reward").UseItem(Book(10, "a10q6"));
+        // a10q4 No Love for Old Ghosts
+        s.Talk(Weylam10, "Elixir of Allure").Enter(Act10Areas.Ossuary, travel: true).OpenChest(Act10Objects.ElixirChest).PickUp(Act10Items.Elixir)
+            .Enter(Act10Areas.OriathDocks, travel: true).Talk(Weylam10, "Elixir of Allure").Reward(Weylam10, "Elixir of Allure Reward")
+            .UseItem(Book(10, "a10q4"));
+        // a10q5 Map to Tsoatha
+        s.Talk(Lilly10, "Map to Tsoatha").Enter(Act10Areas.Reliquary, travel: true).OpenChest(Act10Objects.TeardropChest).PickUp(Act10Items.Teardrop)
+            .Enter(Act10Areas.OriathDocks, travel: true).Talk(Lilly10, "Map to Tsoatha").Reward(Lilly10, "Tsoatha Reward");
+        // a10q2 Death and Rebirth: Bannon takes the staff and becomes Innocence (the town's later stage)
+        s.Talk(Act10Objects.BannonTown, "The Staff of Avarius").Enter(Act10Areas.DesecratedChambers, travel: true)
+            .See(Act10Monsters.Avarius).Kill(Act10Monsters.Avarius).PickUp(Act10Items.AvariusStaff)
+            .Enter(Act10Areas.OriathDocks, travel: true).Talk(Act10Objects.BannonTown, "The Staff of Avarius")
+            .Talk(Act10Objects.BannonTown, "The Staff of Avarius").Talk(Lani10, "Innocence").Reward(Lani10, "Innocence Reward");
+        // a10q3 An End to Hunger: the horns, Kitava's scripted end (EndGameAvailable earned), Sin's portal home, Lani's book
+        s.Talk(Act10Objects.InnocenceTown, "Kitava").Enter(Act10Areas.RavagedSquare, travel: true).Near(Act10Objects.HornBlockage)
+            .Talk(Act10Objects.InnocenceSquare, "Kitava").Enter(Act10Areas.Canals).Enter(Act10Areas.FeedingTrough)
+            .See(Act10Monsters.Kitava).Talk(Act10Objects.SinTrough, "Kitava").Kill(Act10Monsters.Kitava)
+            .Enter(Act10Areas.OriathDocks).Talk(Lani10, "Kitava", IndexOf(Lani10, 1415)).Reward(Lani10, "Kitava Reward").UseItem(Book(10, "a10q3"));
+        // A11q0 Toward the Future: Lilly sails to Karui Shores, the Epilogue
+        s.Talk(Lilly10, "Set Sail from Oriath").Enter(Act10Areas.KaruiShores, travel: true);
+    }
+
     /// <summary>Plays an act's sequence, failing the test with the step the game would refuse.</summary>
     static void Play(QuestSimulator s, Action<QuestSimulator> act)
     {
@@ -637,6 +815,36 @@ public sealed class QuestEngineTests
         Assert.Equal("1_4_town", s.Area);
         Assert.Empty(s.Carried);
         Assert.True(QuestSpawned(AncientPyramid, Act2Monsters.VaalOversoul) && QuestSpawned(UpperSceptreOfGod, Act3Monsters.DominusAscendant));
+
+        // Acts 7–10 and the Epilogue from E3StartOfAct7 (FromAct7: the table has no preset at the end of Act 6): 13 quest
+        // passive points and 12 refund points from Acts 1–6. After Act 8 the flags of acts 7 and 8 in E3EndOfAct8 (the
+        // preset is cumulative and lists every earlier act's item-held flags, which a played character no longer has).
+        var late = FromAct7();
+        Assert.Equal((13, 12), (late.PassivePoints, late.RefundPoints));
+        Play(late, Act7);
+        Play(late, Act8);
+        Assert.Equal([], PresetFlagsOf("E3EndOfAct8", "a7q|a8q").Where(f => !late.Has(f)).ToArray());
+        Assert.Equal(Act8Areas.BloodAqueduct, late.Area);
+        // Kitava's Act 10 penalty: EndGameAvailable, which every character has for the Atlas, is not earned before him
+        // (Act 5's −30% only); his scripted end earns it (another −30%), and the client's Epilogue gate opens with it.
+        Play(late, Act9);
+        Assert.Contains(EndGameAvailable, late.Unearned);
+        Assert.Equal(-30, Penalty(late));
+        Play(late, Act10);
+        Assert.DoesNotContain(EndGameAvailable, late.Unearned);
+        Assert.Equal(-60, Penalty(late));
+        // The Epilogue's EpilogueAtlasDemo: acts 7–10's quest flags and EndGameAvailable; every quest of acts 7–10, A11q0
+        // and a10q3a11 at its "complete" row; the campaign's 24 quest passive points and 20 refund points; Karui Shores.
+        Assert.Equal([], PresetFlagsOf("EpilogueAtlasDemo", "a7q|a8q|a9q|a10q|A11|EndGameAvailable").Where(f => !late.Has(f)).ToArray());
+        string[] lateQuests = [.. Enumerable.Range(7, 4).SelectMany(a => states.QuestsOfAct(a)).Where(q => System.Text.RegularExpressions.Regex.IsMatch(q, @"^a\d+q")),
+            "a10q3a11", "A11q0"];
+        Assert.Equal(29, lateQuests.Distinct().Count());
+        Assert.Empty(lateQuests.Where(q => !states.Complete(q, late.Has)).Select(q => $"{q}: {states.Current(q, late.Has)?.Text ?? "not started"}"));
+        Assert.Equal((24, 20), (late.PassivePoints, late.RefundPoints));
+        Assert.Equal(Act10Areas.KaruiShores, late.Area);
+        Assert.Empty(late.Carried);
+        Assert.True(QuestSpawned(Act9Areas.RottingCore, Act9Monsters.DepravedTrinity) && QuestSpawned(Act9Areas.Oasis, Act9Monsters.Shakari2)
+            && QuestSpawned(Act8Areas.HarbourBridge, Act8Monsters.Solaris) && QuestSpawned(Act10Areas.CathedralRooftop, Act10Monsters.Plaguewing));
 
         // The Thaumetic Seal and the tree need their items, the Strange Device Helena's rescue.
         var seal = new QuestSimulator();
@@ -751,5 +959,57 @@ public sealed class QuestEngineTests
         Assert.True(oriath.Has("a5q6-DeliveredItem") && !oriath.Has("a5q6-HaveItem") && !oriath.Has("a5q6-CompletedBoss"));
         oriath.Kill(Act5Monsters.Kitava);
         Assert.True(oriath.Has("a5q6-CompletedBoss"));
+
+        // Act 7: the barrier before Level 2 lifts only with the Obsidian Key; Arakaali's bridge into Act 8 needs her death.
+        var sins = FromAct7();
+        sins.Enter(Act7Areas.SinsLevel1, travel: true);
+        Assert.Throws<QuestSimulator.StepFailed>(() => sins.Near(Act7Objects.SinsBarrier));
+        Assert.Throws<QuestSimulator.StepFailed>(() => sins.Enter(Act7Areas.SinsLevel2));
+        sins.Set(["a7q1-KilledBoss", "a7q7-DeliveredItems"]).Enter(Act7Areas.TempleOfDecay2, travel: true);
+        Assert.Throws<QuestSimulator.StepFailed>(() => sins.Enter(Act7Areas.SarnRamparts));
+        // Act 8: the goddesses' fight needs both orbs; the way into Act 9 both goddesses dead.
+        sins.Set(["a8q1-KilledBoss"]).Enter(Act8Areas.HarbourBridge, travel: true);
+        Assert.Throws<QuestSimulator.StepFailed>(() => sins.Use(Act8Objects.GoddessFightStarter));
+        sins.Set(["a8q2-HaveItem", "a8q3-HaveItem"]).Use(Act8Objects.GoddessFightStarter).Kill(Act8Monsters.Lunaris);
+        Assert.Throws<QuestSimulator.StepFailed>(() => sins.Enter(Act8Areas.BloodAqueduct));
+        sins.Kill(Act8Monsters.Solaris).Enter(Act8Areas.BloodAqueduct);
+        // One click hands in every item a row takes: Sin's "_take_ingredients_" (1336) the powder and the acid, Yeena's
+        // "Fireflies" (1042) all seven.
+        var hands = FromAct7();
+        hands.Set(["a8q23-KilledBosses"]).Enter(Act9Areas.Highgate, travel: true).Talk(Sin9, "The Dark Ember");
+        hands.Carried.AddRange([Act9Items.TrarthanPowder, Act9Items.BasiliskAcid]);
+        hands.Set(["a9q1-HaveItem1", "a9q1-HaveItem2"]).Talk(Sin9, "_take_ingredients_");
+        Assert.True(hands.Has("a9q1-DeliveredItem1") && hands.Has("a9q1-DeliveredItem2"));
+        Assert.Empty(hands.Carried);
+        hands.Set(["a7q1-KilledBoss"]).Enter(Act7Areas.VaalCity, travel: true);
+        hands.Carried.AddRange(Act7Items.Fireflies);
+        hands.Set([.. Enumerable.Range(1, 7).Select(n => $"a7q7-HaveItem{n}")]).Talk(Act7Objects.YeenaVaalCity, "Fireflies");
+        Assert.True(hands.Has("a7q7-DeliveredItems"));
+        Assert.Empty(hands.Carried);
+        // Act 10: Bannon stands in Oriath Docks until he becomes Innocence, then InnocenceTown in his place; the horn gate
+        // into The Canals and Sin's portal home wait for Innocence and Kitava.
+        Assert.True(NpcPresent(Act10Areas.OriathDocks, Act10Objects.BannonTown, With()) && !NpcPresent(Act10Areas.OriathDocks, Act10Objects.InnocenceTown, With()));
+        Assert.True(!NpcPresent(Act10Areas.OriathDocks, Act10Objects.BannonTown, With("a10q2-BannonTransformed"))
+            && NpcPresent(Act10Areas.OriathDocks, Act10Objects.InnocenceTown, With("a10q2-BannonTransformed")));
+        Assert.Equal("a10q3-OpenedGate", FlagToEnter(Act10Areas.RavagedSquare, Act10Areas.Canals));
+        Assert.Equal(EndGameAvailable, FlagToEnter(Act10Areas.FeedingTrough, Act10Areas.OriathDocks));
+    }
+
+    /// <summary>The preset's flags of these quest prefixes (a regex alternation; a whole flag name matches itself), but
+    /// those the driver's sequence leaves out: The Crossroads' BanditBlock (the area cannot be built at seed 1), Helena's
+    /// map clue (log text), Sin's Arakaali talk in town (no reward), Yeena's delivery clue in town.</summary>
+    static IEnumerable<string> PresetFlagsOf(string presetId, string prefixes) =>
+        QuestStates.Default.Value.FindPreset(presetId)!.Flags.Where(f => System.Text.RegularExpressions.Regex.IsMatch(f, $"^({prefixes})")
+            && f is not ("a7q1-SeenBlockage" or "a7q2-MapClue2" or "a7q4-QuestRewardTaken" or "a7q7-DeliveryClue"));
+
+    /// <summary>Kitava's resistance penalty for the simulated character, as the Game module counts it
+    /// (Game.ResistancePenalty: Act 5's flags, and Act 10's once earned).</summary>
+    static int Penalty(QuestSimulator s)
+    {
+        var conn = new ClientState(new AreaLayout(0x1234, "2_10_town", 200, 200, 70, 70, null, []), 1, 1)
+        {
+            QuestFlags = [.. s.Flags], UnearnedQuestFlags = [.. s.Unearned],
+        };
+        return Game.ResistancePenalty(conn);
     }
 }
