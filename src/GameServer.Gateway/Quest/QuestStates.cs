@@ -35,10 +35,13 @@ sealed class QuestStates
     public State? Current(string quest, Func<string, bool> has) => Of(quest).OrderBy(s => s.Order).FirstOrDefault(s => s.Matches(has));
 
     /// <summary>Whether the quest is complete: its Order 0 row matches, or the row shown is another ending with the same flags
-    /// (a9q2's Order 0 is the feather given to Tasuni, missing IrashaTakeFeather; Order 1, the same book used, Irasha's).</summary>
+    /// (a9q2's Order 0 is the feather given to Tasuni, missing IrashaTakeFeather; Order 1, the same book used, Irasha's), or
+    /// with the same text and only some of an Order 0 row's flags (a7q1's Order 0 also needs a helped bandit's
+    /// a2q1-QuestRewardTaken; Order 3, the book used alone, is the ending of a character that killed all three).</summary>
     public bool Complete(string quest, Func<string, bool> has) =>
         Of(quest).Any(s => s.Order == 0 && s.Matches(has))
-        || Current(quest, has) is { } shown && Of(quest).Any(s => s.Order == 0 && s.Present.Order().SequenceEqual(shown.Present.Order()));
+        || Current(quest, has) is { } shown && Of(quest).Any(s => s.Order == 0 && (s.Present.Order().SequenceEqual(shown.Present.Order())
+            || s.Text == shown.Text && shown.Present.All(s.Present.Contains)));
 
     public static readonly Lazy<QuestStates> Default = new(() => Load());
 
