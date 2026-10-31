@@ -147,15 +147,40 @@ public class LoginServerSessionTests
         accounts.Register("dave", "pw1234");
         var session = new LoginServerSession(accounts);
         var leagues = Assert.IsType<LeagueList>(session.Handle(Request("dave", "pw1234"))[1]).Leagues;
-        Assert.Equal(16, leagues.Count);
+        Assert.Equal(17, leagues.Count);
         Assert.All(leagues, l => Assert.NotEmpty(l.Description)); // an empty one crashes the client's league card
         var main = leagues.Where(l => (l.Flags0 & LeagueEntry.Main) != 0).Select(l => l.Name);
-        Assert.Equal(["Standard", "Allflame"], main);
+        Assert.Equal(["Allflame", "Hardcore Allflame", "Phrecia", "Standard"], main.Order());
         var hc = Assert.Single(leagues, l => l.Name == "Hardcore");
         Assert.Equal(("Standard", LeagueEntry.Hardcore, LeagueEntry.Variant), (hc.HardcoreParent, hc.Flags0, hc.Flags1));
         Assert.Equal("Hardcore", Assert.Single(leagues, l => l.Name == "SSF Hardcore").SsfParent);
         Assert.Equal("HC SSF Allflame", Assert.Single(leagues, l => l.Name == "HC SSF R Allflame").RuthlessParent);
         Assert.Equal(LeagueEntry.Variant | LeagueEntry.Ruthless, Assert.Single(leagues, l => l.Name == "Ruthless").Flags1);
+    }
+
+    [Theory]
+    [InlineData("Allflame", false, false, false)]
+    public void Saved_default_family_modes_resolve_when_the_creation_catalog_is_narrowed(
+        string leagueName, bool hardcore, bool ssf, bool ruthless)
+    {
+        var accounts = new AccountService(new JsonAccountStore());
+        var account = accounts.Register("legacy", "pw1234").Value!;
+        accounts.CreateCharacter(account.Id, "LegacyRanger", CharacterClass.Ranger, leagueName);
+        var session = new LoginServerSession(accounts) { Leagues = new(LeagueCatalog.FromEnvironment().Loaded.Select(l => l with { Creatable = l.Base != leagueName })) };
+        var offered = Assert.IsType<LeagueList>(session.Handle(Request("legacy", "pw1234"))[1]);
+        Assert.DoesNotContain(offered.Leagues, l => l.Name == leagueName);
+        Assert.Null(session.Leagues.Find(leagueName));
+
+        session.Handle(new U8U32(0, 0));
+        var resolved = Assert.IsType<League>(session.CharacterLeague);
+        Assert.Equal((leagueName, hardcore, ssf, ruthless),
+            (resolved.Name, resolved.Hardcore, resolved.Ssf, resolved.Form is not null));
+        Assert.Equal(leagueName, Assert.Single(accounts.Characters(account.Id)).League);
+
+        var rejected = Assert.IsType<CreateCharacterResult>(Assert.Single(session.Handle(
+            new CreateCharacter("NewLegacyRanger", leagueName, 0, 0, "DexDefault", new byte[32]))));
+        Assert.Equal(LoginServerSession.ResultLeagueDoesNotExist, rejected.Result);
+        Assert.Single(accounts.Characters(account.Id));
     }
 
     [Fact]

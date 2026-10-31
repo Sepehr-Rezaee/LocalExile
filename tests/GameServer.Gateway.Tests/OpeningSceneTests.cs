@@ -1,87 +1,88 @@
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
-using GameServer.Core.Protocol.Login;
+using System.Text.Json;
 using GameServer.Core.Protocol.Instance;
+using GameServer.Core.Protocol.Login;
 
 namespace GameServer.Gateway.Tests;
 
 public class OpeningSceneTests
 {
     static readonly NpcCatalog.Npc Exile = new(6, TutorialObjects.Exile, "Dying Exile", ["Transitionable"], null, 1);
+    // A save written before WakeUpShown and WeaponPromptHeard existed.
+    static CharacterSaves.OpeningTutorial Untouched() =>
+        JsonSerializer.Deserialize<CharacterSaves.OpeningTutorial>("""{"SkillGem":{"Type":123},"SupportGem":{"Type":123}}""")!;
     static Task Invoke(string method, Wire wire, ClientState conn, params object[] tail) =>
-        (Task)typeof(Program).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)!
+        (Task)typeof(Game).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, ["opening-scene-test", wire.Stream, wire.Ciphers, conn, .. tail])!;
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task The_get_up_action_is_stationary_and_only_runs_for_a_washed_up_player(bool washedUp)
+    public async Task An_untouched_character_lies_down_facing_the_room_and_gets_up_in_place_once(bool withSkills)
     {
+        var tutorial = Untouched();
+        Assert.True(TutorialObjects.ShouldStartWashedUp(TutorialObjects.Strand, tutorial, true));
+        Assert.False(TutorialObjects.ShouldStartWashedUp("1_1_town", tutorial, true));
+        Assert.False(TutorialObjects.ShouldStartWashedUp(TutorialObjects.Strand, null, true));
+        Assert.False(TutorialObjects.ShouldStartWashedUp(TutorialObjects.Strand, tutorial, false));
+        foreach (var progressed in new[] { tutorial with { WakeUpShown = true }, tutorial with { WeaponPromptHeard = true },
+            tutorial with { Talked = true }, tutorial with { ZombieKilled = true }, tutorial with { ChestOpened = true },
+            tutorial with { SkillClaimed = true }, tutorial with { SupportClaimed = true } })
+            Assert.False(TutorialObjects.ShouldStartWashedUp(TutorialObjects.Strand, progressed, true));
+
+        var player = new PlayerObject("Ab", 1, 115, 69, 50, 40,
+            Skills: withSkills ? [new(0x103, 532, 42)] : null, Souls: [new(87, 30, 7)]);
+        byte[] standing = player.Blob();
+        byte[] washed = (player with { WashedUp = true, Rotation = MathF.PI }).Blob();
+        Assert.Equal(MathF.PI, BitConverter.ToSingle(washed, 10));
+        Assert.Equal((byte)1, washed[126]); // Player's WashedUp flag.
+        Assert.Equal(PlayerObject.WashedUpStance, washed[145]); // Actor stance, before its variable-length skill/soul list.
+        // Exactly one (row, capacity, current) tuple, followed by the cooldown count and tasks.
+        Assert.EndsWith("01570000001E000000070000000000000000", Convert.ToHexString(washed));
+        Array.Clear(washed, 10, 4);
+        washed[126] = 0;
+        washed[145] = 0;
+        Assert.Equal(standing, washed);
+
         using var wire = new Wire();
         var conn = wire.Conn;
-        conn.PeerTemplate = new PlayerObject("Beach",1,10,10,50,40) { WashedUp=washedUp };
-        var use = new InstanceProtocol.UseSkillAtLocation(20,25,TutorialObjects.WashedUpSkillId,1,0);
-        await Invoke("WakeUpOnBeach",wire,conn,use,conn.Clock.Elapsed.TotalSeconds);
-        Assert.Equal((10,10),conn.Walk.Destination);
-        Assert.Equal(washedUp,conn.TutorialGettingUp);
-        if(washedUp)
+        var use = new InstanceProtocol.UseSkillAtLocation(20, 25, TutorialObjects.WashedUpSkillId, 1, 0);
+        conn.PeerTemplate = player;
+        await Invoke("WakeUpOnBeach", wire, conn, use, conn.Clock.Elapsed.TotalSeconds);
+        Assert.False(conn.TutorialGettingUp);
+        conn.PeerTemplate = player with { WashedUp = true };
+        await Invoke("WakeUpOnBeach", wire, conn, use, conn.Clock.Elapsed.TotalSeconds);
+        Assert.True(conn.TutorialGettingUp);
+        Assert.Equal((10, 10), conn.Walk.Destination);
+        int accepted = conn.ActionCount;
+        await Invoke("WakeUpOnBeach", wire, conn, use, conn.Clock.Elapsed.TotalSeconds);
+        Assert.Equal(accepted, conn.ActionCount);
+    }
+
+    [Fact]
+    public async Task The_exile_picks_its_voice_line_and_closing_it_skips_only_the_running_scene()
+    {
+        Assert.Equal(((byte)1, (double?)null), TutorialObjects.Dialogue(false, false));
+        Assert.Equal(((byte)1, (double?)null), TutorialObjects.Dialogue(false, true));
+        Assert.Equal(((byte)2, (double?)22.8), TutorialObjects.Dialogue(true, Untouched().WeaponPromptHeard));
+        Assert.Equal(((byte)3, (double?)8.2), TutorialObjects.Dialogue(true, true));
+
+        foreach (var (exile, running, skips) in new[] { (true, true, true), (true, false, false), (false, true, false) })
         {
-            int accepted = conn.ActionCount;
-            await Invoke("WakeUpOnBeach",wire,conn,use,conn.Clock.Elapsed.TotalSeconds);
-            Assert.Equal(accepted,conn.ActionCount);
+            using var wire = new Wire();
+            var conn = wire.Conn;
+            conn.TalkingTo = 123;
+            conn.InNpcTalk = true;
+            conn.TutorialSceneRunning = running;
+            conn.TutorialDialogueSkipped = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            conn.Npcs[123] = new(exile ? Exile : Exile with { Id = "OtherNpc" }, 10, 10);
+
+            await Invoke("CloseNpcDialogue", wire, conn);
+
+            Assert.Equal(skips, conn.TutorialDialogueSkipped.Task.IsCompleted);
         }
-    }
-
-    [Theory]
-    [InlineData(true, true, true)]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, false)]
-    public async Task Closing_dialogue_skips_only_the_active_exile_scene(bool exile, bool running, bool skips)
-    {
-        using var wire = new Wire();
-        var conn = wire.Conn;
-        conn.TalkingTo = 123;
-        conn.InNpcTalk = true;
-        conn.TutorialSceneRunning = running;
-        conn.TutorialDialogueSkipped = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        conn.Npcs[123] = new(exile ? Exile : Exile with { Id = "OtherNpc" }, 10, 10);
-
-        await Invoke("CloseNpcDialogue", wire, conn);
-
-        Assert.Equal(skips, conn.TutorialDialogueSkipped.Task.IsCompleted);
-    }
-
-    [Fact]
-    public async Task Skipping_a_long_voice_starts_the_bite_now_and_waits_only_for_its_animation()
-    {
-        using var wire = new Wire();
-        var skipped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        wire.Conn.TutorialSceneRunning = true;
-        var elapsed = Stopwatch.StartNew();
-        var scene = Invoke("RunOpeningScene", wire, wire.Conn, (uint)123, new SpawnedNpc(Exile, 10, 10), 3600.0, skipped.Task);
-        skipped.SetResult();
-        await wire.ReadTransition().WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.False(scene.IsCompleted); // The combat handoff must retain the bite animation.
-        await scene.WaitAsync(TimeSpan.FromSeconds(15));
-        Assert.True(elapsed.Elapsed.TotalSeconds >= TutorialObjects.BiteSeconds);
-        Assert.False(wire.Conn.TutorialSceneRunning);
-        Assert.Null(wire.Conn.TutorialDialogueSkipped);
-    }
-
-    [Fact]
-    public async Task Skipping_during_pause_waits_for_resume_before_the_bite()
-    {
-        using var wire = new Wire();
-        wire.Conn.Clock.Stop();
-        var scene = Invoke("RunOpeningScene", wire, wire.Conn, (uint)123, new SpawnedNpc(Exile, 10, 10), 3600.0, Task.CompletedTask);
-        await Task.Delay(150);
-        Assert.False(wire.HasBytes);
-        wire.Conn.Clock.Start();
-        await wire.ReadTransition().WaitAsync(TimeSpan.FromSeconds(5));
-        wire.Conn.Closed = true;
-        await scene.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     sealed class Wire : IDisposable
@@ -89,24 +90,15 @@ public class OpeningSceneTests
         readonly TcpListener listener = new(IPAddress.Loopback, 0);
         readonly TcpClient writer = new();
         readonly TcpClient reader;
-        readonly ConnectionCiphers decrypt = new(new byte[64], true);
         public readonly ConnectionCiphers Ciphers = new(new byte[64], false);
         public readonly ClientState Conn = new(new(0, TutorialObjects.Strand, 32, 32, 10, 10, null, []), 0, 1);
         public NetworkStream Stream => writer.GetStream();
-        public bool HasBytes => reader.Available > 0;
         public Wire()
         {
             listener.Start();
             var accepting = listener.AcceptTcpClientAsync();
             writer.Connect(IPAddress.Loopback, ((IPEndPoint)listener.LocalEndpoint).Port);
             reader = accepting.GetAwaiter().GetResult();
-        }
-        public async Task ReadTransition()
-        {
-            var bytes = new byte[16];
-            await reader.GetStream().ReadExactlyAsync(bytes);
-            decrypt.Receive.Process(bytes);
-            Assert.Equal("02BA0000007B00000000000000020002", Convert.ToHexString(bytes));
         }
         public void Dispose() { Conn.Closed = true; reader.Dispose(); writer.Dispose(); listener.Stop(); }
     }

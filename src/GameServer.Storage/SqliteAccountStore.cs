@@ -27,6 +27,16 @@ public sealed class SqliteAccountStore(SaveDatabase db) : IAccountStore
     public Character? FindCharacter(string name) => One<Character>("SELECT character FROM account_characters WHERE name = $v", name);
     public Character? GetCharacter(Guid id) => One<Character>("SELECT character FROM account_characters WHERE id = $v", id.ToString());
 
+    /// <summary>Every account, by name (the dev protocol's "accounts").</summary>
+    public IReadOnlyList<Account> Accounts() => db.Read(() =>
+    {
+        using var c = db.Command("SELECT account FROM accounts ORDER BY name COLLATE NOCASE, id");
+        using var r = c.ExecuteReader();
+        var list = new List<Account>();
+        while (r.Read()) list.Add(Parse<Account>(r.GetString(0), "of the account list"));
+        return list;
+    });
+
     public IReadOnlyList<Character> CharactersOf(Guid accountId) => db.Read(() =>
     {
         using var c = db.Command("SELECT character FROM account_characters WHERE account_id = $v ORDER BY created_utc, id", ("$v", accountId.ToString()));
@@ -62,6 +72,8 @@ public sealed class SqliteAccountStore(SaveDatabase db) : IAccountStore
 
     void Upsert(Character ch, bool onlyIfThere = false) => db.Atomically(() =>
     {
+        if (onlyIfThere && GetCharacter(ch.Id) is { } current)
+            ch = HardcoreDeathRules.PreserveCommittedDeath(ch, current);
         using var c = db.Command(onlyIfThere
             ? "UPDATE account_characters SET name = $name, account_id = $account, character = $json WHERE id = $id"
             : "INSERT INTO account_characters (id, account_id, name, created_utc, character) VALUES ($id, $account, $name, $created, $json)",

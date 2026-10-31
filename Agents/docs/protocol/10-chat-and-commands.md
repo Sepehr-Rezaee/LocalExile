@@ -139,6 +139,15 @@ compact uint n, n × (compact uint stat key, compact int value)
 They refuse paused, leaving, closed or dead owners before combat mutation.
 `/set_stat` can replace raw chance inputs 20680/8404; authoritative outputs 4534/12268 always come from contact history.
 
+For tools outside the game (the desktop launcher's console), the built Gateway lists its commands without starting:
+`dotnet src/GameServer.Gateway/bin/Debug/net10.0/GameServer.Gateway.dll commands` prints each command's name, full
+usage and argument kinds as JSON lines (`Program.CommandUsages`, the loaded mods' commands not included).
+A command declares the kinds of its leading arguments where it registers (`ChatCommands.Add`: area, monster, item, gem,
+stat, npc, quest_flag), and `GameServer.Gateway.dll values <kind>` prints what such an argument can be, from the catalog
+the command looks it up in (`Program.CompletionValues`): a name only one row has, else the row's Id with the name as
+its detail; `/goto`'s areas say whether the Gateway generates them, a capture has them, or only the client can.
+Both run before `ServerLog`, so their output is JSON lines only.
+
 | Command | Effect |
 |---|---|
 | `/commands [page \| name]`, `/com …` | lists the commands, 8 per page (`/com 2`, `/com 3`, …; after four blank lines a green header, then each command's syntax only), or the full usage of one command (`/com item`; otherwise every command whose name contains the text) |
@@ -159,6 +168,7 @@ They refuse paused, leaving, closed or dead owners before combat mutation.
 | `/hit <type> <damage>` | damages the player through resistance and enabled hit mitigation; see below |
 | `/accuracy [monster level]` | final accuracy rating and attack hit chance against a normal and an evasive monster of that level (default: your level; spells always hit) |
 | `/defences [monster level]` | armour, physical reduction and evasion with the chance to evade a monster of that level |
+| `/base_defence [0 to 31]` | show or set the held armour item's shared base roll; saved with the item |
 | `/auras` | active auras, their flat/percent reservation, reserved and unreserved mana, reservation efficiency and aura effect ([11](11-skills.md) 13) |
 | `/suppression` | Spell Suppression chance and damage reduction |
 | `/spellhit <fire\|cold\|lightning\|chaos\|physical> <damage>` | dev: a spell hit through resistance and Spell Suppression, rolling the suppression chance |
@@ -167,10 +177,10 @@ They refuse paused, leaving, closed or dead owners before combat mutation.
 | `/charges [<endurance\|frenzy\|power> <n>]`, `/charges add <type> [n]`, `/charges clear` | dev: each charge type's count, maximum, minimum, duration and time left; sets a count, gains like a skill (refreshing the duration) or clears them ([11](11-skills.md) §15) |
 | `/block_luck <attack\|spell\|both\|off>` | dev: force lucky block for testing |
 | `/blockhit <attack\|spell> <fire\|cold\|lightning\|chaos\|physical> <damage>` | dev: a hit through block and resistance |
-| `/god` | toggles 1000% increased attack and cast speed, 100% of life and 10 000 mana regenerated per second, +10 000 life, +1000 to each attribute ([11](11-skills.md) §12) |
+| `/god` | toggles 1000% increased attack and cast speed, 100% of life and 10 000 mana regenerated per second, +10 000 life, +1000 to each attribute ([11](11-skills.md) §12); remains enabled for this character across area changes and relogs until toggled off or Gateway restarts |
 | `/death_screen [hex flags]` | S→C 0x55 with these flags (default: the league's; 2 hides it), [11](11-skills.md) §7 |
 | `/quest_flag [<QuestFlags Id> [off]]` | lists the character's quest flags, or sets or clears one (saved); the quest's room objects follow ([12](12-quests.md) §5) |
-| `/goto <area id or name>` | change area as if through an area transition (e.g. `/goto 1_1_3`; ids from the atlas), [08](08-area-transitions.md) §7 |
+| `/goto <area id or name> [seed]` | change area as if through an area transition (e.g. `/goto 1_1_3`; ids from the atlas; a seed makes a new instance at it, towns keep 1), [08](08-area-transitions.md) §7 |
 | `/tp <x> <y> \| <+dx> <+dy> \| <id> \| <name> [n] \| list [filter]` | dev: 0x1b7 teleports the player within the area, for testing without walking. A cell lands on itself when walkable, else on the nearest walkable cell; a value with + or - is relative to the player on that axis. A name (whole, else a part, any case) or id lands next to a monster, NPC, area transition (`transition to <area>`), the `waypoint`, the `arrival` point or an object of the area's walk-map capture (`RhoaChest`, `GlyphWall`: the last part of its object type); `n` picks the n-th of equal names. `/tp list` shows them. The current action ends and the server's position estimate moves with the player (`TeleportTargets.cs`) |
 | `/transition [pos … \| rot <deg> \| z <z \| none> \| model <path \| none> \| index <n>]` | show or change the first area transition (re-created), [08](08-area-transitions.md) §5 |
 | `/mobs` | lists the monsters spawned on this connection; emerge monsters that have not risen are marked "(buried)" or "(lurking)" |
@@ -265,8 +275,14 @@ Sent, in order: **0x20** (once per variety and level on a connection), **0x2b9**
 - **Other component lists.** Of the 10 691 varieties, 4 513 have exactly the base list; most others append
   DiesAfterTime, StateMachine or Transitionable. The blob also writes MinimapIcon (u8), DiesAfterTime (no data: its
   live vtable is the factory's `0x14359f478`, slot 17 `ret`), Preload, Functions, PlayerClass (no data), Transitionable
-  and StateMachine (below): **10 345 varieties** are supported; the other 346 have NPC, ControlZone, BlightTower,
-  Mercenary, LimitedLifespan … components and are refused with a message box. The Gateway knows each type's list and
+  and StateMachine (below), NPC (`00 ff`, [17](17-npcs.md)), InteractionAction (u8 flags 0, `0x141e1e240`: Act 2's
+  bandit lords Kraityn, Alira and Oak) and Timer (no data: its only vtable `0x1435a10a0` has slot 17 `ret`; Solaris and
+  Lunaris on The Harbour Bridge). The rest have ControlZone, BlightTower, Mercenary, LimitedLifespan … components and
+  are refused with a message box. The type is the variety's own Id when an
+  `.ot` exists under it, else its `BaseMonsterTypeIndex`: `KitavaBoss/KitavaFinal`'s base column names `Kitava1`, but
+  the client builds it from `kitavafinal.ot`, which has no Transitionable; sent with Kitava1's list, the extra byte was
+  read as the task count and the client stopped on "Buffer Underflow" (live 2026-10-30). 17 varieties have an own type
+  that serialises differently (Kitava2/3/Final, BlackDeathMaligaro, Atziri2 …). The Gateway knows each type's list and
   data from `data/object-types.json` (`python -I scripts/re/ot_components.py --all --json data/object-types.json`,
   about 2 minutes); without it, it assumes the base list and refuses StateMachine types.
 - **Transitionable** (`ClientInternalTransitionable` `0x1435dd290`, slot 17 `0x1421c24b0`): u8 = state (low 7 bits,
@@ -340,13 +356,18 @@ Sent, in order: **0x20** (once per variety and level on a connection), **0x2b9**
   animation, along the client's own path around walls, on the terrain height**. Alternatives: **0x1ba** (Positioned
   move) only slides it in a straight line through walls, at `duration = cell distance / value` (value ≈ cells per
   second; `0x141e30c90` → `0x141e34120`), keeping the old height; **0x1b7** teleports it.
-- **AI** (Gateway, `RunMonsterAi`; live 2026-10-17). Every 100 ms (`MonsterAiTickMs`) per connection: a monster within
+- **AI** (Gateway, `RunMonsterAi`; live 2026-10-17). Every 50 ms of game time (`MonsterAiCadence`) per connection: a monster within
   its MonsterVarieties `MaxAgroRange` (taken as grid cells: 60 for Hungry Corpse, 105 for most) of the server's estimate
   of the player starts chasing: a Move action (0x1ab, 0x2909) to its own cell around the player, re-sent when that cell
   moves by 3+ cells; beyond twice the range it gives up (a Move to where it stands). The cells come from
   `MonsterSurround`: the nearest chasers choose first, each takes the free cell on the innermost ring (its size + 3
   cells from the player) closest to its bearing, bodies never overlap, and a full ring sends the rest one ring out to
-  wait. A ring-0 slot is kept while it stays free and on the ring. Before, every monster aimed at the cell on the line
+  wait. Candidates must also clear the player's square collision footprint, including when a ring-0 slot is reused.
+  Inner candidates respect the monster's actual attack reach; stationary footprints and other players also exclude cells.
+  A short native path is retried after arrival at a bounded half-second cadence.
+  Occupancy queries use a spatial index; ring trigonometry is cached and candidate searches do not allocate per cell.
+  Monsters with negative footprints chase directly without taking a slot; stationary objects and walls still block them.
+  A ring-0 slot is kept while it stays free and on the ring. Before, every monster aimed at the cell on the line
   toward itself, so a pack from one side queued in a wedge and only the front ones attacked. The server follows each monster's walk with
   a `WalkEstimator` (A* on the walk map) at MonsterVarieties `MovementSpeed` cells/s (8 for Hungry Corpse, 44 for Haku)
   and reports that position as the action's start; live, the chase showed no snapping, so the estimate keeps up. All

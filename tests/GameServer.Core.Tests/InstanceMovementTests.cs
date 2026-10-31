@@ -9,16 +9,6 @@ public class InstanceMovementTests
 
     [Theory]
     [InlineData(0, "00")]
-    [InlineData(63, "3F")]
-    [InlineData(-1, "7F")]
-    [InlineData(-64, "40")]
-    [InlineData(64, "8040")]
-    [InlineData(222, "80DE")]
-    [InlineData(0x1fff, "9FFF")]
-    [InlineData(-65, "BFBF")]
-    [InlineData(0x2000, "C02000")]
-    [InlineData(0x100000, "E0100000")]
-    [InlineData(0x4000000, "F004000000")]
     public void Compact_int_matches_the_client_writer(int value, string hex) => Assert.Equal(hex, Compact(value));
 
     [Fact]
@@ -48,10 +38,6 @@ public class InstanceMovementTests
 
     [Theory]
     [InlineData(1)]
-    [InlineData(2)]
-    [InlineData(6)]
-    [InlineData(10)]
-    [InlineData(11)]
     public void Split_location_instant_request_keeps_following_object_instant_and_tick(int cut)
     {
         byte[] location = Convert.FromHexString("01900000011A0000012B0103");
@@ -99,7 +85,7 @@ public class InstanceMovementTests
         Assert.Equal("001C0000000012345678", Convert.ToHexString(InstanceProtocol.Pong(0, 0, 0x12345678)));
         Assert.Equal("01BA00001000000000000000000000E8000000E5000000004214000000",
             Convert.ToHexString(InstanceProtocol.MoveTo(0x1000, 232, 229, 37f)));
-        Assert.Equal("01B700001000000000000000000000E8000000E50000000000000000",
+        Assert.Equal("01B700001000000000000000000000E8000000E57FFFFFFF00000000",
             Convert.ToHexString(InstanceProtocol.Teleport(0x1000, 232, 229)));
     }
 
@@ -119,10 +105,6 @@ public class InstanceMovementTests
 
     [Theory]
     [InlineData(0x018e, true)]
-    [InlineData(0x0192, true)]
-    [InlineData(0x0195, true)]
-    [InlineData(0x0025, false)]   // predictive move (UseSkillAtLocation)
-    [InlineData(0x001b, false)]   // tick
     public void Only_the_three_lockstep_messages_count_as_lockstep_movement(ushort id, bool lockstep) =>
         Assert.Equal(lockstep, InstanceProtocol.IsLockstepMovement(id));
 

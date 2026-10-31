@@ -119,7 +119,7 @@ static partial class AtlasBuilder
         return rsPath;
     }
 
-    static IEnumerable<string> SubGraphs(GameFiles files, string master, string name, List<string> problems)
+    internal static IEnumerable<string> SubGraphs(GameFiles files, string master, string name, List<string> problems)
     {
         if (name.EndsWith(".dgr", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".tgr", StringComparison.OrdinalIgnoreCase))
             return [TerrainText.Resolve(master, name)];
@@ -252,7 +252,10 @@ static partial class AtlasBuilder
         else positions.Add((-1, obj.DoodadX, obj.DoodadY));
 
         // The room's named point this object belongs to (any name but "default"): one inside the tile, else the nearest.
-        var named = room.Points.Where(p => !p.Name.Equals("default", StringComparison.OrdinalIgnoreCase)).ToList();
+        // Monster and object spawn points ("Metadata/…") are never an exit's: The Climb's prison.arm has
+        // Metadata/Monsters/CorpseWheel/CorpseWheelAggroCharge beside its entrance, which left the exit unresolved.
+        var named = room.Points.Where(p => !p.Name.Equals("default", StringComparison.OrdinalIgnoreCase)
+            && !p.Name.StartsWith("Metadata/", StringComparison.OrdinalIgnoreCase)).ToList();
         NamedPoint? point = null;
         string? how = null, unresolved = null, role = null;
         bool internalOnly = false, unused = false;

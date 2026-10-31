@@ -9,9 +9,14 @@ Items keep the Roadmap's priority groups, and are in rough priority order within
 ### A server tick loop
 
 - Continuous player recovery has its own 16 ms elapsed-game-time loop (regeneration, flasks and self RF);
-  implemented, awaiting real-client visual verification.
+  native ES regeneration, source removal and transfer/relog controls pass.
+  Broader recovery and self RF visual verification remains separate.
   See Status and protocol/20-damage.md.
-- **Known:** `Program.TickRate` (30/s) only bounds attack times; hits use timers, the AI a 500 ms loop.
+- Same-character concurrent/relog connections still need an explicit stat-publication owner and ordering contract.
+  The closed/retired connection guard and its limits are in
+  [character stat lifecycle](../docs/dev/character-stat-lifecycle.md).
+- **Known:** `Program.TickRate` (30/s) only bounds attack times; hits use timers, the AI a 100 ms loop.
+  Queue/lock/send timings and shared per-pass blocker indexes are implemented; there is no unified instance loop yet.
 - **Done when:** one 30 Hz loop per instance drives movement estimates, AI and combat.
 
 ### Remaining client-message layouts
@@ -33,14 +38,39 @@ Items keep the Roadmap's priority groups, and are in rough priority order within
 - **Start:** a dev command that walks the WorldAreas list with `/goto` and waits for each capture.
 - **Done when:** every act area has its seed-1 capture, and every waypoint area its waypoint in it.
 
-### Area transitions without a walk-map run
+### Server-side level generation
 
-- **Known:** every area gets its area transitions and destinations, but a generated area only has them once `live.ps1
-  -Walkmaps` captured its layout for that seed ([08](../docs/protocol/08-area-transitions.md) §7). 11 atlas
-  connections are unresolved, 41 are point-only, and four object types are sent as plain AreaTransition.
-- **Start:** reproduce the client's level generator (the atlas already parses graphs, rooms and tiles), or ship
-  captures for fixed seeds.
-- **Done when:** a new seed gets its area transitions without Frida.
+- **Known:** the port reproduces the client's generator for every recorded trace and logged load
+  ([re/011](../docs/re/011-level-generation.md), [status/world.md](../status/world.md)).
+  `/tour <file>` with `live.ps1 -Walkmaps` records new (area, seed) loads; `levelgen tourlist` writes the lists.
+- **Start:** the supported areas get random seeds, and a 5-seed tour of them found 4 loads the port gets wrong
+  (1_2_15 at `0x14211532d`, 1_2_14_2 at `0x142031e88`, [re/011](../docs/re/011-level-generation.md) §8 Random seeds)
+  and 202 seeds it cannot generate (the Gateway plays a new instance at such a seed at a replacement seed it can,
+  `ServerLevels.PlayableSeed`; fixing the generator errors gives those seeds back).
+- **To be implemented with their leagues (out of scope for now):** the 202 areas whose level the client builds from
+  data the server sends (`data/areas-unavailable.txt`). They come with each league's server side, not with the
+  generator:
+  - Delve (82): the mine cells and biomes (`Delve_*`); the client needs the server's cell data.
+    An initial Delve_Main block, hub entrance and mine return gate now work with native generation and captured movement.
+    The initial Crawler has attached wheels, engine idle and a torch; the hub's native equipment console is placed.
+    Equipment purchases/upgrades have account/league persistence. The first quest trip has a bounded authored-rail
+    implementation with gradual exact-total debit, escort pacing and tutorial pack reveals. Native checks confirmed movement/light/combat and exact debit using assisted escort.
+    Remaining: validate/price general routes against a persistent mine graph, original biome population and encounter
+    wave scripts, darkness stacks/resistance and flare/dynamite use. Initial victory rewards and highest completed
+    depth now persist; general node-specific rewards and the mine graph still need implementation. Finish chart continuity inside the mine
+    restore laid lamp/cable trails on re-entry, and verify a continuous walking escort without debug teleports.
+    Also finish shared sulphite migration, equipment cable visual tiers and other biome sections.
+    This does not add Delve to the server level generator's supported areas.
+  - Heist (80): the contract and blueprint areas; the layout comes from the heist plan.
+  - Synthesis (24): the memories (`Synthesis_Main*`, `Synthesis_Single*`).
+  - Incursion (10): the temples (`Incursion_Temple*`); the client needs the room hash of the opened and upgraded
+    rooms ("Unknown Incursion Temple room hash").
+  - Sanctum (4): the floors (`SanctumCellar`, `SanctumCrypt`, `SanctumNave`, `SanctumVaults`); the client rebuilds
+    the floor graph from the rooms the server sends.
+  - Deepwater (2): the 3.29 league's DeepwaterEncounter and DeepwaterEncounterVoyage, built from a biome grid the
+    server sends; the only seed-1 traces the port does not match.
+- The daily Labyrinth layout is the first step of [The Labyrinth](#the-labyrinth).
+- **Done when:** any seed gets its layout without a capture.
 
 ## 3. Gameplay
 
@@ -74,6 +104,52 @@ Items keep the Roadmap's priority groups, and are in rough priority order within
   gate.
   Other one-way links fall back to the area's spawn until their named entrance points are added.
 
+### The Labyrinth
+
+- **Known:** the server port generates the Labyrinth's rooms (249 of 257 match), and the gate baseline lists the
+  supported ones ([re/011](../docs/re/011-level-generation.md), "Labyrinth pass").
+  The boss ends use the layout the client builds with seed 0: the server sends no daily layout.
+  The Aspirants' Plaza (`Labyrinth_Airlock`, `WaypointCatalog.LabyrinthPlaza`) is a waypoint the World panel's
+  Labyrinth pin always shows.
+  Ascendancy points come only from the `/ascendancy_points` dev command (`AscendancyProgress`: two per tier, once);
+  choosing the ascendancy through the native Altar is #151.
+  The tables are extracted (`data/tables/Labyrinth*.json`): 4 tiers with their required trials, quest flag and area
+  level, 18 trials, 47 sections, 223 section layout rows, 58 secrets and the Izaro chests.
+  AreaTransition type 5 is Labyrinth ([08](../docs/protocol/08-area-transitions.md) §7), and
+  `AreaTransitionCatalog` does not know the Labyrinth areas yet.
+- **Known (trials):** the server generates all 18 trial areas (LabyrinthTrials; the Normal six are The Lower
+  Prison, The Crypt Level 1, The Chamber of Sins Level 2, The Crematorium, The Catacombs and The Imperial Gardens).
+  The trial is two rooms the generator already places: in The Lower Prison the `labyrinth_intro` node takes
+  `axiom_intro.arm` and `labyrinth_end` takes `axiom_intro_end.arm`.
+  Their object lines hold the trial: `LabyrinthIntroDoor`, `Puzzle_Parts/Door_Closed`, `Puzzle_Parts/Switch_Once`,
+  a `LabyrinthTrialGlyph`, `LabyrinthCascadeSpikeTrap`s, `LabyrinthTrialPlaque` and `LabyrinthTrialReturnPortal`.
+  The Gateway places none of them yet: `AreaObjects` keeps only transitions, waypoints and `QuestTypes`.
+- **Start**, one pull request per step, in this order:
+  1. The Normal Trials of Ascendancy: place the trial rooms' object lines (as `AreaObjects.RoomObjects` places room
+     waypoints), open the intro door, the switch and its door, and complete the trial at the plaque, whose portal
+     returns to the door.
+     Find the client's interaction with these objects and how it learns a completed trial (LabyrinthTrials columns
+     1–3 are unread) before choosing what the save keeps; the real game shares trials per account and league.
+  2. The trial traps: each trial teaches one kind (spikes, saws, furnaces, darts, ...), the same objects as the
+     Labyrinth's; their timing and damage.
+  3. The day's layout: port the rest of `0x1424e30f0` (connections, secrets) and send the layout in the area's extra
+     data (`0x141ec7220`: seed, node, difficulty; [03](../docs/protocol/03-area-and-world.md)).
+     The node's LabyrinthNodeOverrides and secrets then apply in `LabyrinthPass`; the levelgen gate stays green.
+  4. A run: the plaza's device opens a tier once its required trials are done (Labyrinths `RequiredTrials`), and each
+     room is an instance linked by the layout's connections.
+     No waypoints inside; a portal out, a death or a logout ends the run.
+     Find what the client sends at the device and at a type 5 transition before choosing a server state.
+  5. Izaro: three Aspirant's Trials, each ending when he loses a third of his life (the boss stages of
+     `BossFights.cs`); the third opens the Ascendancy Chamber and its Izaro chests (LabyrinthIzaroChests).
+  6. The Ascendancy Chamber: the Altar (`LabyrinthAscendancyDevice`) chooses the ascendancy on the first Normal run,
+     awards the tier's two points through `AscendancyProgress` and sets the tier's quest flag (Labyrinths
+     `QuestFlag`); agree the shared code with #151.
+  7. The Cruel and Merciless trials, then secrets and darkshrines, the Divine Font (LabyrinthCraftOptions),
+     enchantments and the Eternal Labyrinth with its map trials (a dev command opens them while maps are missing).
+- **Done when:** a character completes the six Normal trials, enters the day's Normal Labyrinth from the plaza,
+  walks its rooms, defeats Izaro three times and chooses an ascendancy at the Altar, keeping it and its two points
+  after a relog.
+
 ## 4. Server design
 
 - **Lockstep network mode:** the server would decide every position and the client play it back by server frames,
@@ -88,7 +164,7 @@ Items keep the Roadmap's priority groups, and are in rough priority order within
 - **Server-side world simulation** (monsters, combat): no project for it yet; add one when it is needed.
 - **Several players** in one instance: player presence, poses, life, departure and body blockers are published.
   Verify two authenticated connections together, then add party admission to private instances and shared combat.
-  Party invites (C→S 0x93) and friend requests (C→S 0x80) are read but not answered: next, S→C 0xa9 party info and the
-  friend list ([28](../docs/protocol/28-player-trade.md) "Open"). Trade between players works.
+  Trade between players and party invite / accept / leave work. Next: friend requests (C→S 0x80) and the friend list,
+  and party Decline, kicks and disconnects ([28](../docs/protocol/28-player-trade.md) "Open").
   The native remote-player body and normal/unique monster clearance have single-client checks.
   See [status/world.md](../status/world.md) and [07](../docs/protocol/07-latency-visibility-movement.md).

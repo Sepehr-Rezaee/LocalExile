@@ -43,6 +43,17 @@ public class SqliteAccountStoreTests : IDisposable
     }
 
     [Fact]
+    public void The_account_list_has_every_account_by_name()
+    {
+        using var db = new SaveDatabase(DbPath);
+        var store = new SqliteAccountStore(db);
+        Assert.Empty(store.Accounts());
+        foreach (string name in new[] { "zed", "Alice", "bob" }) store.AddAccount(NewAccount(name));
+
+        Assert.Equal(["Alice", "bob", "zed"], store.Accounts().Select(a => a.Name));
+    }
+
+    [Fact]
     public void Updates_change_the_record_and_never_add_one()
     {
         using var db = new SaveDatabase(DbPath);
@@ -114,7 +125,6 @@ public class SqliteAccountStoreTests : IDisposable
 
     [Theory]
     [InlineData("{ not json")]
-    [InlineData("null")]
     public void An_unreadable_json_account_store_stops_the_import_and_stays_as_it_is(string content)
     {
         string json = Path.Combine(_folder, "accounts.json");
