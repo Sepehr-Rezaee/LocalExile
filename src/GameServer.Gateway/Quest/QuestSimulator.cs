@@ -31,6 +31,10 @@ sealed class QuestSimulator
     public List<string> Ground { get; } = [];
     public string? Area { get; private set; }
     public int RefundPoints { get; private set; }
+    /// <summary>The flags every character is given (<see cref="Quests.EveryCharacter"/>) that the play has not set yet: not
+    /// earned, as ClientState.UnearnedQuestFlags (Kitava's EndGameAvailable counts for his resistance penalty only once an
+    /// event sets it).</summary>
+    public HashSet<string> Unearned { get; } = new(Quests.EveryCharacter, StringComparer.Ordinal);
     readonly HashSet<string> credited = new(StringComparer.Ordinal);
     public List<string> Log { get; } = [];
 
@@ -80,7 +84,7 @@ sealed class QuestSimulator
         {
             // A session flag, or an instance's own state (Quests.IsInstanceFlag): both go with the area.
             var target = QuestStates.Default.Value.IsSession(f) || Quests.IsInstanceFlag(f) ? SessionFlags : Flags;
-            if (on ? target.Add(f) : target.Remove(f)) Log.Add($"{(on ? "+" : "-")}{f}");
+            if (on ? target.Add(f) | Unearned.Remove(f) : target.Remove(f)) Log.Add($"{(on ? "+" : "-")}{f}");
         }
         var (points, due) = rewards.NewRefunds(Flags, credited);
         RefundPoints += points;
