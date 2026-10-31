@@ -67,8 +67,6 @@ static class QuestItems
         return (set, clear, remove);
     }
 
-    /// <summary>The quest item a dialogue row hands in: the type whose remove_flag the row sets (QuestFlag4) while the
-    /// character does not have it yet; null for other rows.</summary>
     /// <summary>The remove_flags a dialogue row's QuestFlag3 lists for carried items whose grant flag the row requires: a row
     /// that takes several items at once names them all there (Sin's "_take_ingredients_", NPCTalk 1336, requires both
     /// ingredients and lists both DeliveredItem flags; its QuestFlag4 is only the first).</summary>
@@ -82,6 +80,8 @@ static class QuestItems
         npcTalks.Where(t => t.Row != talk.Row && t.Option == talk.Option && t.Available(flags) && t.StartFlag is { } f
             && !flags.Contains(f) && carried.Any(c => c.Remove == f)).Select(t => t.StartFlag!);
 
+    /// <summary>The quest item a dialogue row hands in: the type whose remove_flag the row sets (QuestFlag4) while the
+    /// character does not have it yet; null for other rows.</summary>
     public static QuestItemFlags? HandedIn(string? startFlag, IEnumerable<QuestItemFlags> types, Func<string, bool> has) =>
         startFlag is null || has(startFlag) ? null : types.FirstOrDefault(t => t.Remove == startFlag);
 
@@ -104,29 +104,6 @@ static class QuestItems
     });
 
     sealed class Refused(string message) : Exception(message);
-
-    /// <summary>A dialogue row hands a quest item in: removes one carried copy and sets the row's flag (the item's
-    /// remove_flag) and clears its grant_flag, in one save transaction. The removed item and its row, or null (nothing
-    /// changes) when none is carried or it cannot leave (on offer to a vendor). The lookup runs inside the transaction, so of
-    /// two quick choices only the first finds the item.</summary>
-    public static (byte Row, InventoryItem Item)? HandIn(string character, PlayerInventories items, Func<Item, QuestItemFlags?> flagsOf, QuestItemFlags type)
-    {
-        try
-        {
-            return Saves.Atomically<(byte Row, InventoryItem Item)?>(() =>
-            {
-                if (Carried(items).FirstOrDefault(c => flagsOf(c.Item.Item) == type) is not { Item: not null } found) return null;
-                var removed = items.Remove(found.Row, found.Item.Id) ?? throw new Refused($"quest item {found.Item.Id} cannot leave row {found.Row}");
-                CharacterSaves.ChangeQuestFlags(character, [type.Remove!], true);
-                if (type.Grant is { } grant) CharacterSaves.ChangeQuestFlags(character, [grant], false);
-                return (found.Row, removed);
-            });
-        }
-        catch (Refused)
-        {
-            return null;   // rolled back
-        }
-    }
 
     /// <summary>What <see cref="Consume"/> did: the items it took (by row) and the grant flags it cleared.</summary>
     public sealed record Consumed(List<(byte Row, InventoryItem Item)> Removed, List<string> Cleared);

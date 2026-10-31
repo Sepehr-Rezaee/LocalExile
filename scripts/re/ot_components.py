@@ -530,9 +530,9 @@ def load(types, ext=".ot", companion=".otc"):
 
 
 # Quest tile objects: types that tiles (.tdt/.tmd records) place, which no table names and the GGPK index lists only in
-# lower case (object type hashes need the real case). From the server's own generation of every act 1-10 area
-# (scripts/re/levelgen/lg.ps1 questobjects): quest objects, quest chests and the quest doors/levers/spawners the Gateway
-# creates itself (Gateway QuestObjectCatalog). A quest whose tile object is missing here adds it. Room objects need no
+# lower case (object type hashes need the real case). From the server's own generation of every act 1-10 area: quest
+# objects, quest chests and the quest doors/levers/spawners the Gateway creates itself (Gateway QuestObjectTypes,
+# AreaObjects.TileObjects). A quest whose tile object is missing here adds it. Room objects need no
 # entry when data/room-points.json keeps their room (QUEST_ROOM_TYPES below otherwise).
 QUEST_TILE_TYPES = [
     "Metadata/Chests/QuestChests/ChurchAltar",

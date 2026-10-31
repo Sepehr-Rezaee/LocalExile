@@ -18,18 +18,18 @@ static partial class Game
         if (TownNpcs.Of(conn.Layout.Hash) is not null)
         {
             foreach (var p in NpcCatalog.In(conn.Layout.Hash, conn.Seed))
-                if (Quests.ManagesNpc(area, p.Id) && Npcs.Value.Place(p) is { Supported: true } npc)
-                    found.Add(new(npc, p.X, p.Y, p.Rotation, has => Quests.NpcPresent(area, p.Id, has), roomState: false));
+                if (QuestsOf(conn).ManagesNpc(area, p.Id) && Npcs.Value.Place(p) is { Supported: true } npc)
+                    found.Add(new(npc, p.X, p.Y, p.Rotation, area, p.Id, null, roomState: false));
             return found;
         }
-        foreach (string type in Quests.PlacedNpcTypes(area))
+        foreach (string type in QuestsOf(conn).PlacedNpcTypes(area))
         {
             // An NPC no room line places takes another object's place (Quests.NpcRule.AtObject: Dialla on the tower top).
-            string where = Quests.Npcs(area).FirstOrDefault(r => r.NpcType == type && r.AtObject is not null)?.AtObject ?? type;
+            string where = QuestsOf(conn).Npcs(area).FirstOrDefault(r => r.NpcType == type && r.AtObject is not null)?.AtObject ?? type;
             var at = placed.Of(where);
             if (at.Count == 0)
             {
-                if (Quests.Npcs(area).Any(r => r.NpcType == type)) Console.WriteLine($"[gateway] {remote} {type}: no room places {(where == type ? "it" : where)}");
+                if (QuestsOf(conn).Npcs(area).Any(r => r.NpcType == type)) Console.WriteLine($"[gateway] {remote} {type}: no room places {(where == type ? "it" : where)}");
                 continue;
             }
             if (Npcs.Value.Find(type) is not { Supported: true } npc || npc.Id != type)
@@ -38,7 +38,7 @@ static partial class Game
                 continue;
             }
             foreach (var o in at.DistinctBy(o => (o.X, o.Y)))
-                found.Add(new(npc, o.X, o.Y, o.Rotation, has => Quests.NpcPresent(area, type, has), roomState: true));
+                found.Add(new(npc, o.X, o.Y, o.Rotation, area, type, null, roomState: true));
         }
         return found;
     }
@@ -48,9 +48,9 @@ static partial class Game
     internal static IEnumerable<QuestNpc> AppearedBefore(ClientState conn)
     {
         string area = conn.Layout.Id;
-        foreach (var rule in Quests.Appearing(area).Where(r => r.GoneWith is not null))
+        foreach (var rule in QuestsOf(conn).Appearing(area).Where(r => r.GoneWith is not null))
         {
-            if (!Quests.OnMonsterKilled(area, rule.Variety).Any(f => ClientHasQuestFlag(conn, f))) continue;
+            if (!QuestsOf(conn).OnMonsterKilled(area, rule.Variety).Any(f => ClientHasQuestFlag(conn, f))) continue;
             SpawnedMonster? boss;
             lock (conn.Monsters) boss = conn.Monsters.Values.FirstOrDefault(m => m.Variety?.Id == rule.Variety);
             if (boss is null || Npcs.Value.Find(rule.NpcType) is not { Supported: true } npc || npc.Id != rule.NpcType) continue;
@@ -61,7 +61,7 @@ static partial class Game
     }
 
     internal static QuestNpc AppearingNpc(string area, Quests.AppearsRule rule, NpcCatalog.Npc npc, int x, int y) =>
-        new(npc, x, y, 0, has => Quests.Exists(rule.NpcType, has) && (rule.GoneWith is null || !has(rule.GoneWith)), roomState: false);
+        new(npc, x, y, 0, area, rule.NpcType, rule, roomState: false);
 
     // The quest NPCs as the flags have them: created when they stand there now, removed when they no longer do, moved to
     // their last Transitionable state when a flag transitions them.
@@ -71,11 +71,12 @@ static partial class Game
         lock (conn.QuestNpcs) candidates = [.. conn.QuestNpcs];
         string area = conn.Layout.Id;
         bool Has(string f) => ClientHasQuestFlag(conn, f);
+        var quests = QuestsOf(conn);
         foreach (var c in candidates)
         {
-            bool want = c.Present(Has);
+            bool want = c.Present(quests, Has);
             bool transitioned;
-            lock (conn.QuestNpcs) transitioned = Quests.NpcTransitioned(area, c.Npc.Id, Has) || Quests.NpcFreed(area, c.Npc.Id, conn.KilledVarieties);
+            lock (conn.QuestNpcs) transitioned = QuestsOf(conn).NpcTransitioned(area, c.Npc.Id, Has) || QuestsOf(conn).NpcFreed(area, c.Npc.Id, conn.KilledVarieties);
             bool transitionable = c.Npc.Components?.Contains("Transitionable") == true;
             if (want && c.Id == 0)
             {
@@ -115,7 +116,7 @@ static partial class Game
         MonsterCatalog.Variety variety, (int X, int Y) at)
     {
         string area = conn.Layout.Id;
-        foreach (var rule in Quests.AppearOnKill(area, variety.Id))
+        foreach (var rule in QuestsOf(conn).AppearOnKill(area, variety.Id))
         {
             if (Npcs.Value.Find(rule.NpcType) is not { Supported: true } npc || npc.Id != rule.NpcType)
             {

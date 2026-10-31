@@ -426,14 +426,14 @@ static partial class Game
             lock (conn.Monsters)
                 if (HardcoreProgressBlocked(conn)) continue;
             // Quests that start when the player comes near a monster (a1q1: Hillock, "Kill Hillock").
-            if (QuestsRun(conn) && Quests.Watched(conn.Layout.Id) is { Count: > 0 } watched)
+            if (QuestsOf(conn).Watched(conn.Layout.Id) is { Count: > 0 } watched)
             {
                 double now = conn.Clock.Elapsed.TotalSeconds;
                 List<string> seen;
                 lock (conn.Monsters)
                     seen = [.. conn.Monsters.Values.Where(m => !m.Dead && m.Life > 0 && m.Variety is { } v && watched.Contains(v.Id)
                         && Dist(m.Walk.Position(now), at) <= Quests.SightRange).Select(m => m.Variety!.Id).Distinct()];
-                foreach (string variety in seen) await SetQuestFlags(remote, stream, ciphers, conn, Quests.OnMonsterSeen(conn.Layout.Id, variety));
+                foreach (string variety in seen) await SetQuestFlags(remote, stream, ciphers, conn, QuestsOf(conn).OnMonsterSeen(conn.Layout.Id, variety));
             }
             // a1q4: coming near the Glyph Wall ("Investigate the Mud Flats for a way to lower the water").
             if (conn.Glyphs?.Wall is { } glyphWall && !conn.HasQuestFlag(GlyphQuest.SeenGlyphWall)
@@ -442,6 +442,7 @@ static partial class Game
             // The quest engine's sight rules (room objects, exits).
             await CheckQuestSights(remote, stream, ciphers, conn, at);
             if (conn.QuestNearSpawns.Count > 0) await CheckQuestNearSpawns(remote, stream, ciphers, conn, at);
+            await CheckQuestThresholds(remote, stream, ciphers, conn);
             // The quest items' grant flags follow the items carried (dropped, sold, stashed ones too), about once a second;
             // no inventory change here (the message path removes items).
             if (conn.Clock.Elapsed.TotalSeconds >= conn.QuestItemSyncAt)

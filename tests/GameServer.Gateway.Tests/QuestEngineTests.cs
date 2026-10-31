@@ -1,4 +1,5 @@
 using GameServer.Core.Protocol.Instance;
+using GameServer.Data.Terrain.Generation;
 using GameServer.Modules.M_questobjects;
 using static Act1Areas;
 using static Quests;
@@ -142,26 +143,43 @@ public sealed class QuestEngineTests
         // the module that gave them.
         Assert.Equal([1], QuestObjectsModule.Acts().Select(a => a.Number));
         Assert.Equal(["a1q1", "a1q5", "a1q4", "a1q8", "a1q7", "a1q2", "a1q6", "a1q3", "a1q9"], All.Select(q => q.Id));
-        Assert.True(RunFor(new HashSet<string> { "Game", "QuestObjects" }));
-        Assert.False(RunFor(new HashSet<string> { "Game" }));
+        Assert.Same(Everything, For(new HashSet<string> { "Game", "QuestObjects" }));
+        Assert.True(For(new HashSet<string> { "Game" }).IsEmpty);
+        Assert.Empty(For(new HashSet<string> { "Game" }).OnMonsterKilled(Strand, Act1Monsters.Hillock));
+        Assert.Equal("QuestObjects", Everything.SourceOf(Everything.ExitOf(Strand, LioneyesWatch)!));
+        using (Register("Other", [new Act1()]))
+        {
+            // Each source on its own: a league runs only the tables of the modules it lists.
+            Assert.True(For(new HashSet<string> { "Other" }).Includes("Other") && !For(new HashSet<string> { "Other" }).Includes("QuestObjects"));
+            Assert.Equal(2 * 9, All.Count);
+        }
         using (Register("QuestObjects", []))
         {
             Assert.Empty(All);
-            Assert.False(RunFor(new HashSet<string> { "QuestObjects" }));
+            Assert.True(For(new HashSet<string> { "QuestObjects" }).IsEmpty);
         }
         Assert.Empty(All);
         registered.Dispose();
         using var again = Register("QuestObjects", QuestObjectsModule.Acts());
 
-        // World pieces the rules use: a quest portal replaces the layout's exit without a model to its destination (not
-        // a modelled one, a gate or a quest's own exit); a later form stands at its numbered boss point.
+        // World pieces the rules use. A disabled entrance (a room point "entranceNdisabled" the game enables by script) is
+        // created only when a quest gates it, marked as the quest's (it stands only where those tables run); one no quest
+        // gates stays an arrival point. A quest portal marks the layout's exit without a model to its destination (not a
+        // modelled one, a gate or a quest's own exit) as replaced: it stands only where the tables do not run. A later
+        // form stands at its numbered boss point.
+        const ushort strand = 0x1111, town = 0x2222, coast = 0x3333;
+        AreaTransitionCatalog.AtlasConnection[] connections = [new(1, LioneyesWatch, town), new(2, Coast, coast)];
+        PlacedExit Disabled(int number, int x) => new(new("Metadata/MiscellaneousObjects/AreaTransition", $"exit{number}.ao", x, 100, 0, float.NaN),
+            ExitKind.Entrance, number, Enabled: false, Label: null, Target: null, Room: "room.arm", Why: "test");
+        var gated = Assert.Single(AreaTransitionCatalog.FromExits(Strand, strand, connections, [Disabled(1, 100), Disabled(2, 300)], []));
+        Assert.Equal((town, 100, 100, "QuestObjects", false), (gated.DestinationHash16, gated.GridX, gated.GridY, gated.QuestSource, gated.QuestReplaced));
         var exits = new List<AreaTransitionObject>
         {
             new(10, 10, 0x1234), new(20, 20, 0x1234, "Metadata/x.ao"), new(30, 30, 0x1234) { SourceType = "Metadata/QuestObjects/Portal" },
             new(40, 40, 0x5678),
         };
-        Assert.Equal(1, AreaTransitionCatalog.ReplacePointExits(exits, 0x1234));
-        Assert.Equal([(20, 20), (30, 30), (40, 40)], exits.Select(t => (t.GridX, t.GridY)));
+        Assert.Equal(1, AreaTransitionCatalog.ReplacePointExits(exits, 0x1234, "QuestObjects"));
+        Assert.Equal([true, false, false, false], exits.Select(t => t.QuestReplaced && t.QuestSource == "QuestObjects"));
         var trinity = new PackCatalog.AreaPacks("2_9_8", 60, [], new Dictionary<string, PackCatalog.Pack>(), [7, 8]) { Absent = new HashSet<int> { 1 } };
         Assert.Equal(new Dictionary<int, (int X, int Y)> { [8] = (50, 60) },
             AreaPopulation.LaterFormPoints(trinity, [new("mapboss1", 10, 10), new("mapboss2", 50, 60)], (_, _) => true));
@@ -201,7 +219,7 @@ public sealed class QuestEngineTests
     }
 
     /// <summary>Act 1 in the game's order: a1q1, a1q5, a1q4, a1q8, a1q7, a1q2 (with a1q9's blockage on the way), a1q6,
-    /// a1q3 and the step into Act 2 (the same order as the campaign driver's).</summary>
+    /// a1q3 and the step into Act 2.</summary>
     internal static void Act1(QuestSimulator s)
     {
         // a1q1 Enemy at the Gate

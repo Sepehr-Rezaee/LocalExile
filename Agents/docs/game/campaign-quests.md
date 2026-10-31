@@ -26,12 +26,17 @@ area (`StartQuestArea`), a kill (`QuestKillEffects`, after the kill's flags), a 
 read of item moves (`SyncQuestItems`). The Game module calls the rest directly (the flag commit, the player tick's
 sights and item sync, dialogue, rewards, thresholds, passive points, stat sources).
 
-**Leagues.** The tables run only for a player whose league lists the module that registered them
-(`Quests.RunFor(modules)`, Game `QuestsRun(conn)`): the module's own hooks run per league anyway (GameEvents), and the
-Game module asks `QuestsRun` before it applies a table to a player (kill flags and levels, sightings, exit gates, a
-quest's NPC stages, bosses a quest brings, thresholds, dialogue rules). A layout is shared by every league, so the exits
-a quest adds there (quest portals) are hidden where the tables do not run. What the client's data says alone (quest
-items' `.it` flags, NPCTalk flags, QuestStaticRewards) applies in every league, as main's dialogue flags always did.
+**Leagues.** A league runs the tables of the modules it lists, each registering module on its own
+(`Quests.For(modules)` gives that set, a `Quests.RuleSet`; Game `QuestsOf(conn)` is the player's): the module's own
+hooks run per league anyway (GameEvents), and every rule the Game module applies to a player is asked of the player's
+set (kill flags and levels, sightings, exit gates, a quest's NPC stages, bosses a quest brings, thresholds, dialogue
+rules), so a league without the module has none of them. A layout is shared by every league: the exits a quest adds
+there (a gated disabled entrance, a quest portal, an exit's swapped version) carry the module that added them
+(`AreaTransitionObject.QuestSource`) and stand only where its tables run, and the exits they replace
+(`QuestReplaced`: the exit without a model a portal stands in for, the unswapped version) only where they do not, so a
+league without the tables has the layout as generated (Game `TransitionShown`). What the client's data says alone
+(quest items' `.it` flags, NPCTalk flags, QuestStaticRewards) applies in every league, as dialogue flags always did.
+The static queries of `Quests` ask every registered table (`Quests.Everything`: the oracle, the layouts, the tools).
 Every playable league lists `Core/World/QuestObjects`.
 
 ## 2. An act file
@@ -119,8 +124,8 @@ generation is marked.
 |---|---|---|
 | E1 | Numbered boss points (`mapboss<n>`, `WG`, `force:mapboss`, `mapbosspack`) | the population (MonsterPacks), not the engine; bosses a quest brings are left out (`Quests.QuestSpawned`) |
 | E2 | Room and tile quest objects: chests with their item, objects used (with items taken), Transitionable states | `On.Chest`, `On.Object`, `On.Used`/`UsedWith`, `QuestObjectTypes.AreaPlacements` (see §6) |
-| E3 | Blockers and gated exits | `On.Blocker`, `On.Wall`, `On.Exit`, `On.Portal` (`AreaTransitionCatalog.AddQuestPortals`: replaces the layout's exit without a model to the same place), a disabled entrance a quest gates is created (`AreaTransitionCatalog.Gated`) |
-| E4 | `serialisation_start_flag` / `serialisation_stop_flag` | `On.Exists` (NPCs, quest objects, area transitions by their tile type, `AreaTransitionObject.SourceType`); with `to`, two exits of one tile record that swap lead to their own version of the area and the missing twin is created (`AreaTransitionCatalog.QuestExitDestinations`) |
+| E3 | Blockers and gated exits | `On.Blocker`, `On.Wall`, `On.Exit`, `On.Portal` (`AreaTransitionCatalog.AddQuestPortals`: stands in for the layout's exit without a model to the same place), a disabled entrance a quest gates is created (`AreaTransitionCatalog.Gated`) |
+| E4 | `serialisation_start_flag` / `serialisation_stop_flag` | `On.Exists` (NPCs, quest objects, area transitions by their tile type, `AreaTransitionObject.SourceType`); with `to`, two exits of one tile record that swap lead to their own version of the area and the missing twin is created (`AreaTransitionCatalog.QuestExitDestinations`; the layout's version stays for leagues without the tables) |
 | E5 | NPCTalk scripts: `SetQuestFlag`, `ClearQuestFlag`, `SetSessionQuestFlag`, `DirtyTransition`, `ForEachOfType`/`IfType` transitions, `DoNPCChat`, `FinishNPCChat`, `SendOpenScreen`, `AreaTransitionTo` | `NpcCatalog.Talk`, Game `NpcScripts.cs`, `On.TalkRow` for flags no column sets |
 | E6 | NPCs outside towns and town NPC stages | `On.Npc` (`goneWith`, `transitionedBy`, `shownBy`, `freedBy`, `atObject`) |
 | E7 | NPCs that appear where a boss died | `On.Appears` |

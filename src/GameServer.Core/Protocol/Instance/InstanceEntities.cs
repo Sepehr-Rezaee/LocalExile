@@ -478,6 +478,12 @@ public sealed record AreaTransitionObject(int GridX, int GridY, ushort Destinati
     /// Metadata/QuestObjects/Act4/AscentTransition, see AreaTransitionCatalog.Resolve): quest rules and NPC scripts name it.
     /// Server side only.</summary>
     public string? SourceType { get; init; }
+    /// <summary>The module whose quest tables changed this exit of the shared layout, or null: an exit that stands only where
+    /// those tables run (a quest-gated disabled entrance, a quest portal, an exit's version a quest swaps in), or with
+    /// <see cref="QuestReplaced"/> one that stands only where they do not (the layout's own exit a quest replaced).
+    /// Server side only.</summary>
+    public string? QuestSource { get; init; }
+    public bool QuestReplaced { get; init; }
 
     /// <summary>Whether the exit stands in a town. Only then does the client read the compact int (<see cref="Index"/>)
     /// after the destination: 0x141e5b870 reads it when the state is 0 and the byte at +0x14 of the current area's

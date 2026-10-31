@@ -91,33 +91,45 @@ static partial class Game
     // The quest flag an area transition needs (Quests.FlagToEnter), or null. Such an exit is created only once the character
     // has the flag: The Twilight Strand's gate into Lioneye's Watch appears when Hillock dies (a1q1, 12-quests.md §6).
     internal static string? TransitionFlag(ClientState conn, AreaTransitionObject transition) =>
-        QuestsRun(conn) && AreaTransitionCatalog.IdOf(transition.DestinationHash16) is { } dest ? Quests.FlagToEnter(conn.Layout.Id, dest) : null;
+        AreaTransitionCatalog.IdOf(transition.DestinationHash16) is { } dest ? QuestsOf(conn).FlagToEnter(conn.Layout.Id, dest) : null;
 
-    // Whether the quest tables run for this player: its league lists the module that registered them (QuestObjects). The
-    // area's layout is the same for every league, so what the tables add or gate there is decided here, per player.
-    internal static bool QuestsRun(ClientState conn) => Quests.RunFor(ModulesFor(conn));
+    // The quest tables that run for this player: those of the modules its league lists (Quests.For; empty without
+    // QuestObjects). The area's layout is the same for every league, so what the tables add or change there is decided
+    // here, per player (TransitionShown).
+    internal static Quests.RuleSet QuestsOf(ClientState conn) => Quests.For(ModulesFor(conn));
 
-    // The flag a dialogue row sets when chosen: its QuestFlag4, unless the tables say only an event sets it.
-    internal static string? TalkStartFlag(ClientState conn, NpcCatalog.Talk talk) => QuestsRun(conn) ? Quests.TalkStartFlag(talk) : talk.StartFlag;
+    // The flag a dialogue row sets when chosen: its QuestFlag4, unless the player's tables say only an event sets it.
+    internal static string? TalkStartFlag(ClientState conn, NpcCatalog.Talk talk) => QuestsOf(conn).TalkStartFlag(talk);
 
     // Shown: its tile type exists for the character (Quests.ExistsRule: the Control Blocks' exit to Oriath Square before
     // Avarius, the one to The Ruined Square after), and its quest flag is set or a script opened it on this instance.
-    // A quest portal (Quests.PortalRule) exists only where the tables run.
-    internal static bool TransitionShown(ClientState conn, uint id, AreaTransitionObject transition) =>
-        (QuestsRun(conn) ? Quests.Exists(transition.SourceType, f => ClientHasQuestFlag(conn, f)) : !Quests.IsQuestPortal(transition.SourceType))
-        && (conn.ScriptShownTransitions.Contains(id) || TransitionFlag(conn, transition) is not { } flag || ClientHasQuestFlag(conn, flag));
+    // An exit a quest added to the shared layout (a gated disabled entrance, a quest portal, a swapped exit's version:
+    // AreaTransitionObject.QuestSource) stands only where that source's tables run; one a quest replaced
+    // (QuestReplaced: the exit without a model a portal stands in for, a swapped exit's unchanged version) only where
+    // they do not, so a league without them has the layout as generated.
+    internal static bool TransitionShown(ClientState conn, uint id, AreaTransitionObject transition)
+    {
+        var quests = QuestsOf(conn);
+        if (transition.QuestSource is { } source && quests.Includes(source) == transition.QuestReplaced) return false;
+        return quests.Exists(transition.SourceType, f => ClientHasQuestFlag(conn, f))
+            && (conn.ScriptShownTransitions.Contains(id) || TransitionFlag(conn, transition) is not { } flag || ClientHasQuestFlag(conn, flag));
+    }
 
     // The area transitions whose shown state changed (a quest flag, an NPC script): created on the client or removed.
     internal static async Task UpdateShownTransitions(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn, string why)
     {
         if (!conn.PlayerSent) return;
-        foreach (var (id, transition) in conn.Layout.AreaTransitions)
+        // Whether each should stand now (outside the lock: it reads the flags), then, under one lock, the ones whose state
+        // the client has differently, recorded as sent: of two updates at once only one creates or removes an exit.
+        var want = conn.Layout.AreaTransitions.Select(t => (t.Id, t.Transition, Shown: TransitionShown(conn, t.Id, t.Transition))).ToList();
+        List<(uint Id, AreaTransitionObject Transition, bool Shown)> changed;
+        lock (conn.ShownTransitions)
         {
-            bool shown = TransitionShown(conn, id, transition);
-            bool sent;
-            lock (conn.ShownTransitions) sent = conn.ShownTransitions.Contains(id);
-            if (shown == sent) continue;
-            lock (conn.ShownTransitions) { if (shown) conn.ShownTransitions.Add(id); else conn.ShownTransitions.Remove(id); }
+            changed = [.. want.Where(t => t.Shown != conn.ShownTransitions.Contains(t.Id))];
+            foreach (var (id, _, shown) in changed) { if (shown) conn.ShownTransitions.Add(id); else conn.ShownTransitions.Remove(id); }
+        }
+        foreach (var (id, transition, shown) in changed)
+        {
             if (shown)
             {
                 await Send(remote, stream, ciphers, InstanceEntities.CreateObject(id, InstanceEntities.ObjectTypeHash(transition.Type), transition.Blob()),

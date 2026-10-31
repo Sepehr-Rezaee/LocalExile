@@ -13,7 +13,7 @@ static class QuestObjectsFeature
     {
         var notes = new List<string>();
         var objects = AreaPopulation.LoadObjects(conn.Layout.Id, conn.Seed, notes)
-            .Select(o => (Object: o, Flag: Quests.RoomObjectRemovedBy(conn.Layout.Id, o.Type)))
+            .Select(o => (Object: o, Flag: QuestsOf(conn).RoomObjectRemovedBy(conn.Layout.Id, o.Type)))
             .Where(o => o.Flag is not null).ToList();
         if (objects.Count == 0) return;
         // The walls guard the exits their flag opens; the boss's side is the room's boss point ("mapboss", "mapboss2" …,

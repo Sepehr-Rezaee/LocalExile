@@ -99,7 +99,7 @@ static partial class Game
         // SetQuestFlag(…, "a2b-DeliveredAmulets")) takes them with that flag, in one save; so does a row a hand-in rule
         // names (Quests.HandInRule: Hargan's busts), for each of its items carried.
         var carried = QuestItems.Carried(ItemsOf(conn)).Select(c => ItemsFor(conn).ByHash(c.Item.Item.TypeHash)?.Id).OfType<string>().ToHashSet();
-        var ruled = (QuestsRun(conn) ? Quests.HandsIn(npcId, talk.Option, talk.Row) : []).Where(carried.Contains)
+        var ruled = QuestsOf(conn).HandsIn(npcId, talk.Option, talk.Row).Where(carried.Contains)
             .Select(i => ItemsFor(conn).Find(i)?.Quest?.Remove).OfType<string>();
         bool Has(string f) => ClientHasQuestFlag(conn, f);
         var carriedTypes = carried.Select(i => ItemsFor(conn).Find(i)?.Quest).OfType<QuestItemFlags>().ToList();
@@ -191,17 +191,17 @@ static partial class Game
         MonsterCatalog.Variety variety, (int X, int Y) at)
     {
         string area = conn.Layout.Id;
-        foreach (string item in Quests.DropsOnKill(area, variety.Id))
+        foreach (string item in QuestsOf(conn).DropsOnKill(area, variety.Id))
             await DropQuestItem(remote, stream, ciphers, conn, item, at, m.Label);
         // A fight of several bosses (Quests.KilledAllRule): its flags once none of them is left alive in the instance.
-        foreach (var rule in Quests.KilledAllOf(area, variety.Id))
+        foreach (var rule in QuestsOf(conn).KilledAllOf(area, variety.Id))
         {
             bool left;
             lock (conn.Monsters) left = conn.Monsters.Values.Any(o => o.Variety is { } v && rule.Varieties.Contains(v.Id) && !o.Dead && o.Life > 0);
             if (!left) await SetQuestFlags(remote, stream, ciphers, conn, rule.Flags);
         }
         // A boss that forms once these are all dead (Quests.FormsRule: The Depraved Trinity), at its own boss point.
-        foreach (var rule in Quests.FormsAfter(area, variety.Id))
+        foreach (var rule in QuestsOf(conn).FormsAfter(area, variety.Id))
         {
             bool left, formed;
             (int X, int Y) where;
@@ -215,21 +215,21 @@ static partial class Game
             Console.WriteLine($"[gateway] {remote} {m.Label} died, the last of {rule.Varieties.Length}: {boss.Name} forms at ({where.X}, {where.Y})");
             await SpawnMonster(remote, stream, ciphers, conn, boss, m.Level, MonsterRarity.Unique, where.X, where.Y);
         }
-        if (Quests.AppearOnKill(area, variety.Id).Count > 0) await QuestNpcsAppear(remote, stream, ciphers, conn, variety, at);
-        if (Quests.SecondForm(area, variety.Id) is { } next && Monsters.Find(next) is { Supported: true } form && form.Id == next)
+        if (QuestsOf(conn).AppearOnKill(area, variety.Id).Count > 0) await QuestNpcsAppear(remote, stream, ciphers, conn, variety, at);
+        if (QuestsOf(conn).SecondForm(area, variety.Id) is { } next && Monsters.Find(next) is { Supported: true } form && form.Id == next)
         {
             Console.WriteLine($"[gateway] {remote} {m.Label} died: its second form {form.Name} appears");
             await SpawnMonster(remote, stream, ciphers, conn, form, m.Level, MonsterRarity.Unique, at.X, at.Y);
         }
         // A room NPC this death frees (Quests.NpcRule.FreedBy): its last Transitionable state (UpdateQuestNpcs, QuestNpcs.cs).
         bool frees;
-        lock (conn.QuestNpcs) frees = conn.KilledVarieties.Add(variety.Id) && Quests.Frees(area, variety.Id);
+        lock (conn.QuestNpcs) frees = conn.KilledVarieties.Add(variety.Id) && QuestsOf(conn).Frees(area, variety.Id);
         if (frees) await UpdateQuestNpcs(remote, stream, ciphers, conn, $"{m.Label} died");
-        if (Quests.WatchesClear(area))
+        if (QuestsOf(conn).WatchesClear(area))
         {
             bool alive;
             lock (conn.Monsters) alive = conn.Monsters.Values.Any(o => o.Hostile && !o.Dead && o.Life > 0);
-            if (!alive) await SetQuestFlags(remote, stream, ciphers, conn, Quests.OnCleared(area, f => ClientHasQuestFlag(conn, f)));
+            if (!alive) await SetQuestFlags(remote, stream, ciphers, conn, QuestsOf(conn).OnCleared(area, f => ClientHasQuestFlag(conn, f)));
         }
     }
 
@@ -243,16 +243,16 @@ static partial class Game
         await SyncQuestItems(remote, stream, ciphers, conn, removeItems: true);
         await RemoveDoneQuestItemsFromGround(remote, stream, ciphers, conn);
         string area = conn.Layout.Id;
-        if (Quests.OnEntered(area) is { Count: > 0 } entered) await SetQuestFlags(remote, stream, ciphers, conn, entered);
-        var chests = Quests.Chests(area);
-        var near = Quests.NearObjects(area);
-        var blockers = Quests.Blockers(area);
-        var questObjects = Quests.Objects(area);
+        if (QuestsOf(conn).OnEntered(area) is { Count: > 0 } entered) await SetQuestFlags(remote, stream, ciphers, conn, entered);
+        var chests = QuestsOf(conn).Chests(area);
+        var near = QuestsOf(conn).NearObjects(area);
+        var blockers = QuestsOf(conn).Blockers(area);
+        var questObjects = QuestsOf(conn).Objects(area);
         var notes = new List<string>();
         var placed = new QuestObjectTypes.AreaPlacements(area, conn.Seed, notes);
         lock (conn.QuestNpcs) conn.QuestNpcs.AddRange([.. QuestNpcCandidates(remote, conn, placed), .. AppearedBefore(conn)]);
         await UpdateQuestNpcs(remote, stream, ciphers, conn, "entering the area");
-        var nearSpawns = Quests.NearSpawns(area);
+        var nearSpawns = QuestsOf(conn).NearSpawns(area);
         if (chests.Count + near.Count + blockers.Count + questObjects.Count + nearSpawns.Count == 0) return;
         lock (conn.Monsters)
         {
@@ -333,10 +333,10 @@ static partial class Game
             }
             string area = conn.Layout.Id;
             bool Has(string f) => ClientHasQuestFlag(conn, f);
-            var flags = Quests.OnUsed(area, rule.ObjectType, Has).Where(f => !Has(f)).ToList();
+            var flags = QuestsOf(conn).OnUsed(area, rule.ObjectType, Has).Where(f => !Has(f)).ToList();
             if (flags.Count == 0)
             {
-                var missing = Quests.UseMissing(area, rule.ObjectType, Has);
+                var missing = QuestsOf(conn).UseMissing(area, rule.ObjectType, Has);
                 Console.WriteLine($"[gateway] {remote} {rule.ObjectType}: nothing to do" + (missing.Count > 0 ? $" (needs {string.Join(", ", missing)})" : " (done)"));
                 return;
             }
@@ -351,7 +351,7 @@ static partial class Game
             if (flags.Where(f => !Quests.IsInstanceFlag(f)).ToList() is { Count: > 0 } own)
                 await ConsumeQuestItemsAndSet(remote, stream, ciphers, conn, own, rule.ObjectType.Split('/')[^1]);
             byte level = (byte)Math.Clamp(Packs.For(area)?.AreaLevel ?? 1, 1, 100);
-            foreach (string id in Quests.SpawnsOnUse(area, rule.ObjectType))
+            foreach (string id in QuestsOf(conn).SpawnsOnUse(area, rule.ObjectType))
             {
                 if (Monsters.Find(id) is not { Supported: true } variety || variety.Id != id)
                 {
@@ -512,7 +512,7 @@ static partial class Game
         await Send(remote, stream, ciphers, InstanceEntities.CreateObject(opened, InstanceEntities.ObjectTypeHash(rule.ChestType), QuestChestBlob(conn, rule, at, true)),
             $"0x02b9 opened quest chest 0x{opened:x} (was 0x{use.TargetId:x})");
         await Send(remote, stream, ciphers, InstanceProtocol.EnterWakeZone(opened), null);
-        if (Quests.OnUsed(conn.Layout.Id, rule.ChestType, f => ClientHasQuestFlag(conn, f)) is { Count: > 0 } used) await SetQuestFlags(remote, stream, ciphers, conn, used);
+        if (QuestsOf(conn).OnUsed(conn.Layout.Id, rule.ChestType, f => ClientHasQuestFlag(conn, f)) is { Count: > 0 } used) await SetQuestFlags(remote, stream, ciphers, conn, used);
         await DropQuestItem(remote, stream, ciphers, conn, rule.Item, (at.X, at.Y), rule.ChestType.Split('/')[^1]);
         await Send(remote, stream, ciphers, InstanceProtocol.ActionEnded(PlayerId), null);
     }
@@ -526,7 +526,7 @@ static partial class Game
         if (talk.ScriptSets is { Count: > 0 } sets) await SetQuestFlags(remote, stream, ciphers, conn, sets);
         if (talk.ScriptClears is { Count: > 0 } clears) await SetQuestFlags(remote, stream, ciphers, conn, clears, on: false);
         await RunTalkWorldScript(remote, stream, ciphers, conn, npcId, npc, talk);
-        foreach (var rule in (QuestsRun(conn) ? Quests.TurnsInto(conn.Layout.Id) : []).Where(r => r.NpcType == npc.Npc.Id && talk.TransitionsVarieties.Contains(r.Variety)))
+        foreach (var rule in QuestsOf(conn).TurnsInto(conn.Layout.Id).Where(r => r.NpcType == npc.Npc.Id && talk.TransitionsVarieties.Contains(r.Variety)))
         {
             bool already;
             lock (conn.Monsters) already = conn.Monsters.Values.Any(m => m.Variety?.Id == rule.Variety && !m.Dead && m.Life > 0);
@@ -556,7 +556,7 @@ static partial class Game
             await ConsumeQuestItemsAndSet(remote, stream, ciphers, conn, [.. rule.Flags.Where(f => !conn.HasQuestFlag(f))],
                 rule.ObjectType.Split('/')[^1]);
         }
-        foreach (var rule in QuestsRun(conn) ? Quests.NearExits(conn.Layout.Id) : [])
+        foreach (var rule in QuestsOf(conn).NearExits(conn.Layout.Id))
             if (!rule.Flags.All(conn.HasQuestFlag) && conn.Layout.AreaTransitions.Any(t => AreaTransitionCatalog.IdOf(t.Transition.DestinationHash16) == rule.To
                 && Dist(at, (t.Transition.GridX, t.Transition.GridY)) <= Quests.SightRange))
                 await SetQuestFlags(remote, stream, ciphers, conn, rule.Flags);
@@ -617,6 +617,17 @@ static partial class Game
     }
 
     // ---- thresholds (Quests.ThresholdRule) ----
+
+    // Every player tick in an area with a quest threshold: a monster any hit took to its threshold (a projectile, Rampage, a
+    // monster mod's damage: every path that takes life marks it, TakeDamageLocked) leaves the fight here, wherever the hit
+    // came from; melee and spell hits also call QuestThreshold at once.
+    internal static async Task CheckQuestThresholds(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn)
+    {
+        if (!QuestsOf(conn).HasThresholds(conn.Layout.Id)) return;
+        List<(uint Id, SpawnedMonster Monster)> reached;
+        lock (conn.Monsters) reached = [.. conn.Monsters.Where(m => m.Value.ThresholdReached && !m.Value.Dead).Select(m => (m.Key, m.Value))];
+        foreach (var (id, m) in reached) await QuestThreshold(remote, stream, ciphers, conn, id, m);
+    }
 
     // A monster that never dies reached its quest threshold (Kitava destroys the Sign of Purity): its flags, once, and it
     // leaves the fight (removed from the instance, no death, no drops, no experience).

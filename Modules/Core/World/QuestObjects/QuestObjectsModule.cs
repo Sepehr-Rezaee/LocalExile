@@ -32,7 +32,8 @@ public sealed class QuestObjectsModule : IModule, IDisposable
     public void Load(IModuleContext module)
     {
         var acts = Acts();
-        _events.Add(Quests.Register("QuestObjects", acts));
+        // The tables run for the leagues that list this module (Quests.For): they are registered under its id.
+        _events.Add(Quests.Register(module.Manifest.Id, acts));
         Console.WriteLine($"[gateway] quest engine: {string.Join(", ", acts)}");
         module.OnAreaGenerated(async player =>
         {

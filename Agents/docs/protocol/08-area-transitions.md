@@ -421,8 +421,9 @@ nothing about which in-area gate leads to which arrival (the Warden's Quarters, 
    of the area (`On.Exists` with `to`: the Chamber of Innocence's InnocenceToCourts / InnocenceToDestroyedCourts), and the
    twin the layout left out is created from its record (`QuestExitDestinations`). A quest portal no tile or room places
    (`On.Portal`: Maligaro's portals beside the Reverie Device, Sin's EpiloguePortal) is created where its object stands
-   and replaces the exit without a model (6.) to the same place (`AddQuestPortals`, `ReplacePointExits`); it exists only
-   for a league whose quest tables run.
+   and stands in for the exit without a model (6.) to the same place (`AddQuestPortals`, `ReplacePointExits`). What a
+   quest adds or replaces in the shared layout is marked with the module whose tables did it (`QuestSource`,
+   `QuestReplaced`): a player whose league does not run those tables sees the layout as generated.
 
 The model plays no part, so this covers the Reskin, the objects the atlas cannot see and shared models without a
 special case each. A gate or exit the game enables later is sent enabled (no Transitionable step, no disabled bit).

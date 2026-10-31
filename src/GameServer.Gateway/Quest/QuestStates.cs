@@ -5,7 +5,7 @@ using System.Text.Json;
 /// the first by Order (ascending) whose FlagsPresent are all set and FlagsMissing all clear; Order 0 is "Quest Complete".
 /// Also CharacterStartQuestState (the presets: <c>Act1Complete</c> is what a finished Act 1 has) and SessionQuestFlags (flags
 /// that last only while the player stays: they are not saved). The server does not send the log; this mirrors it for the
-/// oracle tests (<see cref="QuestSimulator"/>), the dev commands and the driver.
+/// oracle tests (<see cref="QuestSimulator"/>).
 /// </summary>
 sealed class QuestStates
 {

@@ -107,7 +107,8 @@ foreach (var area in areas)
         }
         checkedLoads++;
         var notes = new List<string>();
-        var exits = AreaTransitionCatalog.For(area.Hash, area.Id, seed, notes).Select(e => e.Transition).ToList();
+        // As a player whose league runs every registered table sees them: an exit a quest replaced is not there.
+        var exits = AreaTransitionCatalog.For(area.Hash, area.Id, seed, notes).Select(e => e.Transition).Where(t => !t.QuestReplaced).ToList();
         // The model matching over the same objects, for the comparison (lost / lost-gate).
         AreaTransitionCatalog.UseLayout = false;
         var matched = AreaTransitionCatalog.For(area.Hash, area.Id, seed, []).Select(e => e.Transition).ToList();

@@ -77,7 +77,7 @@ static class AreaTransitionCatalog
                 var entry = usable[0];
                 var type = Resolve(o.ObjectType, what, notes);
                 placed.Add(new AreaTransitionObject(o.X, o.Y, destinations[0], o.Model, Rotation: o.Rotation, Height: o.Z,
-                    Type: type) { SourceType = o.ObjectType });
+                    Type: type) { SourceType = o.ObjectType, QuestSource = GateSource(id, entry) });
                 notes.Add($"{what} → {entry.Destination} (captured, topology {best?.Id})");
             }
             // Gates no topology names lead within the area: a map's boss room has a pair (MapBeach2 boss_1.arm: points
@@ -109,7 +109,7 @@ static class AreaTransitionCatalog
                 }
                 var type = Resolve(x.ObjectType, what, notes);
                 placed.Add(new AreaTransitionObject(g.X, g.Y, x.DestinationHash16.Value, x.Model, Rotation: g.Rotation, Height: g.Z,
-                    Type: type) { SourceType = x.ObjectType });
+                    Type: type) { SourceType = x.ObjectType, QuestSource = GateSource(id, x) });
                 notes.Add($"{what} → {x.Destination} (fixed layout, topology {fixedTopology!.Id})");
             }
             if (fixedTopology is null)
@@ -132,9 +132,11 @@ static class AreaTransitionCatalog
             bool itself = portal.AtObject == portal.Type;
             // The layout's exit without a model at that entrance's point (FromExits) is this very portal in the game:
             // the quest portal, with its model and its gate, replaces it (one way to Maligaro's Sanctum, not two).
-            if (ReplacePointExits(placed, to) > 0) notes.Add($"quest portal {portal.Type.Split('/')[^1]} replaces the exit without a model to {portal.To}");
+            string? source = Quests.Everything.SourceOf(portal);
+            if (ReplacePointExits(placed, to, source) > 0) notes.Add($"quest portal {portal.Type.Split('/')[^1]} replaces the exit without a model to {portal.To}");
             placed.Add(new AreaTransitionObject(itself ? at.X : at.X + PortalOffset, at.Y, to, itself ? at.Model : null, Rotation: at.Rotation,
-                Type: Resolve(portal.Type, $"{portal.Type.Split('/')[^1]} at {portal.AtObject.Split('/')[^1]}", notes)) { SourceType = portal.Type });
+                Type: Resolve(portal.Type, $"{portal.Type.Split('/')[^1]} at {portal.AtObject.Split('/')[^1]}", notes))
+                { SourceType = portal.Type, QuestSource = source });
             notes.Add($"quest portal {portal.Type.Split('/')[^1]} at ({at.X}, {at.Y}) → {portal.To}");
         }
     }
@@ -142,10 +144,20 @@ static class AreaTransitionCatalog
     // How far beside the object that opens it a quest portal stands (cells): clear of the Reverie Device's object_size 4.
     const int PortalOffset = 12;
 
-    /// <summary>Removes the exits without a model or object (<see cref="FromExits"/>: an entrance point no object marks)
-    /// that lead to <paramref name="destination"/>; returns how many.</summary>
-    internal static int ReplacePointExits(List<AreaTransitionObject> placed, ushort destination) =>
-        placed.RemoveAll(t => t.DestinationHash16 == destination && t.Model is null && t.TeleportTo is null && t.SourceType is null);
+    /// <summary>Marks the exits without a model or object (<see cref="FromExits"/>: an entrance point no object marks)
+    /// that lead to <paramref name="destination"/> as replaced by the quest portal of <paramref name="source"/>'s tables
+    /// (they stand only where those do not run); returns how many.</summary>
+    internal static int ReplacePointExits(List<AreaTransitionObject> placed, ushort destination, string? source)
+    {
+        int n = 0;
+        for (int i = 0; i < placed.Count; i++)
+            if (placed[i] is { Model: null, TeleportTo: null, SourceType: null, QuestSource: null } t && t.DestinationHash16 == destination)
+            {
+                placed[i] = t with { QuestSource = source, QuestReplaced = source is not null };
+                n++;
+            }
+        return n;
+    }
 
     /// <summary>Two exits on one tile record that swap by a quest flag (Quests.ExistsRule with a destination): each leads to
     /// its own version of the area, and the one the layout left out (one object per record) is created beside its twin
@@ -153,20 +165,24 @@ static class AreaTransitionCatalog
     /// InnocenceToDestroyedCourts into The Torched Courts).</summary>
     static List<AreaTransitionObject> QuestExitDestinations(ServerLevels.Level level, List<AreaTransitionObject> placed, List<string> notes)
     {
-        foreach (var (type, to) in Quests.ExitDestinations())
+        foreach (var rule in Quests.Everything.ExitRetargets())
         {
+            string type = rule.ObjectType, to = rule.To!;
+            string? source = Quests.Everything.SourceOf(rule);
             if (HashOf(to) is not { } hash) continue;
-            for (int i = 0; i < placed.Count; i++)
-                if (placed[i].SourceType == type && placed[i].DestinationHash16 != hash)
+            // The layout's version stays for leagues without the tables; the quest's version leads where the rule says.
+            for (int i = 0, n = placed.Count; i < n; i++)
+                if (placed[i].SourceType == type && placed[i].QuestSource is null && placed[i].DestinationHash16 != hash)
                 {
                     notes.Add($"{type.Split('/')[^1]}: leads to {to} (quest rule) instead of {IdOf(placed[i].DestinationHash16)}");
-                    placed[i] = placed[i] with { DestinationHash16 = hash };
+                    placed.Add(placed[i] with { DestinationHash16 = hash, QuestSource = source });
+                    placed[i] = placed[i] with { QuestSource = source, QuestReplaced = source is not null };
                 }
             if (placed.Any(t => t.SourceType == type)) continue;
             foreach (var o in level.Objects.Concat(level.TileQuestObjects).Where(o => o.Type == type).DistinctBy(o => (o.X, o.Y)))
             {
                 placed.Add(new AreaTransitionObject(o.X, o.Y, hash, o.Model, Rotation: o.Rotation, Height: float.IsNaN(o.Z) ? null : o.Z,
-                    Type: Resolve(o.Type, $"{o.Model.Split('/')[^1]} at ({o.X}, {o.Y})", notes)) { SourceType = o.Type });
+                    Type: Resolve(o.Type, $"{o.Model.Split('/')[^1]} at ({o.X}, {o.Y})", notes)) { SourceType = o.Type, QuestSource = source });
                 notes.Add($"{type.Split('/')[^1]} at ({o.X}, {o.Y}) → {to} (its twin's tile record, quest rule)");
             }
         }
@@ -218,7 +234,7 @@ static class AreaTransitionCatalog
                         break;
                     }
                     placed.Add(new AreaTransitionObject(o.X, o.Y, to.Hash16, o.Model, Rotation: o.Rotation, Height: height,
-                        Type: Resolve(o.Type, what, notes)) { SourceType = o.Type });
+                        Type: Resolve(o.Type, what, notes)) { SourceType = o.Type, QuestSource = e.Enabled ? null : GateSourceOf(areaId, to.Id) });
                     notes.Add($"{what} → {to.Id} (entrance{e.Number}{(e.Enabled ? "" : "disabled, gated by a quest")}, {e.Why})");
                     break;
                 case ExitKind.Teleport when e.Target is { } target:
@@ -345,6 +361,12 @@ static class AreaTransitionCatalog
     /// created even where the layout disables it, and shown only once the character has the flag (an exit the game
     /// enables by script when a quest's boss dies).</summary>
     static bool Gated(string fromArea, string toArea) => Quests.FlagToEnter(fromArea, toArea) is not null;
+
+    // The module whose quest gate created a disabled exit (it stands only where those tables run), or null for an enabled one.
+    static string? GateSource(string id, AtlasTransition x) => x.Enabled == false && x.Destination is { } to ? GateSourceOf(id, to) : null;
+
+    static string? GateSourceOf(string fromArea, string toArea) =>
+        Quests.ExitOf(fromArea, toArea) is { } rule ? Quests.Everything.SourceOf(rule) : null;
 
     /// <summary>Whether a scripts/walkmaps capture is read for an area the Gateway does not generate (on). A generated
     /// layout never reads one (<see cref="For"/>); scripts/re/exits turns captures off so that its comparison with the
