@@ -122,6 +122,9 @@ G = global / static data.
 | `0x141d876e0` | Fn | TriggerableBlockage: blocks the cells of the Animated model's footprint at the object's grid position ([12](12-quests.md) §6) |
 | `0x1421c2310` | Fn | Transitionable update reader (vtable `0x1435dd290` +0xa0, S→C 0x2ba): u8 target state, steps toward it ([12](12-quests.md) §6) |
 | `0x141e44290` | Fn | TriggerableBlockage reader: u8 blocked, then only while blocked u8 count + count × u8 |
+| `0x141fe14b0` | Fn | S→C 0x1c6 reader: TriggerableBlockage's own update (it has no 0x2ba reader); u8 0 → +0xb8 `0x141e43b60` (unblock), else +0xb0 with the sections ([labyrinth-trials](../game/labyrinth-trials.md)) |
+| `0x141e43200` | Fn | TriggerableBlockage .ot keys: `start_blocked` +0x10, `disable_save` +0x11, `shunt_objects_away` +0x12 (`save_as_diff` not kept) |
+| `0x141d88690` | Fn | stamps objects' Hulls (`0x141d876e0`): some types always, the others only while their TriggerableBlockage is blocked |
 | `0x141ee0ba0` | Fn | blob task lookup by u16 task type (registry), used by the tasks reader `0x141ee00f0` |
 | `0x142f496a0` | G | static initializer table entry (Positioned) |
 | `0x1445bb240`, `0x1445bb6f0`, `0x1445bbe50`, `0x1445bbd60`, `0x1445bb760`, `0x1445bbd10`, `0x1445ba850`, `0x1445bc610` | G | component pools (Positioned, Stats, Pathfinding, Life, Animated, Player, Inventories, Actor) |
@@ -210,6 +213,8 @@ G = global / static data.
 | `0x142087910` | Fn | effect script: plays a MiscAnimated as a `Metadata/Effects/*Effect` object |
 | `0x1400bac70` | Fn | registers the derived stat active_skill_area_of_effect_radius (from the base radius and area %) |
 | `0x142155bf0` | Fn | create passive slot 0/1/2 (`instance+0xc2f8`) |
+| `0x140dcda40` | Fn | S→C 0x7b kind 9 (instance +0x19f8): shows the Trial Plaque window (live HUD +0x7e8, built by `0x140b75b90`) ([labyrinth-trials](../game/labyrinth-trials.md)) |
+| `0x141f69230` | Fn | a Labyrinths row's trial done: LabyrinthTrials column 7 quest flag or column 1 league quest flag |
 | `0x140785160` | Fn | UI reading the active passive slot |
 
 ## Items ([13](13-items.md))
