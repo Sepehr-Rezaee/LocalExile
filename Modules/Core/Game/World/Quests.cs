@@ -32,7 +32,7 @@ static partial class Game
             var changed = new List<string>();
             foreach (string flag in wanted)
                 // A flag every character is given (Quests.EveryCharacter) but has not earned yet is earned now: saved, though
-                // the client already had it (Kitava's death sets EndGameAvailable).
+                // the client may have had it (Kitava's death sets EndGameAvailable, which a hideout and the maps had).
                 if (on ? conn.QuestFlags.Add(flag) | conn.UnearnedQuestFlags.Remove(flag) : conn.QuestFlags.Remove(flag)) changed.Add(flag);
             if (changed.Count == 0) return null;
             CharacterSaves.ChangeQuestFlags(CharacterName(conn), changed, on);

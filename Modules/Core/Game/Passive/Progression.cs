@@ -71,8 +71,9 @@ static partial class Game
                 atlas.Select(atlasCharacter, selected);
             conn.Waypoints.UnionWith(save?.Waypoints ?? []);
             conn.Visited.UnionWith(save?.Visited ?? []);
-            conn.QuestFlags = [.. save?.QuestFlags ?? [], .. Quests.EveryCharacter];
             conn.UnearnedQuestFlags = [.. Quests.EveryCharacter.Except(save?.QuestFlags ?? [])];
+            // An unearned endgame flag is not the character's (Quests.EndgameOnly): PlayerQuestFlags sends it where it is needed.
+            conn.QuestFlags = [.. save?.QuestFlags ?? [], .. Quests.EveryCharacter.Where(f => !(Quests.EndgameOnly.Contains(f) && conn.UnearnedQuestFlags.Contains(f)))];
             conn.ExtraPassivePoints = save?.ExtraPassivePoints ?? 0;
             conn.RefundPoints = save?.RefundPoints ?? 0;
             // The chosen Pantheon gods (the Pantheon module chooses and applies them; the Player object shows them).

@@ -197,7 +197,10 @@ sets `<quest>-HaveRewardBook` (`grant_flag`), using it sets `<quest>-UsedRewardB
 Other permanent stats: QSR 4–6 (`a2q1/a2q2/a2q3-QuestRewardTaken`: 8% movement speed, +15% to all elemental
 resistances, +40 life; stat sources like a passive's, Game `WithQuestStats`), QSR 38 (`a5q6-CompletedBoss`) and 39
 (`EndGameAvailable`, which every character is given for the Atlas but counts only once earned:
-`ClientState.UnearnedQuestFlags`): Kitava's −30% each, mirrored by Game `ResistancePenalty`. Passive and ascendancy
+`ClientState.UnearnedQuestFlags`): Kitava's −30% each, mirrored by Game `ResistancePenalty`. Until earned,
+`EndGameAvailable` is not among the character's flags and the client gets it only in a hideout or a map area
+(`Quests.EndgameOnly`, Game `PlayerQuestFlags`), so the Epilogue's gates (Karui Shores, Lilly's voyage, Lani's Kitava
+reward, Sin's portal home) stay shut until Kitava while the map device and the maps work. Passive and ascendancy
 points are derived from the flags every time and sent in the 0x33 tree's `extra_skill_points`
 ([15](../protocol/15-progression.md) §2); refund points are spent, so a flag credits them once
 (`CharacterSaves.QuestRefundsCredited`).

@@ -708,7 +708,8 @@ static partial class Game
     // Act 10 Kitava. It is a quest penalty, not a buff/aura: the client keeps it through its quest flags, and the server
     // mirrors it from the same flags. (In the 3.29.3b tables QuestStaticRewards 38 is a5q6-CompletedBoss and 39 is
     // EndGameAvailable, set when Kitava dies in The Feeding Trough; a10q3-UsedRewardBook, Lani's book after him, implies
-    // it. EndGameAvailable counts only once earned: every character is given it for the Atlas, ClientState.UnearnedQuestFlags.
+    // it. EndGameAvailable counts only once earned: every character is given it for the Atlas (in a hideout and the maps
+    // only until then, Quests.EndgameOnly), ClientState.UnearnedQuestFlags.
     // a9q5-KilledBoss is the Act 9 boss and does not grant it.)
     internal static int ResistancePenalty(ClientState conn)
     {

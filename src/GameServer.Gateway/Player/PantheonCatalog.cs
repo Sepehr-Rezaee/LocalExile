@@ -43,9 +43,9 @@ sealed class PantheonCatalog
 
     /// <summary>What the character's chosen gods grant (the Pantheon module's stat sources): each chosen god that is
     /// unlocked (<paramref name="has"/>: the flags the client has), its upgrades only once the character earned
-    /// EndGameAvailable. Every character is given that flag at login for the Atlas (Quests.EveryCharacter), so having it
-    /// is not enough: it counts once a quest set it (<see cref="ClientState.EarnedQuestFlag"/>, as Kitava's Act 10
-    /// resistance penalty).</summary>
+    /// EndGameAvailable. Every character is given that flag at login for the Atlas (Quests.EveryCharacter; until earned
+    /// only in a hideout and the maps, Quests.EndgameOnly): it counts once a quest set it
+    /// (<see cref="ClientState.EarnedQuestFlag"/>, as Kitava's Act 10 resistance penalty).</summary>
     public List<(uint Key, int Value)> ChosenStats(ClientState conn, Func<string, bool> has)
     {
         bool endgame = conn.EarnedQuestFlag(Quests.EndGameAvailable);

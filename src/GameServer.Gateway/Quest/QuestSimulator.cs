@@ -59,7 +59,9 @@ sealed class QuestSimulator
             string[] Names(string column) => [.. w.GetProperty(column).EnumerateArray().Select(e => flagNames.GetValueOrDefault(e.GetInt32())).OfType<string>()];
             areaFlags.TryAdd(w.GetProperty("Id").GetString() ?? "", (Names("StartQuestFlags"), Names("EndQuestFlags")));
         }
-        Flags.UnionWith(Quests.EveryCharacter);
+        // As on login: an endgame flag not earned yet is not the character's (Quests.EndgameOnly; the oracle plays no
+        // hideout or map area, where the client would have it).
+        Flags.UnionWith(Quests.EveryCharacter.Except(Quests.EndgameOnly));
     }
 
     /// <summary>Whether the client has the flag: the character's own, a session flag, or a visited area's World panel flag.</summary>

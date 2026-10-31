@@ -659,9 +659,11 @@ sealed partial class ClientState(AreaLayout layout, uint ticket, uint seed)
     public readonly Dictionary<uint, SpawnedNpc> Npcs = [];
     /// <summary>The character's quest flags (QuestFlags.dat Ids), saved in data/saves/.</summary>
     public HashSet<string> QuestFlags = [];
-    /// <summary>Of <see cref="Quests.EveryCharacter"/> (given on login, in <see cref="QuestFlags"/>), those the character's
-    /// save does not have: granted, not earned. A quest event that sets one (Kitava's death: EndGameAvailable) saves it and
-    /// takes it out of here; what is earned only through the quest (Kitava's Act 10 penalty, /state's flags) reads this.</summary>
+    /// <summary>Of <see cref="Quests.EveryCharacter"/> (given on login, in <see cref="QuestFlags"/> but for
+    /// <see cref="Quests.EndgameOnly"/>), those the character's save does not have: granted, not earned. A quest event that
+    /// sets one (Kitava's death: EndGameAvailable) saves it and takes it out of here; what is earned only through the quest
+    /// (Kitava's Act 10 penalty, /state's flags) reads this, and Game.PlayerQuestFlags sends an unearned endgame flag only
+    /// in a hideout or a map area.</summary>
     public HashSet<string> UnearnedQuestFlags = [];
     /// <summary>The chosen Pantheon gods (PantheonPanelLayout Ids, null = none), from the save (CharacterSaves.SetPantheon);
     /// the Pantheon module changes them under the Monsters lock (campaign/pantheon.md).</summary>

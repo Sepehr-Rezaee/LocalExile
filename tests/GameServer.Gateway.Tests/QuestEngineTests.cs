@@ -254,14 +254,17 @@ public sealed class QuestEngineTests
         var stun = (statKeys.Key("base_stun_recovery_+%")!.Value, 30);
         Assert.Equal("BrineKingUpgrade1", brine.Upgrades[0].Flag);
         // What the module's stat sources ask (ChosenStats): a character logs in with EndGameAvailable given, not earned
-        // (Quests.EveryCharacter, ClientState.UnearnedQuestFlags), so its soul's upgrade waits for An End to Hunger.
+        // (Quests.EveryCharacter, ClientState.UnearnedQuestFlags; until earned not among its flags, Quests.EndgameOnly), so
+        // its soul's upgrade waits for An End to Hunger.
         var chosen = new ClientState(new AreaLayout(0x1234, "1_1_3", 200, 200, 70, 70, null, []), 1, 1) { PantheonMajor = "TheBrineKing" };
-        chosen.QuestFlags = [.. Quests.EveryCharacter, "a6q1-KilledBoss", "BrineKingUpgrade1"];
+        chosen.QuestFlags = [.. Quests.EveryCharacter.Except(Quests.EndgameOnly), "a6q1-KilledBoss", "BrineKingUpgrade1"];
         chosen.UnearnedQuestFlags = [.. Quests.EveryCharacter];
-        Assert.True(chosen.HasQuestFlag(EndGameAvailable) && !chosen.EarnedQuestFlag(EndGameAvailable));
+        Assert.True(!chosen.HasQuestFlag(EndGameAvailable) && !chosen.EarnedQuestFlag(EndGameAvailable));
         Assert.Equal(PantheonCatalog.Stats(brine, With(), endgame: false), pantheon.ChosenStats(chosen, chosen.HasQuestFlag));
         Assert.DoesNotContain(stun, pantheon.ChosenStats(chosen, chosen.HasQuestFlag));
-        chosen.UnearnedQuestFlags.Remove(EndGameAvailable);   // Kitava's death in The Feeding Trough sets it
+        // Kitava's death in The Feeding Trough sets it (Game.CommitQuestFlags: the flag saved, no longer unearned).
+        chosen.QuestFlags.Add(EndGameAvailable);
+        chosen.UnearnedQuestFlags.Remove(EndGameAvailable);
         Assert.Contains(stun, pantheon.ChosenStats(chosen, chosen.HasQuestFlag));
         chosen.QuestFlags.Remove("a6q1-KilledBoss");          // a god whose unlock flag is gone grants nothing
         Assert.Empty(pantheon.ChosenStats(chosen, chosen.HasQuestFlag));
