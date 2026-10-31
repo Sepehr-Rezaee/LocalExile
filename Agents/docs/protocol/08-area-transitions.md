@@ -457,6 +457,8 @@ and checks them:
 
 Info lines: rooms without an object for their entrance, connections no node names, objects not created, destinations
 the layout names only as a disabled entrance, with `--quests` the disabled entrances created because a quest gates them
-(`gated`: at seed 1 The Upper Sceptre of God → The Aqueduct and The Library → The Archives; without `--quests` both are
-dropped as arrival points), gates no player can reach whose target is reached anyway, telepads
+(`gated`: at seed 1 The Upper Sceptre of God → The Aqueduct and The Library → The Archives, The Slave Pens → Overseer's
+Tower, The Control Blocks → Oriath Square; without `--quests` they are dropped as arrival points) and the exits a quest
+rule sends to their own version of an area with the twin it creates (`quest-exit`: The Control Blocks →
+The Ruined Square, `ControlBlocksToDestroyedSquare`), gates no player can reach whose target is reached anyway, telepads
 no gate leads to. Exit code 1 on a problem.

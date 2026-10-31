@@ -10,7 +10,9 @@
 //   misplaced    an exit leads there, but none sits in (or next to) the room of that node
 //   unexpected   an exit leads to an area no enabled "entranceN" of the layout names (and not within the area), and
 //                the model matching does not lead there either (info unnamed-exit: Delve's mine; info gated: --quests, a
-//                disabled entrance a quest gates, its exit in that entrance's room)
+//                disabled entrance a quest gates, its exit in that entrance's room; info quest-exit: --quests, an exit
+//                whose tile type a quest rule sends to its own version of an area, On.Exists(…, to:), and the twin it
+//                creates: The Control Blocks' way into the burnt Ruined Square)
 //   gated-duplicate / gated-misplaced  (--quests) more exits to a quest-gated disabled entrance's area than such
 //                entrances, or one not in (or next to) their rooms
 //   duplicate    more exits lead to an area than the layout's enabled entrances name it
@@ -220,6 +222,10 @@ void Audit((string Id, string Name, int Act, ushort Hash) area, ServerLevels.Lev
             else
                 Info("gated", $"{g.Count()} exit(s) to {Name(g.Key)} at a disabled entrance ({string.Join(", ", disabledTo.Select(d => Path.GetFileName(d.Room.Room.Path)))}), created because a quest gates it ({flag})");
         }
+        // --quests: two exits of one tile record that swap by flag each lead to their own version of the area, and the
+        // twin the layout left out is created (AreaTransitionCatalog.QuestExitDestinations).
+        else if (!expected.ContainsKey(g.Key) && g.All(e => Quests.ExitTo(e.SourceType) == Name(g.Key)))
+            Info("quest-exit", $"{g.Count()} exit(s) to {Name(g.Key)} ({string.Join(", ", g.Select(e => e.SourceType!.Split('/')[^1]).Distinct())}), led there by a quest rule");
         else if (!expected.TryGetValue(g.Key, out int want) && matched.Any(m => m.DestinationHash16 == g.Key && m.TeleportTo is null))
             Info("unnamed-exit", $"{g.Count()} exit(s) to {Name(g.Key)}, which no node names; the model matching leads there too");
         else if (!expected.TryGetValue(g.Key, out want)) Problem("unexpected", $"{g.Count()} exit(s) to {Name(g.Key)} at {string.Join(", ", g.Select(e => $"({e.GridX}, {e.GridY})"))}, which no enabled entrance names");
