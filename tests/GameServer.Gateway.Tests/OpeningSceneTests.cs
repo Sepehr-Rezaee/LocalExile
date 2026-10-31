@@ -59,6 +59,13 @@ public class OpeningSceneTests
         int accepted = conn.ActionCount;
         await Invoke("WakeUpOnBeach", wire, conn, use, conn.Clock.Elapsed.TotalSeconds);
         Assert.Equal(accepted, conn.ActionCount);
+
+        // Observers get no action to end the stance with: another player's copy is created standing, in the owner's stead.
+        using var observer = new Wire();
+        observer.Conn.Instance.PublishPlayer(new(0x20001234, 7, player with { WashedUp = true, Rotation = MathF.PI }, 115, 69, 50));
+        await Game.SyncInstancePlayers("opening-scene-test", observer.Stream, observer.Ciphers, observer.Conn);
+        byte[] created = InstanceEntities.CreateObject(0x20001234, 7, (player with { Skills = [], QuestFlags = [], LeagueQuestFlags = [] }).Blob());
+        Assert.Equal(created, await observer.Read(created.Length));
     }
 
     [Fact]
@@ -90,8 +97,9 @@ public class OpeningSceneTests
         readonly TcpListener listener = new(IPAddress.Loopback, 0);
         readonly TcpClient writer = new();
         readonly TcpClient reader;
+        readonly ConnectionCiphers decrypt = new(new byte[64], true);
         public readonly ConnectionCiphers Ciphers = new(new byte[64], false);
-        public readonly ClientState Conn = new(new(0, TutorialObjects.Strand, 32, 32, 10, 10, null, []), 0, 1);
+        public readonly ClientState Conn = new(new(0, TutorialObjects.Strand, 32, 32, 10, 10, null, []), 0, 1) { Instance = new() };
         public NetworkStream Stream => writer.GetStream();
         public Wire()
         {
@@ -99,6 +107,13 @@ public class OpeningSceneTests
             var accepting = listener.AcceptTcpClientAsync();
             writer.Connect(IPAddress.Loopback, ((IPEndPoint)listener.LocalEndpoint).Port);
             reader = accepting.GetAwaiter().GetResult();
+        }
+        public async Task<byte[]> Read(int count)
+        {
+            var bytes = new byte[count];
+            await reader.GetStream().ReadExactlyAsync(bytes);
+            decrypt.Receive.Process(bytes);
+            return bytes;
         }
         public void Dispose() { Conn.Closed = true; reader.Dispose(); writer.Dispose(); listener.Stop(); }
     }

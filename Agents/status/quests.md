@@ -48,6 +48,7 @@ Part of [Status](../Status.md); what to build next in this area is in
 - New characters pick up their class weapon, talk to the dying exile and kill the biting zombie for their skill gem.
   Their first arrival starts lying down, facing the room's fitted start direction, and the first click plays getup
   in place. The introduction is saved once and does not reset progressed characters.
+  Other players in the instance see the character standing throughout.
   A Gateway regression covers the wake-up state and spawn rotation alongside Vaal soul budgets,
   including soul-only Actor payloads and characters whose wake-up introduction has already been shown.
   The support gem comes from its chest, which requires the player to walk into range.

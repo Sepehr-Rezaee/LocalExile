@@ -342,6 +342,8 @@ and replaces the stance (call site `0x142192c50`). Both fields must agree or the
 All seven character `.act` files put WashedUp at stance 68; a first ground click sends action skill `0x37d9` and plays
 getup in place. Native checks with fresh Duelist and Witch characters confirmed both animations.
 The initial Positioned rotation uses the beach room's transformed `default` point angle, preserving its facing.
+Both belong to the owner's own object: the server relays no actions to observers, so a peer created in WashedUp would
+stay down on their screens. Peer creation clears the flag and the rotation, and the peer stands from the start.
 
 ## 5. Our blob
 
