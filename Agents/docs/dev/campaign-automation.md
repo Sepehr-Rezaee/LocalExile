@@ -8,7 +8,8 @@ server's [quest engine](../game/campaign-quests.md) reacting to real kills, pick
 quest is a small step file; quests without one are reported as not implemented and skipped.
 
 `order.py` lists the whole campaign (Acts 1–10 and the Epilogue, 82 entries). Step files exist for the acts that are
-on the quest engine: Act 1 (`a1q1` … `a1q9`). An act's step files come with its tables
+on the quest engine: Act 1 (`a1q1` … `a1q9`), Act 2 (`a2q1` … `a2q11`, `a2q8a3` the arrival in Act 3) and Act 3
+(`a3q1` … `a3q13`). An act's step files come with its tables
 ([campaign quests](../game/campaign-quests.md) "Adding an act"); until then its quests are "not implemented", which
 does not fail a run, and `steps.py` already has the verbs and town list the later acts use (`pantheon` needs the
 Pantheon's `/state` field, which comes with the Pantheon).
@@ -80,7 +81,7 @@ CharacterStartQuestState flags (`Act1Complete` …) are missing, and the time.
 .\scripts\dev\campaign.ps1 -PortBase 25000                  # new Witch, the whole order
 .\scripts\dev\campaign.ps1 -Character CampAbc               # continue a character; done quests are skipped
 .\scripts\dev\campaign.ps1 -Only a1q4                       # quick check of one quest on a new character
-.\scripts\dev\campaign.ps1 -Preset Act1Complete -From a2q11 # start in Act 2 (once Act 2 has step files)
+.\scripts\dev\campaign.ps1 -Preset Act1Complete -From a2q11 # start in Act 2
 .\scripts\dev\campaign.ps1 -Class Ranger -Name CampRanger -To a1q9 --replace
 ```
 
@@ -249,5 +250,5 @@ file parsing. `CampaignCommandTests` checks `/state`'s JSON and reply lines and 
 
 Live history: the same driver (then in `Program.Campaign.cs`, before the game moved into modules) played all 82
 entries of `order.py` from a fresh level-1 Witch unattended in 1 h 00 min on 2026-10-31 (seed 1, copied save
-database, Acts 1–10 and the Epilogue, no `/goto`; per act 4–8 minutes). Act 1 on the module quest engine, through
-this checkout's own ports and session client, is still to be run live.
+database, Acts 1–10 and the Epilogue, no `/goto`; per act 4–8 minutes). Acts 1–3 on the module quest engine, through
+this checkout's own ports and session client, are still to be run live.
