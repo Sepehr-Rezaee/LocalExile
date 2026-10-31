@@ -1,14 +1,16 @@
 // usage (from the repository root): dotnet run --project scripts/re/exits -c Release -- [area regex] [--all] [--seeds N]
-//   [--seed S]… [--json out.json] [--quiet] [--notes] [--objects]
+//   [--seed S]… [--json out.json] [--quiet] [--notes] [--objects] [--quests]
 // The offline area transition audit (Agents/docs/protocol/08-area-transitions.md §8). For every campaign area (WorldAreas
 // ids "1_…" / "2_…" of acts 1–10 with a topology; --all: every area with one) that the Gateway generates itself
 // (ServerLevels, the gate baseline), at seed 1 and N further seeds (default 3, fixed per area), it generates the layout, asks AreaTransitionCatalog for the
-// exits exactly as the Gateway does when a player enters (captures off) and checks:
+// exits exactly as the Gateway does when a player enters (captures off; --quests: with the QuestObjects module's act
+// tables registered, as in a league that lists it, so the disabled exits a quest gates are created too) and checks:
 //   missing      a node of the layout names "entranceN" (enabled), its room holds a transition object at which no exit
 //                was created (by position), and no exit leads to Connections[N-1]
 //   misplaced    an exit leads there, but none sits in (or next to) the room of that node
 //   unexpected   an exit leads to an area no enabled "entranceN" of the layout names (and not within the area), and
-//                the model matching does not lead there either (info unnamed-exit: Delve's mine)
+//                the model matching does not lead there either (info unnamed-exit: Delve's mine; info gated: --quests, a
+//                disabled entrance a quest gates)
 //   duplicate    more exits lead to an area than the layout's enabled entrances name it
 //   teleport     a node names "teleportN" (enabled) and no in-area exit there takes the player to the "telepadN" node
 //   unreachable  an exit (or teleport) the player cannot get to by walking and the layout's in-area exits, starting
@@ -36,7 +38,7 @@ string filter = ".";
 int extraSeeds = 3;
 var fixedSeeds = new List<uint>();
 string? jsonOut = null;
-bool quiet = false, all = false, showNotes = false, showObjects = false;
+bool quiet = false, all = false, showNotes = false, showObjects = false, quests = false;
 for (int i = 0; i < args.Length; i++)
     switch (args[i])
     {
@@ -47,11 +49,18 @@ for (int i = 0; i < args.Length; i++)
         case "--all": all = true; break;
         case "--notes": showNotes = true; break;
         case "--objects": showObjects = true; break;
+        case "--quests": quests = true; break;
         default: filter = args[i]; break;
     }
 
 if (!File.Exists("AGENTS.md") || !Directory.Exists("data/tables")) { Console.Error.WriteLine("run from the repository root (needs data/)"); return 2; }
 AreaTransitionCatalog.UseCaptures = false;
+// The act tables (Modules/Core/World/QuestObjects/Acts/), found as the module finds them: a quest's gate makes the catalog
+// create an exit the layout disables (AreaTransitionCatalog.Gated: The Upper Sceptre of God's way to The Aqueduct).
+using var questTables = quests
+    ? Quests.Register("QuestObjects", typeof(GameServer.Modules.M_questobjects.QuestObjectsModule).Assembly.GetTypes()
+        .Where(t => t.IsSubclassOf(typeof(Quests.Act)) && !t.IsAbstract).Select(t => (Quests.Act)Activator.CreateInstance(t)!))
+    : null;
 
 // WorldAreas: id, name, act, hash, topologies; connections (by index) from the atlas (the JSON column is broken).
 var areas = new List<(string Id, string Name, int Act, ushort Hash)>();
@@ -195,7 +204,12 @@ void Audit((string Id, string Name, int Act, ushort Hash) area, ServerLevels.Lev
     foreach (var g in exits.Where(e => e.TeleportTo is null).GroupBy(e => e.DestinationHash16))
     {
         if (g.Key == area.Hash) continue;
-        if (!expected.TryGetValue(g.Key, out int want) && matched.Any(m => m.DestinationHash16 == g.Key && m.TeleportTo is null))
+        // --quests: an entrance the layout disables that a quest gates is created on purpose (The Library's way into The
+        // Archives, the tower top's to The Aqueduct).
+        if (!expected.ContainsKey(g.Key) && Quests.FlagToEnter(area.Id, Name(g.Key)) is { } flag
+            && conns.Where(c => c.Hash == g.Key).Any(c => entrances.Any(e => e.N == c.Index && !e.Enabled)))
+            Info("gated", $"{g.Count()} exit(s) to {Name(g.Key)} at a disabled entrance, created because a quest gates it ({flag})");
+        else if (!expected.TryGetValue(g.Key, out int want) && matched.Any(m => m.DestinationHash16 == g.Key && m.TeleportTo is null))
             Info("unnamed-exit", $"{g.Count()} exit(s) to {Name(g.Key)}, which no node names; the model matching leads there too");
         else if (!expected.TryGetValue(g.Key, out want)) Problem("unexpected", $"{g.Count()} exit(s) to {Name(g.Key)} at {string.Join(", ", g.Select(e => $"({e.GridX}, {e.GridY})"))}, which no enabled entrance names");
         else if (g.Count() > want) Problem("duplicate", $"{g.Count()} exits to {Name(g.Key)} for {want} entrance(s): {string.Join(", ", g.Select(e => $"({e.GridX}, {e.GridY})"))}");
