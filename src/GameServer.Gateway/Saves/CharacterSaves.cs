@@ -51,7 +51,8 @@ static class CharacterSaves
     /// slots, <see cref="SkillCosmeticKey"/> (a gem's BaseItemTypes HASH32 and effect slot type) → the picked record
     /// (every gem of that type wears it). ClusterPassives: the cluster jewel nodes the client allocated (its expansion
     /// layout ids, not PassiveSkillGraphIds). QuestRefundsCredited: the quest flags whose QuestStaticRewards refund
-    /// points the save has had (<see cref="CreditQuestRefunds(Save)"/>).</summary>
+    /// points the save has had (<see cref="CreditQuestRefunds(Save)"/>). PantheonMajor / PantheonMinor: the chosen
+    /// Pantheon gods, by PantheonPanelLayout Id (<see cref="SetPantheon"/>).</summary>
     public sealed record Save(Dictionary<byte, List<SavedPlacement>> Inventories, Dictionary<int, string>? SkillBar = null,
         uint? Experience = null, List<ushort>? Passives = null, List<string>? Waypoints = null, List<string>? Visited = null,
         List<string>? QuestFlags = null, ushort? ExtraPassivePoints = null,
@@ -65,7 +66,7 @@ static class CharacterSaves
         ushort? Sulphite = null, Dictionary<ushort, string>? Tattoos = null,
         Dictionary<ushort, ushort>? TattooKeystones = null, List<List<ushort>>? AtlasPassivePresets = null,
         ushort? AtlasPassivePoints = null, string? SelectedAtlasLayout = null, Dictionary<string, string>? ModuleData = null,
-        List<string>? QuestRefundsCredited = null)
+        List<string>? QuestRefundsCredited = null, string? PantheonMajor = null, string? PantheonMinor = null)
     {
         /// <summary>Fields this build doesn't know (a newer build wrote them): kept as they are by the next write.</summary>
         [JsonExtensionData] public Dictionary<string, JsonElement>? Unknown { get; init; }
@@ -121,6 +122,11 @@ static class CharacterSaves
         });
 
     public static void SetSelectedHideout(string character, string area) => Update(character, s => s with { SelectedHideout = area });
+
+    /// <summary>The character's Pantheon gods, by PantheonPanelLayout Id (TheBrineKing, Tukohama …; null = none), so they
+    /// survive changes to the table's order (campaign/pantheon.md §4).</summary>
+    public static void SetPantheon(string character, string? major, string? minor) =>
+        Update(character, s => s with { PantheonMajor = major, PantheonMinor = minor });
 
 
     /// <summary>A module's saved text (IPlayerWorld.CharacterData). A save from before Delve was a module has its sulphite here.</summary>

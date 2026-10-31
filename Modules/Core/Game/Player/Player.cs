@@ -888,7 +888,12 @@ static partial class Game
             Skills: [.. SkillsFor(conn).PlayerDefaults(weaponStats), .. GemSkills(conn, [.. weaponStats, .. statList], characterInputs, panelSources!)], Stats: [.. weaponStats, .. statList],
             Equipped: Looks(conn, PlayerInventories.For(string.IsNullOrEmpty(name) ? "Exile" : name, ItemsFor(conn))),
             QuestFlags: PlayerQuestFlags(conn), Hideout: HomeHideout(conn)?.Hash16 ?? 0, LeagueQuestFlags: [.. Quests.League.Bits(conn.LeagueQuestFlags)],
-            Portrait: WornPortrait(conn), PortraitFrame: conn.PortraitFrame);
+            Portrait: WornPortrait(conn), PortraitFrame: conn.PortraitFrame)
+        {
+            // The saved Pantheon gods (campaign/pantheon.md §5): the Player component's two bytes.
+            PantheonMajor = PantheonCatalog.Default.Value.Wire(conn.PantheonMajor),
+            PantheonMinor = PantheonCatalog.Default.Value.Wire(conn.PantheonMinor),
+        };
         lock (conn.Monsters)
         {
             RefreshVaalSouls(conn);

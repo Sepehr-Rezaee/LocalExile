@@ -195,6 +195,8 @@ static partial class CommandsRules
         state["flags"] = new JsonArray([.. flags.Where(f => !unearned.Contains(f)).Order(StringComparer.Ordinal).Select(f => JsonValue.Create(f))]);
         lock (conn.Waypoints) state["waypoints"] = new JsonArray([.. conn.Waypoints.Order(StringComparer.Ordinal).Select(w => JsonValue.Create(w))]);
         state["resistancePenalty"] = ResistancePenalty(conn);
+        // What the league's other modules add (the Pantheon module's "pantheon").
+        GameEvents.RunStateBuilding(conn, state);
         // The area's Stash (towns, hideouts): the driver puts what the inventory cannot hold into it (C→S 0xe0).
         state["stash"] = conn.StashObject != 0 ? new JsonObject { ["id"] = conn.StashObject, ["pos"] = Cell(conn.StashAt.X, conn.StashAt.Y) } : null;
         state["talking"] = conn.TalkingTo;

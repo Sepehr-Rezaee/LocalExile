@@ -663,6 +663,9 @@ sealed partial class ClientState(AreaLayout layout, uint ticket, uint seed)
     /// save does not have: granted, not earned. A quest event that sets one (Kitava's death: EndGameAvailable) saves it and
     /// takes it out of here; what is earned only through the quest (Kitava's Act 10 penalty, /state's flags) reads this.</summary>
     public HashSet<string> UnearnedQuestFlags = [];
+    /// <summary>The chosen Pantheon gods (PantheonPanelLayout Ids, null = none), from the save (CharacterSaves.SetPantheon);
+    /// the Pantheon module changes them under the Monsters lock (campaign/pantheon.md).</summary>
+    public string? PantheonMajor, PantheonMinor;
     // QuestFlags is changed under the Monsters lock (SetQuestFlagsHeld); code that may run beside it (the player tick)
     // reads it through these, under the same lock.
     public HashSet<string> QuestFlagsSnapshot() { lock (Monsters) return [.. QuestFlags]; }

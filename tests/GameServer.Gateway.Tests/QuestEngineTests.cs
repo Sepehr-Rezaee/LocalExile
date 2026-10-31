@@ -216,6 +216,40 @@ public sealed class QuestEngineTests
         Assert.Equal(new Dictionary<int, (int X, int Y)> { [8] = (50, 60) },
             AreaPopulation.LaterFormPoints(trinity, [new("mapboss1", 10, 10), new("mapboss2", 50, 60)], (_, _) => true));
 
+        // The Pantheon (campaign/pantheon.md): PantheonPanelLayout's 4 major and 8 minor gods (rows 4, 5, 7 and 12 are
+        // disabled placeholders), each unlocked by its boss kill; a god's power, its upgrades only with their soul after
+        // An End to Hunger; C→S 0x1ee framed (live: unframed, the god was never chosen) as the row + 1, which the Player
+        // component's update (flag 0x0080) and creation blob (two bytes after WashedUp: major, minor) carry back.
+        var pantheon = PantheonCatalog.Default.Value;
+        Assert.Equal((16, 4, 8), (pantheon.Gods.Count, pantheon.Gods.Count(g => g.Major && !g.Disabled), pantheon.Gods.Count(g => !g.Major && !g.Disabled)));
+        Assert.All(new[] { 4, 5, 7, 12 }, row => Assert.True(pantheon.Gods[row].Disabled));
+        var brine = pantheon.ById("TheBrineKing")!;
+        Assert.Equal((0, true, "a6q1-KilledBoss", (byte)1), (brine.Row, brine.Major, brine.UnlockFlag, brine.Wire));
+        var tukohama = pantheon.ById("Tukohama")!;
+        Assert.Equal((11, false, "a6q3-KilledBoss", (byte)12), (tukohama.Row, tukohama.Major, tukohama.UnlockFlag, pantheon.Wire("Tukohama")));
+        Assert.Same(tukohama, pantheon.ByWire(12));
+        Assert.Null(pantheon.ByWire(0));
+        Assert.Equal(0, pantheon.Wire(null));
+        Assert.False(PantheonCatalog.Unlocked(brine, With()));
+        Assert.True(PantheonCatalog.Unlocked(brine, With("a6q1-KilledBoss")));
+        Assert.False(PantheonCatalog.Unlocked(pantheon.Gods[4], _ => true));
+        var statKeys = new StatCatalog();
+        Assert.Equal([(statKeys.Key("cannot_be_stunned_if_have_been_stunned_or_blocked_stunning_hit_in_past_2_seconds")!.Value, 1)],
+            PantheonCatalog.Stats(brine, With()).ToList());
+        var stun = (statKeys.Key("base_stun_recovery_+%")!.Value, 30);
+        Assert.Equal("BrineKingUpgrade1", brine.Upgrades[0].Flag);
+        Assert.DoesNotContain(stun, PantheonCatalog.Stats(brine, With("BrineKingUpgrade1")));
+        Assert.Contains(stun, PantheonCatalog.Stats(brine, With("BrineKingUpgrade1", EndGameAvailable)));
+        Assert.Equal(3, InstanceProtocol.KnownClientLength(InstancePantheon.ChooseGodId));
+        Assert.Equal([0x01, 0xee, 12], InstancePantheon.ChooseGod(12));
+        Assert.Equal(12, InstancePantheon.ReadChooseGod(InstancePantheon.ChooseGod(12)));
+        Assert.Equal([0x80, 0x00, 1, 12], InstanceEntities.PlayerPantheonUpdate(1, 1, 12)[^4..]);
+        var noGods = new PlayerObject("Exile", 3, 10, 10, 50, 40).Blob();
+        var gods = (new PlayerObject("Exile", 3, 10, 10, 50, 40) { PantheonMajor = 1, PantheonMinor = 12 }).Blob();
+        var differ = Enumerable.Range(0, noGods.Length).Where(i => noGods[i] != gods[i]).ToList();
+        Assert.Equal((noGods.Length, 2), (gods.Length, differ.Count));
+        Assert.Equal((differ[0] + 1, (byte)1, (byte)12), (differ[1], gods[differ[0]], gods[differ[1]]));
+
         // Every rule names real flags, monsters, items and NPCs, and the objects the engine creates are ones it can write.
         var flags = ParseRows(File.ReadAllText("data/tables/QuestFlags.json"));
         var monsters = new MonsterCatalog();
@@ -646,6 +680,11 @@ public sealed class QuestEngineTests
         Assert.Equal((13, 12), (s.PassivePoints, s.RefundPoints));
         Assert.Equal(BridgeEncampment, s.Area);
         Assert.Empty(s.Carried);
+        // The Pantheon gods Act 6 unlocks: The Brine King, Tukohama, Abberath and Ryslatha (Sin's rows let them be chosen
+        // where they fell: the session flag CanChangePantheon).
+        Assert.Equal(["TheBrineKing", "Abberath", "Tukohama", "Ryslatha"],
+            PantheonCatalog.Default.Value.Gods.Where(g => PantheonCatalog.Unlocked(g, s.Has)).Select(g => g.Id));
+        Assert.True(QuestStates.Default.Value.IsSession("CanChangePantheon"));
 
         // Highgate's Dialla: DiallaTown until the Rapture Device works, DiallaTownWithered after (both town room lines).
         Assert.True(NpcPresent(Highgate, Act4Npcs.DiallaTown, With()) && !NpcPresent(Highgate, Act4Npcs.DiallaTownWithered, With()));
