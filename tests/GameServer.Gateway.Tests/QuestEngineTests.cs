@@ -236,11 +236,21 @@ public sealed class QuestEngineTests
         Assert.False(PantheonCatalog.Unlocked(pantheon.Gods[4], _ => true));
         var statKeys = new StatCatalog();
         Assert.Equal([(statKeys.Key("cannot_be_stunned_if_have_been_stunned_or_blocked_stunning_hit_in_past_2_seconds")!.Value, 1)],
-            PantheonCatalog.Stats(brine, With()).ToList());
+            PantheonCatalog.Stats(brine, With(), endgame: false).ToList());
         var stun = (statKeys.Key("base_stun_recovery_+%")!.Value, 30);
         Assert.Equal("BrineKingUpgrade1", brine.Upgrades[0].Flag);
-        Assert.DoesNotContain(stun, PantheonCatalog.Stats(brine, With("BrineKingUpgrade1")));
-        Assert.Contains(stun, PantheonCatalog.Stats(brine, With("BrineKingUpgrade1", EndGameAvailable)));
+        // What the module's stat sources ask (ChosenStats): a character logs in with EndGameAvailable given, not earned
+        // (Quests.EveryCharacter, ClientState.UnearnedQuestFlags), so its soul's upgrade waits for An End to Hunger.
+        var chosen = new ClientState(new AreaLayout(0x1234, "1_1_3", 200, 200, 70, 70, null, []), 1, 1) { PantheonMajor = "TheBrineKing" };
+        chosen.QuestFlags = [.. Quests.EveryCharacter, "a6q1-KilledBoss", "BrineKingUpgrade1"];
+        chosen.UnearnedQuestFlags = [.. Quests.EveryCharacter];
+        Assert.True(chosen.HasQuestFlag(EndGameAvailable) && !chosen.EarnedQuestFlag(EndGameAvailable));
+        Assert.Equal(PantheonCatalog.Stats(brine, With(), endgame: false), pantheon.ChosenStats(chosen, chosen.HasQuestFlag));
+        Assert.DoesNotContain(stun, pantheon.ChosenStats(chosen, chosen.HasQuestFlag));
+        chosen.UnearnedQuestFlags.Remove(EndGameAvailable);   // Kitava's death in The Feeding Trough sets it
+        Assert.Contains(stun, pantheon.ChosenStats(chosen, chosen.HasQuestFlag));
+        chosen.QuestFlags.Remove("a6q1-KilledBoss");          // a god whose unlock flag is gone grants nothing
+        Assert.Empty(pantheon.ChosenStats(chosen, chosen.HasQuestFlag));
         Assert.Equal(3, InstanceProtocol.KnownClientLength(InstancePantheon.ChooseGodId));
         Assert.Equal([0x01, 0xee, 12], InstancePantheon.ChooseGod(12));
         Assert.Equal(12, InstancePantheon.ReadChooseGod(InstancePantheon.ChooseGod(12)));
@@ -570,10 +580,10 @@ public sealed class QuestEngineTests
             .Select(q => $"{presetId} {q}: {states.Current(q, s.Has)?.Text ?? "not started"}"));
     }
 
-    /// <summary>The campaign oracle: each act's events, played in order after the earlier acts' (Acts 1–3; a later act
-    /// appends its sequence), give the act's CharacterStartQuestState preset (Act1Complete, Act2CompleteEramir,
-    /// Act3Complete) and every quest's "complete" row, the books' points and the way into the next act; the exits stay
-    /// closed until their bosses die or their quest items are used.</summary>
+    /// <summary>The campaign oracle, Acts 1 to 6 in one character's order: each act's events give its CharacterStartQuestState
+    /// preset (Act1Complete, Act2CompleteEramir, Act3Complete, Act4Complete; Acts 5 and 6 have none) and every quest's
+    /// "complete" row, the books' points and the way into the next act; the exits, objects and NPCs a quest gates stay
+    /// shut, unused or absent until their flags.</summary>
     [Fact]
     public void The_campaign_oracle_plays_the_acts_through_the_engine_to_their_presets()
     {
@@ -683,6 +693,12 @@ public sealed class QuestEngineTests
         Assert.True(s.Has("a5q6-CompletedBoss"));
         Assert.Equal(50, ThresholdOf(Act5Areas.CathedralRooftop, Act5Monsters.Kitava)?.LifePct);
         Assert.True(QuestSpawned(Act5Areas.CathedralRooftop, Act5Monsters.Kitava) && QuestSpawned(ChamberOfInnocence, Act5Monsters.Innocence));
+        Assert.Equal([("base_resist_all_elements_%", -30), ("base_chaos_damage_resistance_%", -30)],
+            QuestStaticRewards.Default.Value.Find("a5q6-CompletedBoss")!.Stats);
+        Assert.Contains("a5q6-CompletedBoss", Game.ResistancePenaltyAct5);
+        // Lilly waits on the dock only from a5q6-CompletedBoss (lilly.ot serialisation_start_flag).
+        Assert.False(NpcPresent(Act5Areas.CathedralRooftop, Act5Npcs.Lilly, With("a5q6-DeliveredItem")));
+        Assert.True(NpcPresent(Act5Areas.CathedralRooftop, Act5Npcs.Lilly, With("a5q6-CompletedBoss")));
         Assert.Equal(LioneyesWatchAct6, s.Area);
         Assert.Empty(s.Carried);
         // Act 6: every quest complete, the books of a6q3, a6q4, a6q6 and a6q7, and Weylam's voyage to Act 7's town.
@@ -720,6 +736,11 @@ public sealed class QuestEngineTests
             .PickUp(Act4Items.Heart).Kill(Act4Monsters.Shavronne).PickUp(Act4Items.Entrails).Talk(Act4Npcs.PietyHarvest, "Malachai's Organs", 1);
         Assert.All(new[] { "a4q5-DeliveredOrgan1", "a4q5-DeliveredOrgan2", "a4q5-DeliveredOrgan3" }, f => Assert.True(act3.Has(f), f));
         Assert.Empty(act3.Carried);
+        // The Oriath Portal on The Ascent waits for the Resonator's lever.
+        var ascent = new QuestSimulator();
+        ascent.Set(CampaignState.PresetFlags("Act4Complete", out _)!).Set(["a5q1-UsedResonator"], false).Enter(Ascent, travel: true);
+        Assert.Throws<QuestSimulator.StepFailed>(() => ascent.Enter(SlavePens));
+        ascent.Near(Act4Objects.ResonatorLever).Use(Act4Objects.ResonatorLever).Enter(SlavePens);
         // Without the Sign of Purity the rooftop stays shut (EndQuestFlags a5q6-SeenItem); the socket takes it.
         var oriath = new QuestSimulator();
         oriath.Set([.. CampaignState.PresetFlags("Act4Complete", out _)!, "a5q1-KilledBoss", "a5q2-KilledBoss", "a5q4-KilledBoss"])

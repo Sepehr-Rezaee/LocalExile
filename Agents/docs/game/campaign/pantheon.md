@@ -96,7 +96,8 @@ your selected Pantheon Powers at this location …"; looked up with the 1-based 
 3. Store the choice per character (major and minor separately, by row `Id`, e.g. `TheBrineKing`, so it survives
    table changes), in the save.
 4. Send the Player update below, and apply the god's stats (effect 1, plus effects 2–4 whose PantheonSouls upgrade
-   flag the character has, only after `EndGameAvailable`).
+   flag the character has, only once `EndGameAvailable` is earned: every character is given it at login for the Atlas,
+   so having it is not enough (`ClientState.EarnedQuestFlag`, `PantheonCatalog.ChosenStats`)).
 
 ## 5. Showing the choice: Player component bytes +0x1ae / +0x1ad
 
@@ -104,7 +105,8 @@ The Player component stores the selection in two bytes (debug dump `0x141e80603`
 `+0x1ad`, "Major Pantheon: " `+0x1ae`):
 
 - **Creation blob** ([04](../../protocol/04-player-entity.md) §4.6): the five u8 after the WashedUp byte are `+0x1ae`
-  (major), `+0x1ad` (minor), `+0x1b0`, `+0x1af`, `+0x238`. `InstanceEntities.PlayerObject` writes them as zeros today.
+  (major), `+0x1ad` (minor), `+0x1b0`, `+0x1af`, `+0x238`. `PlayerObject` writes the saved gods into the first two (`PantheonMajor`,
+  `PantheonMinor`: the row + 1, 0 for none) and zeros into the rest.
 - **Update** S→C 0x2ba to the Player component (index 6): u16 flag word **0x0080**, then u8 → `+0x1ae` (major), u8 →
   `+0x1ad` (minor) (reader `0x141e7ee30`, the bit test at `0x141e7f22c`); the reader then calls the component's vtable
   +0x138 (refresh).
@@ -147,7 +149,8 @@ and Tukohama through 0x1ee and `/state` showed them; the panel's highlight of th
 - **The Pantheon module** (`Modules/Core/Player/Pantheon`, listed by every league that lists the quest tables): 0x1ee
   as §4 (refused for a disabled or locked row, or outside a town, hideout or the Rogue Harbour without
   `CanChangePantheon`; the client hears the gods back either way); the god's Effect1 stats, plus Effect2–4 whose
-  PantheonSouls upgrade flag the character has once `EndGameAvailable` is earned, join the character's stat sources
+  PantheonSouls upgrade flag the character has once `EndGameAvailable` is earned (not merely given at login:
+  `ClientState.UnearnedQuestFlags`, as Kitava's Act 10 penalty), join the character's stat sources
   (`GameEvents.PlayerStatSources`; most are conditional stats the damage model does not read yet); `/pantheon [<god> …]`
   (dev) and /state's `pantheon` field (`GameEvents.StateBuilding`) for the driver's `pantheon` verb and the bridge's
   `pantheon:select <row>`.

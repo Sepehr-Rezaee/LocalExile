@@ -670,6 +670,9 @@ sealed partial class ClientState(AreaLayout layout, uint ticket, uint seed)
     // reads it through these, under the same lock.
     public HashSet<string> QuestFlagsSnapshot() { lock (Monsters) return [.. QuestFlags]; }
     public bool HasQuestFlag(string flag) { lock (Monsters) return QuestFlags.Contains(flag); }
+    /// <summary>Whether the character earned the flag: it has it, and not only as one every character is given at login
+    /// (<see cref="UnearnedQuestFlags"/>: EndGameAvailable before Kitava's Act 10 death).</summary>
+    public bool EarnedQuestFlag(string flag) { lock (Monsters) return QuestFlags.Contains(flag) && !UnearnedQuestFlags.Contains(flag); }
     // One quest-flag change at a time per connection (SetQuestFlags, the quest item sync): each reads, changes and sends the whole
     // set, so two at once could send an older set last.
     public readonly SemaphoreSlim QuestGate = new(1, 1);

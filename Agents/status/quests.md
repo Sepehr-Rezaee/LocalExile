@@ -127,7 +127,8 @@ Part of [Status](../Status.md); what to build next in this area is in
   boss's kill flag (Act 6's four, the later acts' as their tables come); C→S 0x1ee chooses the major or minor god of a
   PantheonPanelLayout row in a town, a hideout, the Rogue Harbour or after Sin's god row (`CanChangePantheon`), saved
   per character and shown by the Player component (creation blob and update 0x0080); the god's power (and the souls'
-  upgrades after An End to Hunger) joins the stat sources. `/pantheon` and /state's `pantheon` for the driver.
+  upgrades once `EndGameAvailable` is earned: every character is given it at login, so it counts only after a quest
+  set it) joins the stat sources. `/pantheon` and /state's `pantheon` for the driver.
   The panel's highlight of the choice is not checked; the souls (Divine Vessels) are not built.
   Code: the Pantheon module (`Modules/Core/Player/Pantheon`), Gateway `Player/PantheonCatalog.cs`, Core
   `InstancePantheon.cs`. Docs: [pantheon](../docs/game/campaign/pantheon.md).

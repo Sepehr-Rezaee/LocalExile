@@ -35,11 +35,24 @@ sealed class PantheonCatalog
     /// <summary>Whether a character with these flags may choose the god: an enabled row whose unlock flag it has.</summary>
     public static bool Unlocked(God god, Func<string, bool> has) => !god.Disabled && god.UnlockFlag is { } flag && has(flag);
 
-    /// <summary>The stats a chosen god grants: its power, and each upgrade whose soul flag is set (the client applies
-    /// upgrades only after An End to Hunger: ClientStrings PantheonUpgradeUnavailableTillEndgame, so only with
-    /// EndGameAvailable).</summary>
-    public static IEnumerable<(uint Key, int Value)> Stats(God god, Func<string, bool> has) =>
-        god.Power.Concat(has(Quests.EndGameAvailable) ? god.Upgrades.Where(u => u.Flag is { } f && has(f)).SelectMany(u => u.Stats) : []);
+    /// <summary>The stats a chosen god grants: its power, and with <paramref name="endgame"/> each upgrade whose soul flag
+    /// is set (the client applies upgrades only after An End to Hunger: ClientStrings PantheonUpgradeUnavailableTillEndgame,
+    /// so only once EndGameAvailable is earned).</summary>
+    public static IEnumerable<(uint Key, int Value)> Stats(God god, Func<string, bool> has, bool endgame) =>
+        god.Power.Concat(endgame ? god.Upgrades.Where(u => u.Flag is { } f && has(f)).SelectMany(u => u.Stats) : []);
+
+    /// <summary>What the character's chosen gods grant (the Pantheon module's stat sources): each chosen god that is
+    /// unlocked (<paramref name="has"/>: the flags the client has), its upgrades only once the character earned
+    /// EndGameAvailable. Every character is given that flag at login for the Atlas (Quests.EveryCharacter), so having it
+    /// is not enough: it counts once a quest set it (<see cref="ClientState.EarnedQuestFlag"/>, as Kitava's Act 10
+    /// resistance penalty).</summary>
+    public List<(uint Key, int Value)> ChosenStats(ClientState conn, Func<string, bool> has)
+    {
+        bool endgame = conn.EarnedQuestFlag(Quests.EndGameAvailable);
+        string? major, minor;
+        lock (conn.Monsters) (major, minor) = (conn.PantheonMajor, conn.PantheonMinor);
+        return [.. new[] { ById(major), ById(minor) }.OfType<God>().Where(g => Unlocked(g, has)).SelectMany(g => Stats(g, has, endgame))];
+    }
 
     public static PantheonCatalog Load(string folder = "data")
     {

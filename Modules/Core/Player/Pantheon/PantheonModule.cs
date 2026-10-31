@@ -110,16 +110,12 @@ static class PantheonRules
             $"0x02ba player Pantheon: major {major}, minor {minor} ({why})");
     }
 
-    /// <summary>The chosen gods' stats on top of the character's other sources (PantheonCatalog.Stats): a god whose unlock
-    /// flag the character lost grants nothing.</summary>
+    /// <summary>The chosen gods' stats on top of the character's other sources (PantheonCatalog.ChosenStats): a god whose
+    /// unlock flag the character lost grants nothing, the souls' upgrades count once EndGameAvailable is earned.</summary>
     internal static Dictionary<uint, int> WithGods(ClientState conn, Dictionary<uint, int> sources)
     {
-        var catalog = PantheonCatalog.Default.Value;
-        bool Has(string f) => ClientHasQuestFlag(conn, f);
-        foreach (var god in new[] { catalog.ById(conn.PantheonMajor), catalog.ById(conn.PantheonMinor) })
-            if (god is not null && PantheonCatalog.Unlocked(god, Has))
-                foreach (var (key, value) in PantheonCatalog.Stats(god, Has))
-                    sources[key] = (int)Math.Clamp((long)sources.GetValueOrDefault(key) + value, int.MinValue, int.MaxValue);
+        foreach (var (key, value) in PantheonCatalog.Default.Value.ChosenStats(conn, f => ClientHasQuestFlag(conn, f)))
+            sources[key] = (int)Math.Clamp((long)sources.GetValueOrDefault(key) + value, int.MinValue, int.MaxValue);
         return sources;
     }
 
