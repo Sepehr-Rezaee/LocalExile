@@ -8,7 +8,8 @@ using static QuestObjectsFeature;
 
 namespace GameServer.Modules.M_questobjects;
 
-/// <summary>The objects of the campaign's quests: the opening tutorial, its gems, and the Glyph quest.</summary>
+/// <summary>The objects of the campaign's quests: the opening tutorial, its gems, the Glyph quest and the Trials of
+/// Ascendancy.</summary>
 public sealed class QuestObjectsModule : IModule, IDisposable
 {
     readonly List<IDisposable> _events = [];
@@ -29,6 +30,7 @@ public sealed class QuestObjectsModule : IModule, IDisposable
             await SpawnQuestRoomObjects(remote, stream, ciphers, conn);
             await SpawnOpeningTutorial(remote, stream, ciphers, conn);
             await SpawnGlyphQuest(remote, stream, ciphers, conn);
+            await SpawnTrialObjects(remote, stream, ciphers, conn);
         });
         On(GameEvents.Kill, kill =>
         {
@@ -76,7 +78,7 @@ public sealed class QuestObjectsModule : IModule, IDisposable
                 await UseGlyphWall(remote, stream, ciphers, conn, use);
                 return true;
             }
-            return false;
+            return await UseTrialObject(remote, stream, ciphers, conn, use);
         });
     }
 }
