@@ -137,15 +137,60 @@ static class AreaTransitionCatalog
             // the quest portal, with its model and its gate, replaces it (one way to Maligaro's Sanctum, not two).
             string? source = Quests.Everything.SourceOf(portal);
             if (ReplacePointExits(placed, to, source) > 0) notes.Add($"quest portal {portal.Type.Split('/')[^1]} replaces the exit without a model to {portal.To}");
-            placed.Add(new AreaTransitionObject(itself ? at.X : at.X + PortalOffset, at.Y, to, itself ? at.Model : null, Rotation: at.Rotation,
+            var (x, y) = itself ? (at.X, at.Y)
+                : ServerLevels.For(id, seed) is { } level ? PortalCell(level.Walk, level.Width, level.Height, at.X, at.Y, at.Rotation)
+                : (at.X + PortalOffset, at.Y);
+            placed.Add(new AreaTransitionObject(x, y, to, itself ? at.Model : null, Rotation: at.Rotation,
                 Type: Resolve(portal.Type, $"{portal.Type.Split('/')[^1]} at {portal.AtObject.Split('/')[^1]}", notes))
                 { SourceType = portal.Type, QuestSource = source });
-            notes.Add($"quest portal {portal.Type.Split('/')[^1]} at ({at.X}, {at.Y}) → {portal.To}");
+            notes.Add($"quest portal {portal.Type.Split('/')[^1]} at ({x}, {y}) beside {portal.AtObject.Split('/')[^1]} ({at.X}, {at.Y}) → {portal.To}");
         }
     }
 
     // How far beside the object that opens it a quest portal stands (cells): clear of the Reverie Device's object_size 4.
     const int PortalOffset = 12;
+
+    /// <summary>Where a quest portal beside its object stands (Maligaro's portals beside the Reverie Device): on floor the
+    /// player at the object can walk to, <see cref="PortalOffset"/> cells along the object's own +X turned by its rotation,
+    /// else the nearest direction round it that has such floor, else a little nearer or farther. The floor reached from the
+    /// walkable cells within reach of the object (walk value 2 and up, 8 neighbours, as the exit audit reads it) without
+    /// going farther than twice the offset; the cell and its 8 neighbours must all be floor. Without any, +X as before.</summary>
+    internal static (int X, int Y) PortalCell(byte[] walk, int width, int height, int x, int y, float rotation)
+    {
+        bool Floor(int cx, int cy) => cx >= 0 && cy >= 0 && cx < width && cy < height && walk[cy * width + cx] >= 2;
+        const int Reach = 6, Range = PortalOffset * 2;
+        var seen = new HashSet<(int, int)>();
+        var queue = new Queue<(int X, int Y)>();
+        for (int dy = -Reach; dy <= Reach; dy++)
+            for (int dx = -Reach; dx <= Reach; dx++)
+                if (dx * dx + dy * dy <= Reach * Reach && Floor(x + dx, y + dy) && seen.Add((x + dx, y + dy))) queue.Enqueue((x + dx, y + dy));
+        while (queue.Count > 0)
+        {
+            var (cx, cy) = queue.Dequeue();
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int nx = cx + dx, ny = cy + dy;
+                    if (Math.Abs(nx - x) <= Range && Math.Abs(ny - y) <= Range && Floor(nx, ny) && seen.Add((nx, ny))) queue.Enqueue((nx, ny));
+                }
+        }
+        bool Clear(int cx, int cy)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                    if (!Floor(cx + dx, cy + dy)) return false;
+            return seen.Contains((cx, cy));
+        }
+        foreach (int distance in new[] { PortalOffset, PortalOffset - 2, PortalOffset - 4, PortalOffset + 4, PortalOffset + 8 })
+            for (int k = 0; k <= 16; k++)
+            {
+                // 0, +1, −1, +2, −2 … sixteenths of a turn from the object's own direction.
+                double angle = rotation + (k % 2 == 1 ? 1 : -1) * ((k + 1) / 2) * Math.PI / 8;
+                int cx = x + (int)Math.Round(Math.Cos(angle) * distance), cy = y + (int)Math.Round(Math.Sin(angle) * distance);
+                if (Clear(cx, cy)) return (cx, cy);
+            }
+        return (x + PortalOffset, y);
+    }
 
     /// <summary>Marks the exits without a model or object (<see cref="FromExits"/>: an entrance point no object marks)
     /// that lead to <paramref name="destination"/> as replaced by the quest portal of <paramref name="source"/>'s tables

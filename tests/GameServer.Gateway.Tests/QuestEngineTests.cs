@@ -230,6 +230,14 @@ public sealed class QuestEngineTests
         var trinity = new PackCatalog.AreaPacks("2_9_8", 60, [], new Dictionary<string, PackCatalog.Pack>(), [7, 8]) { Absent = new HashSet<int> { 1 } };
         Assert.Equal(new Dictionary<int, (int X, int Y)> { [8] = (50, 60) },
             AreaPopulation.LaterFormPoints(trinity, [new("mapboss1", 10, 10), new("mapboss2", 50, 60)], (_, _) => true));
+        // A quest portal beside its object stands on floor reached from the object: 12 cells along its turned +X, else the
+        // next direction round it that has floor (a wall 6 cells east of the object at (50, 50)).
+        var floor = new byte[100 * 100];
+        for (int cy = 0; cy < 100; cy++)
+            for (int cx = 0; cx < 100; cx++) floor[cy * 100 + cx] = (byte)(cx < 56 ? 2 : 0);
+        Assert.Equal((50, 62), AreaTransitionCatalog.PortalCell(floor, 100, 100, 50, 50, MathF.PI / 2));
+        var (wx, wy) = AreaTransitionCatalog.PortalCell(floor, 100, 100, 50, 50, 0);
+        Assert.True(wx < 55 && floor[wy * 100 + wx] == 2 && Math.Sqrt((wx - 50) * (wx - 50) + (wy - 50) * (wy - 50)) >= 8);
 
         // The Pantheon (campaign/pantheon.md): PantheonPanelLayout's 4 major and 8 minor gods (rows 4, 5, 7 and 12 are
         // disabled placeholders), each unlocked by its boss kill; a god's power, its upgrades only with their soul after

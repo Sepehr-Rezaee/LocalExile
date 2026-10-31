@@ -424,10 +424,12 @@ nothing about which in-area gate leads to which arrival (the Warden's Quarters, 
    twin the layout left out is created from its record (`QuestExitDestinations`), in the destination's act only
    (`SameAct`, WorldAreas Act: Act 10's burnt Oriath has the same tiles, and The Desecrated Chambers' exit keeps its
    layout's way to Act 10's Torched Courts). A quest portal no tile or room places
-   (`On.Portal`: Maligaro's portals beside the Reverie Device, Sin's EpiloguePortal) is created where its object stands
-   and stands in for the exit without a model (6.) to the same place (`AddQuestPortals`, `ReplacePointExits`). What a
-   quest adds or replaces in the shared layout is marked with the module whose tables did it (`QuestSource`,
-   `QuestReplaced`): a player whose league does not run those tables sees the layout as generated.
+   (`On.Portal`: Maligaro's portals beside the Reverie Device, Sin's EpiloguePortal) is created on its object or beside
+   it (`PortalCell`: 12 cells along the object's own turned +X, else the nearest direction round it, on floor joined to
+   the floor at the object; a fixed +X offset left Maligaro's portal off the floor at 18 of 41 seeds) and stands in for
+   the exit without a model (6.) to the same place (`AddQuestPortals`, `ReplacePointExits`). What a quest adds or
+   replaces in the shared layout is marked with the module whose tables did it (`QuestSource`, `QuestReplaced`): a
+   player whose league does not run those tables sees the layout as generated.
 
 The model plays no part, so this covers the Reskin, the objects the atlas cannot see and shared models without a
 special case each. A gate or exit the game enables later is sent enabled (no Transitionable step, no disabled bit).
