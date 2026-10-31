@@ -26,6 +26,7 @@ static partial class QuestobjectsRules
         foreach (var o in objects)
         {
             bool open = o.Type is LabyrinthTrials.Plaque or LabyrinthTrials.Portal ? lit : conn.Instance.Transitioned(o.Type, o.X, o.Y);
+            if (open && o.Type == LabyrinthTrials.Door) continue;   // an opened Locked Door is gone (RemoveOpenedDoor)
             uint id = conn.NextObjectId++;
             lock (conn.Monsters) conn.TrialObjects[id] = o;
             await Send(remote, stream, ciphers, InstanceEntities.CreateObject(id, InstanceEntities.ObjectTypeHash(o.Type),
@@ -121,26 +122,23 @@ static partial class QuestobjectsRules
             conn.DoorBarriers.Remove(id);
             conn.UpdateBarrier();
         }
-        _ = RecreateOpenDoor(remote, stream, ciphers, conn, id, o);
+        if (o.Type == LabyrinthTrials.Door) _ = RemoveOpenedDoor(remote, stream, ciphers, conn, id);
         return true;
     }
 
-    // Live (2026-10-31), 0x1c6 alone left a Locked Door's cells closed to the client's walking (a movement skill still
-    // crossed). Once its opening has played, the door is created again open: a TriggerableBlockage read unblocked from the
-    // 0x2b9 blob closes nothing, as on any later entry.
-    static async Task RecreateOpenDoor(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn, uint id,
-        AreaPopulation.RoomObject o)
+    // Live (2026-10-31), an opened Locked Door kept its cells closed to the client's walking (a movement skill still
+    // crossed) after 0x1c6, and also when created again open and unblocked: the client's object pass (0x141d88690)
+    // stamps some types' Hull whatever their TriggerableBlockage says. Its opening lifts the bars out of the way, so once
+    // it has played the door goes (0x2bb), and a later entry does not create an opened one.
+    static async Task RemoveOpenedDoor(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn, uint id)
     {
         await Task.Delay(TimeSpan.FromSeconds(DoorOpeningSeconds));
         if (conn.Closed) return;
-        await Send(remote, stream, ciphers, InstanceProtocol.RemoveObject(id), null);
-        await Send(remote, stream, ciphers, InstanceEntities.CreateObject(id, InstanceEntities.ObjectTypeHash(o.Type),
-                LabyrinthTrials.Blob(o.Type, o.Model, o.X, o.Y, o.Angle, o.Scale, LabyrinthTrials.Open)),
-            $"0x02b9 trial door 0x{id:x} {o.Type} created again open and unblocked");
-        await Send(remote, stream, ciphers, InstanceProtocol.EnterWakeZone(id), null);
+        lock (conn.Monsters) conn.TrialObjects.Remove(id);
+        await Send(remote, stream, ciphers, InstanceProtocol.RemoveObject(id), $"0x02bb opened trial door 0x{id:x} removed");
     }
 
-    // How long a door's opening plays before it is created again open (our own number: the animations' lengths are not read).
+    // How long a Locked Door's opening plays before it goes (our own number: the animation's length is not read).
     const double DoorOpeningSeconds = 1.5;
 
     // Whether the plaque is lit: the character has the trial's flag, or this instance's plaque was used.
