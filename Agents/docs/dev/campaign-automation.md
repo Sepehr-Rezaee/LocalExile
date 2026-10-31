@@ -9,8 +9,9 @@ quest is a small step file; quests without one are reported as not implemented a
 
 `order.py` lists the whole campaign (Acts 1–10 and the Epilogue, 82 entries). Step files exist for the acts that are
 on the quest engine: Act 1 (`a1q1` … `a1q9`), Act 2 (`a2q1` … `a2q11`, `a2q8a3` the arrival in Act 3), Act 3
-(`a3q1` … `a3q13`), Act 4 (`a4q1` … `a4q6`, `a5q1a` the Resonator), Act 5 (`a5q1b` … `a5q7`) and Act 6 (`a6q1` …
-`a6q7`; their `pantheon` steps choose the gods Sin's rows allow). An act's step files come with its tables
+(`a3q1` … `a3q13`), Act 4 (`a4q1` … `a4q6`, `a5q1a` the Resonator), Act 5 (`a5q1b` … `a5q7`), Act 6 (`a6q1` …
+`a6q7`; their `pantheon` steps choose the gods Sin's rows allow) and Acts 7–10 with the Epilogue (`a7q1` … `a10q6`,
+`A11q0` Lilly's voyage to Karui Shores, `a10q3a11` Lani's reward there). An act's step files come with its tables
 ([campaign quests](../game/campaign-quests.md) "Adding an act"); until then its quests are "not implemented", which
 does not fail a run, and `steps.py` already has the verbs and town list the later acts use (`pantheon` needs the
 Pantheon module's `/state` field).
@@ -254,4 +255,6 @@ file parsing. `CampaignCommandTests` checks `/state`'s JSON and reply lines and 
 Live history: the same driver (then in `Program.Campaign.cs`, before the game moved into modules) played all 82
 entries of `order.py` from a fresh level-1 Witch unattended in 1 h 00 min on 2026-10-31 (seed 1, copied save
 database, Acts 1–10 and the Epilogue, no `/goto`; per act 4–8 minutes).
-Acts 1–6 on the module quest engine, through this checkout's own ports and session client, are still to be run live.
+Acts 1–10 on the module quest engine, through this checkout's own ports and session client, are still to be run live.
+A run of Acts 7–10 alone starts `-Preset E3StartOfAct7 -From a6q1`: the preset leaves the character on The Brine King's
+Reef, and a6q1's step file has Weylam's voyage to The Bridge Encampment.
