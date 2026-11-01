@@ -904,6 +904,8 @@ static partial class Game
         var weapon = WeaponFor(conn);
         int? castDuration = spell ? CastMs(conn, gem.Effect, skillId) : 0;
         if (castDuration is null) return;
+        // Ruthless: whether this use is its skill's Ruthless Blow, counted as it starts.
+        double ruthless = spell ? 1 : RuthlessBlowMore(conn, skillId, Stat);
         double delay;
         // A spell lands at its area cast clip's contact keyframe (a repeat a whole cast later each), an attack at its
         // swing's; the player swings where it stands, so without the walk-in offset.
@@ -1016,6 +1018,7 @@ static partial class Game
                     pen = Penetration.Of(player, Stats, attack: !spell, skillStats, local);
                     mods = HitResistMods(player, skillStats);
                     sweepHit = SupportedHit(conn, skillId);
+                    if (ruthless != 1) sweepHit = sweepHit.Scale(ruthless);
                     sweepMultiplier = SupportedCriticalMultiplier(conn, skillId);
                     if (!spell) accuracy = SupportedAccuracy(conn, skillId);
                     leech = HitLeechSources(player, !spell, skillStats, local);
