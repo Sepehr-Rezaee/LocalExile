@@ -435,6 +435,8 @@ sealed partial class ClientState(AreaLayout layout, uint ticket, uint seed)
     public readonly WardState Ward = new();
     public readonly AntiquarianCombatState Antiquarian = new();
     public readonly TimedLifeRecovery EnduringCryRecovery = new();
+    // Life Recoup of the hits the player took (Game.RecoupHitLocked), paid by the resource recovery loop.
+    public readonly RecoupRecovery LifeRecoup = new();
     public double SentEnduringCryUntil = double.NaN;
     public ushort EnduringCryBuff;
     public bool AppliedAdrenaline;

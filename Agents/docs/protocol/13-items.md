@@ -1358,6 +1358,13 @@ The Silver Flask's buff has no stats, only the flag `silver_flask_display_onslau
 (row 215) on the player with the values of BuffTemplates `MapModPlayerOnslaught` (20, 20, 20). How each buff stat counts
 is `UtilityFlasks.SupportOf`: modelled (the pools, the walk, drops, damage), only the character panel (ailments, stun
 and unsupported curse/ailment effects), or Ward.
+The same buff comes from a kill (`OnslaughtOnKill.cs`): `chance_to_gain_onslaught_on_kill_%` for
+`onslaught_time_granted_on_kill_ms` (4 s when 0, as its stat description reads), the `_for_4_seconds_%` and
+`_for_10_seconds_%` chances, and `onslaught_buff_duration_on_kill_ms` always. Each rolls on its own and a gain never
+shortens one running. Its stats are this buff's (Ruthless' template has no movement speed) at the character's
+`onslaught_effect_+%`, as more sources of `buff 215` in `UtilityStats`, so with a Silver Flask's the stronger counts once.
+They apply only once the client has been sent the buff (0x1c1, the countdown at +0x68), then the pools, walk, stats and
+skills go out; a running flask's Onslaught hides the kill's icon, and expiry or death takes it off (0x1c2).
 Ward flat/increased bonuses feed the authoritative pool through `UtilityFlasks.Apply`.
 After a successful charge payment and effect start, `local_flask_restore_ward` restores broken Ward immediately.
 Stat projection, refused uses and ordinary effect refresh never restore Ward.

@@ -16,6 +16,8 @@ sealed class MonsterElementalAilments
         public bool LessDealt { get; init; }
         // A shock's proliferation radius in cells when it landed; 0 for one that does not spread, as a spread copy.
         public int Spread { get; init; }
+        // Within the Tempest's shock on the corpse, which came after the death (a spread copy of it did not).
+        public bool OnKill { get; init; }
     }
     readonly List<Effect> effects = [];
     // The strongest shock another enemy's proliferation puts on this one, set again on every AI tick.
@@ -33,6 +35,9 @@ sealed class MonsterElementalAilments
     // The AI asks every living monster each tick, and most have no ailment: that case allocates nothing.
     public double Magnitude(Kind kind, double now) =>
         effects.Count == 0 && spread is null ? 0 : Active(kind, now).Select(e => e.Magnitude).DefaultIfEmpty().Max();
+
+    /// <summary>Whether it was shocked when it died: Within the Tempest's shock on its corpse does not count.</summary>
+    public bool ShockedAtDeath(double now) => Active(Kind.Shock, now).Any(e => !e.OnKill && e.Magnitude > 0);
 
     /// <summary>Seconds until the last active effect of <paramref name="kind"/> ends (0 when none).</summary>
     public double Remaining(Kind kind, double now) => Active(kind, now).Select(e => e.Until - now).DefaultIfEmpty().Max();
@@ -77,7 +82,7 @@ sealed class MonsterElementalAilments
     /// this monster affects it at the same effect until that shock ends, like an aura; the copy does not spread again and
     /// is not a new shock. Null, or a monster that cannot be shocked, takes it off.</summary>
     public void Proliferated(Effect? shock, Func<string, int> target) =>
-        spread = shock is null || Immune(Kind.Shock, target) ? null : shock with { Spread = 0 };
+        spread = shock is null || Immune(Kind.Shock, target) ? null : shock with { Spread = 0, OnKill = false };
 
     /// <summary>Chill and shock effect: floor(50 × (damage / threshold)^0.4 × effect modifiers), up to the cap, and none
     /// below 5% (the modifiers count before both limits).</summary>
@@ -136,14 +141,18 @@ sealed class MonsterElementalAilments
     {
         effects.Clear();
         spread = null;
+        Shattered = true;
     }
+
+    /// <summary>A hit killed it while frozen and it shattered: its freeze is gone, but the kill was of a frozen enemy.</summary>
+    public bool Shattered { get; private set; }
 
     /// <summary>Within the Tempest (enemy_shock_on_kill): the shock a killed monster's corpse gets, 15% base for 2 s
     /// through the shock effect and duration modifiers (wiki Within the Tempest; the 15% of shocks without damage, wiki
     /// Shock), up to 50%. It spreads like any shock the player inflicts, by the player's area modifier <paramref name="area"/>.</summary>
     public Effect? ShockOnKill(double now, Func<string, int> attacker, Func<string, int> target, double area = 1) =>
         Apply(new(Kind.Shock, now, now + 2, Math.Min(50, Math.Floor(15 * EffectModifier(Kind.Shock, attacker, target))))
-            { Spread = SpreadRadius(attacker, area) }, attacker, target);
+            { Spread = SpreadRadius(attacker, area), OnKill = true }, attacker, target);
 
     static double EffectModifier(Kind kind, Func<string, int> attacker, Func<string, int> target) =>
         Math.Max(0, 1 + attacker($"virtual_{Name(kind)}_effect_+%") / 100.0)

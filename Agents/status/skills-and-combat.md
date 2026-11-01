@@ -549,9 +549,11 @@ Part of [Status](../Status.md); what to build next in this area is in
   Claw mastery instant leech counts active usable claws, Weapon Master applies its claw condition once, and
   Gore Dancer's Life instant source survives Ghost Reaver conversion. Real-source contacts and split/override
   controls pass; exact native mixed Life/ES instant composition remains unverified (damage §5b records the policy).
+  Kills recover Life, Mana and ES on kill, also by ailment; not checked live ([20](../docs/protocol/20-damage.md) §5b).
   Highwayman's real modifier now doubles total Life-leech recovery once, independently of the explicit Life
   maximum-rate doubling flag. Source/removal, duplicate flags, caps, duration, instant and conversion controls pass;
   current Vaal Pact acquisition and native stacking/recovery parity are not implied by raw-flag support.
+  Attack gain on hit recovers Life, Mana and ES; not checked live ([20](../docs/protocol/20-damage.md) §5b).
   Code: `LeechLimits.cs`, `LeechSources.cs`, `LeechRecoveryState.cs`, `LeechSession.cs`, Gateway (`Program.Leech`, resource writer).
   Docs: [20](../docs/protocol/20-damage.md) §5b.
 - Ordinary Life/Mana regeneration: flat and maximum-pool percentage sources receive regeneration and recovery increases.
@@ -847,6 +849,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Gateway coverage; not yet checked with the real client.
   Code: `PlayerMinions.cs`, `MinionAttacks.cs`, `RunMonsterAi`.
   Docs: [11](../docs/protocol/11-skills.md) section 10h.
+- Life Recoup returns a share of each hit taken over the next 4 s ([20](../docs/protocol/20-damage.md) §5).
 - Ancestral Commander defences: `damage_reduction_rating_from_body_armour_doubled` doubles the body armour's armour
   (and, with Iron Reflexes, its converted evasion) before the increases.
   `missing_unreserved_life_%_gained_as_life_before_hit` gains that share of missing Life before every non-evaded
@@ -1062,6 +1065,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Enemy and ally passive auras are not applied.
   Code: `PassiveBuffAuras.cs`.
   Docs: [11](../docs/protocol/11-skills.md) §12.
+- Onslaught on kill grants the Onslaught buff and its speed ([13](../docs/protocol/13-items.md) §8a).
 - **Stats.** The client's stat key is the Stats.dat row + 1 with the vendored schema
   ([11](../docs/protocol/11-skills.md) §8); `/set_stat` takes stat names or keys.
   The [357-stat ledger](../docs/dev/issue75-stat-ledger.md) tracks current individual review state and remaining

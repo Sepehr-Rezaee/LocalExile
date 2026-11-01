@@ -858,6 +858,15 @@ recovery prohibition (`no_energy_shield_recharge_or_regeneration`, `cannot_recov
 `no_energy_shield_recovery`) drops the converted part rather than returning it to Life. Conditional flask/item sources
 and other regeneration conversions remain separate work.
 
+Life Recoup joins the same loop. Each monster hit the player takes (after block, mitigation and Fortification, before
+ward, energy shield and life absorb it; dev hits too) starts its own recovery in `RecoupRecovery`: the hit's damage ×
+`damage_taken_goes_to_life_over_4_seconds_%`, plus each type's damage × its own stat
+(`physical_damage_taken_recouped_as_life_%`, `{fire,cold,lightning,chaos}_damage_taken_goes_to_life_over_4_seconds_%`),
+× (1 + `life_recovery_rate_+%`), paid evenly over 4 s (3 s with Nine Lives' `recoup_effects_apply_over_3_seconds_instead`
+or `recoup_life_effects_apply_over_3_seconds_instead`). poedb's Recoup page gives the rule ("Only Damage from Hits can be
+Recouped, over 4 seconds following the Hit") and PoB CalcDefence the recovery-rate scaling and the damage it counts.
+`cannot_recover_life` stops it, and death and area loading drop what is left. Damage over time is not recouped.
+
 Ten native controls verified flat sources, independent increase buckets, prohibition, source clearing and relog.
 The 600/minute Life control became 1080 with 50% regeneration and 20% recovery, matching actual 18 Life/second.
 A 750-Mana character with 1200 flat/minute, 40% regeneration and 20% recovery received 3339/minute,
@@ -896,10 +905,37 @@ General/resource instant percentages split off immediate recovery inside the acc
 enemy hit can act. Instant Life/Mana notifications are marked dirty for the existing writer; ES uses its normal sender.
 Sub-point instant recovery retains a separate carry and discards overflow at full pools.
 
+Life, Mana and ES gained per enemy hit join that instant recovery: `LeechSources.GainOnHit` is computed with the
+coefficients, and every accepted enemy hit adds it once, whatever the hit's damage (an area attack hitting five
+monsters gains five times). Every 3.29 source is an attack's: `base_life_gain_per_target` (the Life Gain on Hit support,
+"Gain X Life per Enemy Hit with Attacks" on jewellery and quivers), `mana_gain_per_target`,
+`energy_shield_gain_per_target`, and the attacking weapon's local `local_life_gain_per_target`,
+`local_mana_gain_per_target` and `local_life_and_mana_gain_per_target` (PoB `SkillStatMap` maps
+`base_life_gain_per_target` to `LifeOnHit` for attacks; its `CalcOffence.lua` "Calculate gain on hit" applies no
+recovery-rate multiplier). Spells gain nothing. The cannot-recover Life/ES flags stop the gain; a monster's
+cannot-be-leeched flags do not. The conditional sources (against blinded, cursed or ignited enemies, while leeching,
+while affected by Vitality or Discipline, after a Vaal skill) are not read.
+
 Ordinary leech ends at full unreserved Mana/full Life/full ES; supported unconditional Life/ES overleech flags retain
 their instances. Instant flasks, block gains and the recovery writer trim full pools at their commits. Death, resurrection,
 successful area transfer and disconnect clear state. Pause uses the stopped game clock. Supported cannot-leech flags
 remove matching instances; cannot-recover Life/ES suppress recovery without inventing a cannot-leech source.
+
+A kill by the player recovers its "on kill" amounts at once (`KillRecovery`, `RecoverOnKill`), from the ordinary
+death (`MonsterKilled`, including ignite kills) and the projectile commit (`CommitProjectileKill`); a minion's kill
+does not. The flat `base_*_gained_on_enemy_death` plus `*_gained_on_enemy_death_per_level` × character level, and
+`recover_%_maximum_life_on_kill`, `recover_%_maximum_mana_on_kill`, `maximum_mana_%_gained_on_kill` and
+`recover_energy_shield_%_on_kill` of the maximum pool, are summed and floored per pool, with no recovery-rate
+multiplier (PoB `CalcOffence.lua` "LifeOnKill"). Mana stops at unreserved Mana. The amounts are read when the player
+stats are built (`ConfigureLeech`), not per death, and the cannot-recover Life/ES flags stop their pool.
+Killing an ailing enemy adds `life_gained_on_killing_ignited_enemies` (flat Life),
+`recover_%_maximum_life_on_killing_chilled_enemy` (percent Life), `gain_X_energy_shield_on_killing_shocked_enemy` and
+`recover_X_mana_on_killing_frozen_enemy` (`KillRecovery.For`). The killing hit's own ailments count (wiki Ailment), so
+the corpse's state at `MonsterKilled` decides: a shattered monster counts as frozen (`MonsterElementalAilments.Shattered`),
+one whose ignites were cleared at death as ignited (`MonsterIgnites.DiedBurning`, also when its ignite's last tick
+killed it), and Within the Tempest's shock on the corpse does not count as shocked (`ShockedAtDeath`). A negative
+total (the "Lose X Life per Enemy Killed" forms) recovers nothing. Killing a cursed enemy, with Rage, with a tincture,
+per mastery type, and the "lost on kill" stats are not read.
 
 Decisions and alternatives:
 
@@ -1075,7 +1111,8 @@ mitigation are composed as described in the [projectile module](../game/projecti
   suppresses; bleed movement bonus; poison stacking.
   Supported incoming elemental ailments are bounded by [Gambler](../game/gambler.md#incoming-elemental-ailments).
 - Per-monster damage conversion and monster-specific mitigation.
-- Damage reflection, specialized leech conversions/conditions, life/mana gain on hit, and recoup. Ordinary leech is in §5b.
+- Damage reflection, specialized leech conversions/conditions, conditional gain on hit, and Mana and Energy Shield
+  recoup. Ordinary leech and gain on hit are in §5b, Life Recoup in §5.
 - Party/minion damage and the full support-gem effect set.
 
 The next support-gem work (#64) can add its effects as packet operations: `Add` for added damage, `Scale` for

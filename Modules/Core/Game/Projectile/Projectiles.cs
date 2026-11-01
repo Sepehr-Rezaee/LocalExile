@@ -287,7 +287,8 @@ static partial class Game
             double physical = rolled[DamageType.Physical].Min * (critical ? Math.Max(0, shot.CriticalMultiplier) / 100d : 1);
             var (stored, _) = target.Impale.OnHit(physical, at, settings, random, target.Mods.Effects["avoid_impale_%"]);
             damage = ImpaleStats.AddReflected(damage, MonsterImpaleDamage(target, stored));
-            var hit = ApplyMonsterHitLocked(Conn, target, damage, player: player);
+            var hit = ApplyMonsterHitLocked(Conn, target, damage, player: player,
+                cull: Cull.Of(player, shot.SkillStats, critical, shot.Spell));
             if (hit is null) return ProjectileHitResult.Miss;
             AilmentsOnHitLocked(Conn, target, mitigated, shot.Spell, critical, multiplier, player, shot.SkillStats,
                 at, contact.Projectile.ReactionRandomSource);

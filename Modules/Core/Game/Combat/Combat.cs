@@ -297,7 +297,8 @@ static partial class Game
                 if (!fortified) fortified = FortificationOnHitLocked(conn, m, RawFortificationDamage(ownRolled, critical, criticalMultiplier),
                     WeaponProfileFor(conn, activeSet: true).Melee, player, ownPenetration);
                 var rampageSource = RampageOnMeleeHitLocked(conn, m, WeaponProfileFor(conn, activeSet: true).Melee, player);
-                (m.Life, stageStarts) = TakeOwnerDamageLocked(conn, m, damage, rampageSource, player);
+                (m.Life, stageStarts) = TakeOwnerHitLocked(conn, m, damage, Cull.Of(player, ownPenetration, critical, spell: false),
+                    rampageSource, player);
                 if (stageStarts)
                 {
                     CommitBossStage(remote, stream, ciphers, conn, targetId, m, ProjectileWorldTime(conn));
@@ -1058,7 +1059,8 @@ static partial class Game
                 // current raw source so a refund between victims cannot keep granting from the sweep's old snapshot.
                 var rampagePlayer = freshPlayer ? player : null;
                 var rampageSource = RampageOnMeleeHitLocked(conn, m, !spell && SkillsFor(conn).IsMelee(gem.Effect), rampagePlayer);
-                applied = ApplyMonsterHitLocked(conn, m, damage, rampageSource, rampagePlayer);
+                applied = ApplyMonsterHitLocked(conn, m, damage, rampageSource, rampagePlayer,
+                    cull: Cull.Of(player, skillStats, critical, spell));
                 if (applied is not null)
                 {
                     landed++;
@@ -1192,10 +1194,11 @@ static partial class Game
     // The short state mutation is shared with projectile impact; no awaits under Monsters. A minion's hit (allyAt: where
     // it hits from) is not the player's hit for his hit-recently.
     internal static MonsterHit? ApplyMonsterHitLocked(ClientState conn, SpawnedMonster m, int damage,
-        bool? rampageSource = null, IReadOnlyDictionary<uint, int>? player = null, (int X, int Y)? allyAt = null)
+        bool? rampageSource = null, IReadOnlyDictionary<uint, int>? player = null, (int X, int Y)? allyAt = null,
+        Cull cull = default)
     {
         if (m.Dead || m.Life == 0) return null;
-        (m.Life, bool starts) = TakeOwnerDamageLocked(conn, m, damage, rampageSource, player);
+        (m.Life, bool starts) = TakeOwnerHitLocked(conn, m, damage, cull, rampageSource, player);
         if (allyAt is null) conn.LastEnemyHitAt = m.PlayerHitAt = ProjectileWorldTime(conn);
         if (m.Life == 0) { m.Aggro = false; m.Dead = true; CollectVaalSoulAtDeathLocked(conn, m); }
         TriggerElementalRelicLocked(conn, m, hit: damage > 0, killed: m.Life == 0, allyAt);
@@ -1378,7 +1381,9 @@ static partial class Game
         if (playerKill)
         {
             await Program.ServerHooks.MonsterKilled(new(killer, monster));
+            if (OnslaughtOnKill(conn)) await SendKillOnslaught(remote, stream, ciphers, conn);
             ChargesOnKill(conn, m);
+            RecoverOnKill(conn, m);
         }
         await SetQuestFlags(remote, stream, ciphers, conn, QuestsOf(conn).OnMonsterKilled(conn.Layout.Id, variety.Id));
         await GameEvents.RunKill(new(conn, m, variety.Id, at) { PlayerKill = playerKill });
