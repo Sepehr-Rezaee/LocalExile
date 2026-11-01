@@ -201,8 +201,8 @@ up, talk, reward, use an item) played through the same tables, NPCTalk rows, ite
 exits and the client's WorldAreas gates; a step the game would refuse throws. After Act 1 the flags contain
 `Act1Complete`'s and a1q1–a1q8 are complete; after Act 2 (all three bandits killed) `Act2CompleteEramir`'s, after
 Act 3 `Act3Complete`'s, after Act 4 `Act4Complete`'s, each act's quests complete (Acts 5 and 6 have no preset of their
-own: every quest of theirs reaches its "complete" row); from `E3StartOfAct7` (the table has no preset at the end of
-Act 6) Acts 7 and 8 reach `E3EndOfAct8`'s act 7–8 flags, Acts 9 and 10 `EpilogueAtlasDemo`'s act 7–10 flags, every
+own: every quest of theirs reaches its "complete" row); after Act 6 Acts 7 and 8 reach `E3EndOfAct8`'s act 7–8
+flags, Acts 9 and 10 `EpilogueAtlasDemo`'s act 7–10 flags, every
 quest of acts 7–10 and the Epilogue completes with the campaign's 24 quest passive and 20 refund points, and Kitava's
 Act 10 penalty counts only once his end earns `EndGameAvailable` (`QuestSimulator.Unearned`, as
 `ClientState.UnearnedQuestFlags`); later acts add their sequence and preset.

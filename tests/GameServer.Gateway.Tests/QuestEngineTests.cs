@@ -586,9 +586,9 @@ public sealed class QuestEngineTests
             .Enter(BridgeEncampment, travel: true);
     }
 
-    /// <summary>A character at the start of Act 7 as /quest_preset E3StartOfAct7 makes it (CampaignState.PresetFlags; the
-    /// table has no preset at the end of Act 6): in The Bridge Encampment with the preset's quest item (Lilly's Book of
-    /// Regrets: a6q4-HaveRewardBook without its use flag), which it uses.</summary>
+    /// <summary>A character at the start of Act 7 as /quest_preset E3StartOfAct7 makes it (CampaignState.PresetFlags), for
+    /// the checks of a later act that need no played Acts 1–6: in The Bridge Encampment with the preset's quest item
+    /// (Lilly's Book of Regrets: a6q4-HaveRewardBook without its use flag), which it uses.</summary>
     internal static QuestSimulator FromAct7()
     {
         var s = new QuestSimulator();
@@ -769,10 +769,11 @@ public sealed class QuestEngineTests
             .Select(q => $"{presetId} {q}: {states.Current(q, s.Has)?.Text ?? "not started"}"));
     }
 
-    /// <summary>The campaign oracle, Acts 1 to 6 in one character's order: each act's events give its CharacterStartQuestState
-    /// preset (Act1Complete, Act2CompleteEramir, Act3Complete, Act4Complete; Acts 5 and 6 have none) and every quest's
-    /// "complete" row, the books' points and the way into the next act; the exits, objects and NPCs a quest gates stay
-    /// shut, unused or absent until their flags.</summary>
+    /// <summary>The campaign oracle, Acts 1 to 10 and the Epilogue in one character's order: each act's events give its
+    /// CharacterStartQuestState preset (Act1Complete, Act2CompleteEramir, Act3Complete, Act4Complete, E3EndOfAct8's and
+    /// EpilogueAtlasDemo's act flags; Acts 5, 6, 9 and 10 have none of their own) and every quest's "complete" row, the
+    /// books' points and the way into the next act; the exits, objects and NPCs a quest gates stay shut, unused or absent
+    /// until their flags.</summary>
     [Fact]
     public void The_campaign_oracle_plays_the_acts_through_the_engine_to_their_presets()
     {
@@ -826,43 +827,6 @@ public sealed class QuestEngineTests
         Assert.Equal("1_4_town", s.Area);
         Assert.Empty(s.Carried);
         Assert.True(QuestSpawned(AncientPyramid, Act2Monsters.VaalOversoul) && QuestSpawned(UpperSceptreOfGod, Act3Monsters.DominusAscendant));
-
-        // Acts 7–10 and the Epilogue from E3StartOfAct7 (FromAct7: the table has no preset at the end of Act 6): 13 quest
-        // passive points and 12 refund points from Acts 1–6. After Act 8 the flags of acts 7 and 8 in E3EndOfAct8 (the
-        // preset is cumulative and lists every earlier act's item-held flags, which a played character no longer has).
-        var late = FromAct7();
-        Assert.Equal((13, 12), (late.PassivePoints, late.RefundPoints));
-        Play(late, Act7);
-        Play(late, Act8);
-        Assert.Equal([], PresetFlagsOf("E3EndOfAct8", "a7q|a8q").Where(f => !late.Has(f)).ToArray());
-        Assert.Equal(Act8Areas.BloodAqueduct, late.Area);
-        // Kitava's Act 10 penalty: EndGameAvailable, which every character is given for the Atlas (sent in a hideout
-        // and the maps only, Quests.EndgameOnly), is not earned before him (Act 5's −30% only), so the Epilogue stays
-        // shut in Oriath Docks: no "Set Sail from Oriath" (1433), no Kitava reward from Lani (1415/1416), no way into
-        // Karui Shores. His scripted end earns it (another −30%) and the Act 10 steps below take all three.
-        Play(late, Act9);
-        Assert.Contains(EndGameAvailable, late.Unearned);
-        Assert.False(late.Has(EndGameAvailable));
-        Assert.Equal(-30, Penalty(late));
-        Assert.Throws<QuestSimulator.StepFailed>(() => late.Talk(Lilly10, "Set Sail from Oriath"));
-        Assert.Throws<QuestSimulator.StepFailed>(() => late.Talk(Lani10, "Kitava", IndexOf(Lani10, 1415)));
-        Assert.Throws<QuestSimulator.StepFailed>(() => late.Reward(Lani10, "Kitava Reward"));
-        Assert.Throws<QuestSimulator.StepFailed>(() => late.Enter(Act10Areas.KaruiShores, travel: true));
-        Play(late, Act10);
-        Assert.DoesNotContain(EndGameAvailable, late.Unearned);
-        Assert.Equal(-60, Penalty(late));
-        // The Epilogue's EpilogueAtlasDemo: acts 7–10's quest flags and EndGameAvailable; every quest of acts 7–10, A11q0
-        // and a10q3a11 at its "complete" row; the campaign's 24 quest passive points and 20 refund points; Karui Shores.
-        Assert.Equal([], PresetFlagsOf("EpilogueAtlasDemo", "a7q|a8q|a9q|a10q|A11|EndGameAvailable").Where(f => !late.Has(f)).ToArray());
-        string[] lateQuests = [.. Enumerable.Range(7, 4).SelectMany(a => states.QuestsOfAct(a)).Where(q => System.Text.RegularExpressions.Regex.IsMatch(q, @"^a\d+q")),
-            "a10q3a11", "A11q0"];
-        Assert.Equal(29, lateQuests.Distinct().Count());
-        Assert.Empty(lateQuests.Where(q => !states.Complete(q, late.Has)).Select(q => $"{q}: {states.Current(q, late.Has)?.Text ?? "not started"}"));
-        Assert.Equal((24, 20), (late.PassivePoints, late.RefundPoints));
-        Assert.Equal(Act10Areas.KaruiShores, late.Area);
-        Assert.Empty(late.Carried);
-        Assert.True(QuestSpawned(Act9Areas.RottingCore, Act9Monsters.DepravedTrinity) && QuestSpawned(Act9Areas.Oasis, Act9Monsters.Shakari2)
-            && QuestSpawned(Act8Areas.HarbourBridge, Act8Monsters.Solaris) && QuestSpawned(Act10Areas.CathedralRooftop, Act10Monsters.Plaguewing));
 
         // The Thaumetic Seal and the tree need their items, the Strange Device Helena's rescue.
         var seal = new QuestSimulator();
@@ -939,6 +903,39 @@ public sealed class QuestEngineTests
         Assert.Equal(["TheBrineKing", "Abberath", "Tukohama", "Ryslatha"],
             PantheonCatalog.Default.Value.Gods.Where(g => PantheonCatalog.Unlocked(g, s.Has)).Select(g => g.Id));
         Assert.True(QuestStates.Default.Value.IsSession("CanChangePantheon"));
+        // Acts 7–10 and the Epilogue after Act 6. After Act 8 the flags of acts 7 and 8 in E3EndOfAct8 (the preset is
+        // cumulative and lists every earlier act's item-held flags, which a played character no longer has).
+        Play(s, Act7);
+        Play(s, Act8);
+        Assert.Equal([], PresetFlagsOf("E3EndOfAct8", "a7q|a8q").Where(f => !s.Has(f)).ToArray());
+        Assert.Equal(Act8Areas.BloodAqueduct, s.Area);
+        // Kitava's Act 10 penalty: EndGameAvailable, which every character is given for the Atlas (sent in a hideout
+        // and the maps only, Quests.EndgameOnly), is not earned before him (Act 5's −30% only), so the Epilogue stays
+        // shut in Oriath Docks: no "Set Sail from Oriath" (1433), no Kitava reward from Lani (1415/1416), no way into
+        // Karui Shores. His scripted end earns it (another −30%) and the Act 10 steps below take all three.
+        Play(s, Act9);
+        Assert.Contains(EndGameAvailable, s.Unearned);
+        Assert.False(s.Has(EndGameAvailable));
+        Assert.Equal(-30, Penalty(s));
+        Assert.Throws<QuestSimulator.StepFailed>(() => s.Talk(Lilly10, "Set Sail from Oriath"));
+        Assert.Throws<QuestSimulator.StepFailed>(() => s.Talk(Lani10, "Kitava", IndexOf(Lani10, 1415)));
+        Assert.Throws<QuestSimulator.StepFailed>(() => s.Reward(Lani10, "Kitava Reward"));
+        Assert.Throws<QuestSimulator.StepFailed>(() => s.Enter(Act10Areas.KaruiShores, travel: true));
+        Play(s, Act10);
+        Assert.DoesNotContain(EndGameAvailable, s.Unearned);
+        Assert.Equal(-60, Penalty(s));
+        // The Epilogue's EpilogueAtlasDemo: acts 7–10's quest flags and EndGameAvailable; every quest of acts 7–10, A11q0
+        // and a10q3a11 at its "complete" row; the campaign's 24 quest passive points and 20 refund points; Karui Shores.
+        Assert.Equal([], PresetFlagsOf("EpilogueAtlasDemo", "a7q|a8q|a9q|a10q|A11|EndGameAvailable").Where(f => !s.Has(f)).ToArray());
+        string[] lateQuests = [.. Enumerable.Range(7, 4).SelectMany(a => states.QuestsOfAct(a)).Where(q => System.Text.RegularExpressions.Regex.IsMatch(q, @"^a\d+q")),
+            "a10q3a11", "A11q0"];
+        Assert.Equal(29, lateQuests.Distinct().Count());
+        Assert.Empty(lateQuests.Where(q => !states.Complete(q, s.Has)).Select(q => $"{q}: {states.Current(q, s.Has)?.Text ?? "not started"}"));
+        Assert.Equal((24, 20), (s.PassivePoints, s.RefundPoints));
+        Assert.Equal(Act10Areas.KaruiShores, s.Area);
+        Assert.Empty(s.Carried);
+        Assert.True(QuestSpawned(Act9Areas.RottingCore, Act9Monsters.DepravedTrinity) && QuestSpawned(Act9Areas.Oasis, Act9Monsters.Shakari2)
+            && QuestSpawned(Act8Areas.HarbourBridge, Act8Monsters.Solaris) && QuestSpawned(Act10Areas.CathedralRooftop, Act10Monsters.Plaguewing));
 
         // Highgate's Dialla: DiallaTown until the Rapture Device works, DiallaTownWithered after (both town room lines).
         Assert.True(NpcPresent(Highgate, Act4Npcs.DiallaTown, With()) && !NpcPresent(Highgate, Act4Npcs.DiallaTownWithered, With()));

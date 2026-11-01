@@ -58,7 +58,7 @@ Part of [Status](../Status.md); what to build next in this area is in
   after a relog; refund points are credited once (the Book of Regrets: 54 → 56); QuestStaticRewards' stats are stat
   sources. `QuestSimulator` plays an act's events through the engine; `QuestEngineTests` checks Acts 1–6 against
   `Act1Complete`, `Act2CompleteEramir`, `Act3Complete`, `Act4Complete` and every Act 5 and 6 quest's "complete" row,
-  and Acts 7–10 from `E3StartOfAct7` against `E3EndOfAct8` and `EpilogueAtlasDemo`.
+  and Acts 7–10 and the Epilogue after them against `E3EndOfAct8` and `EpilogueAtlasDemo`.
   What existing saves see: a character with `a10q3-SeenBoss` but without `EndGameAvailable` earned no longer has the
   Act 10 −30% resistance penalty (it follows `EndGameAvailable`, QuestStaticRewards 39); a second copy of a quest book
   (from `/item`) is used up without its points once the first was used; a quest item lying on the ground after its
