@@ -1032,14 +1032,18 @@ This is a research baseline, not new live skill acceptance or complete native/se
 - **Auras (the simple set is verified live).** Reservation is read from GrantedEffectsPerLevel (`ManaReservationFlat`
   / `ManaReservationPercent`), reduced by the passive/mastery reservation efficiency and sent as the Life pool's
   reserved mana (and in every 0x1b1 mana update).
-  Aura skills toggle on cast; Purity of Elements/Fire/Ice/Lightning, Clarity, Vitality, Precision and Haste apply
-  their gem's level and quality effects and buff icons; their 3D effects (`affected_player.epk`, `faster_attack.epk`
-  …) do not render yet.
+  Aura skills toggle on cast; Purity of Elements/Fire/Ice/Lightning, Clarity, Vitality, Precision, Haste,
+  Determination, Grace, Discipline, Anger, Hatred, Wrath, Zealotry, Malevolence and Envy apply their gem's level and
+  quality effects and buff icons; their 3D effects (`affected_player.epk`, `faster_attack.epk` …) do not render yet.
+  Pride applies its enemy debuff: every hostile monster in its radius carries BuffDefinitions 1331 and takes its
+  `physical_damage_aura_nearby_enemies_physical_damage_taken_+%` (19% at level 20) rising linearly to `_max` (39%)
+  after 4 s, both scaled by aura effect; the ramp resets on leaving the aura and feeds hits and physical damage over
+  time. Live 2026-11-01: `Auras: Pride (0 flat, 50%)`, `0x01c1` with row 1331 on a Rhoa, `0x01c2` on toggle-off, and
+  death cleared both.
   The skill-bar active frame and rotating circle now receive the buff's skill id/action hash association (0x1c1 bit3),
   including area-entry restoration; automated checks pass, live icon verification pending.
-  Not modelled: combat auras (Anger/Hatred/Wrath/Zealotry/Pride), Heralds, banners, curse auras,
-  unsupported conditional effects, Purity ailment immunity, Reservation masteries 1/2/6,
-  supports, party/minion auras and life reservation
+  Not modelled: Heralds, banners, curse auras, unsupported conditional effects, Purity ailment immunity, Reservation
+  masteries 1/2/6, supports, party/minion auras and life reservation
   ([11](../docs/protocol/11-skills.md) 13).
 - **Totems (Rejuvenation Totem only).** The gem's use summons its totem after the 0.6 s summon, at the aimed cell:
   a team-0 monster object with the variety's minion Life at the gem's level requirement, its duration and the limit
