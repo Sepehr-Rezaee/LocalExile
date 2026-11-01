@@ -882,6 +882,9 @@ static partial class Game
         // The new player object starts with exactly these (PlayerStatsWithCleared clears from here).
         lock (conn.Monsters) conn.SentStatKeys = [.. statList.Select(s => s.Item1), .. weaponStats.Select(s => s.Item1)];
         int reservedMana = ReservedMana(conn);
+        bool washedUp = conn.ArriveAt is null && conn.CameFrom is null && !conn.ArriveAtWaypoint
+            && TutorialObjects.ShouldStartWashedUp(layout.Id, ItemsOf(conn).StartWeapon is not null,
+                () => CharacterSaves.Load(CharacterName(conn))?.Tutorial);
         var player = new PlayerObject(string.IsNullOrEmpty(name) ? "Exile" : name, ClassIndex: PackedClass(conn), GridX: layout.SpawnX, GridY: layout.SpawnY, Life: conn.PlayerLife, EnergyShield: conn.EnergyShield.Current,
             Mana: (uint)Math.Min(conn.PlayerMana, (uint)Math.Max(0, (int)pools.Mana - reservedMana)), ManaReserved: (uint)reservedMana,
             Experience: conn.Experience,
@@ -894,6 +897,8 @@ static partial class Game
             // The saved Pantheon gods (campaign/pantheon.md §5): the Player component's two bytes.
             PantheonMajor = PantheonCatalog.Default.Value.Wire(conn.PantheonMajor),
             PantheonMinor = PantheonCatalog.Default.Value.Wire(conn.PantheonMinor),
+            WashedUp = washedUp,
+            Rotation = washedUp ? layout.SpawnRotation : 0,
         };
         lock (conn.Monsters)
         {
@@ -1007,5 +1012,7 @@ static partial class Game
             else await Send(remote, stream, ciphers, bytes, label);
         // An area change creates a new player object, so the running auras' buffs must be put on it again.
         await SendOwnAuraChanges(remote, stream, ciphers, conn, replay: true);
+        if (conn.PeerTemplate is { WashedUp: true })
+            CharacterSaves.ChangeTutorial(CharacterName(conn), tutorial => tutorial with { WakeUpShown = true });
     }
 }

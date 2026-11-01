@@ -146,6 +146,40 @@ static partial class Game
     internal static bool ClientHasQuestFlag(ClientState conn, string flag) =>
         Quests.IsInstanceFlag(flag) ? conn.Instance.HasState(flag) : Quests.ClientHas(flag, conn.QuestFlagsSnapshot(), PlayerQuestFlags(conn));
 
+    // The first ground click in WashedUp sends this action instead of Move, and any other request to move gets it from the
+    // server (0x141e94fc0). It plays getup in place; treating a target as a walk would move only the server's position estimate.
+    internal static async Task WakeUpOnBeach(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn,
+        (int X, int Y)? target, ushort sequence, ushort flags, double requestedAt)
+    {
+        int action;
+        (int X, int Y) here;
+        using (ProjectileMutation(conn))
+        {
+            double now = ProjectileWorldTime(conn);
+            if (conn.Closed || conn.LeavingArea || conn.PlayerLife == 0 || !LyingOnBeach(conn)
+                || PlayerActionBlocked(conn, requestedAt, now)) return;
+            requestedAt = Math.Max(requestedAt, conn.ProjectileRuntime?.Runtime.Now / 120000d ?? requestedAt);
+            conn.TutorialGettingUp = true;
+            action = Interlocked.Increment(ref conn.ActionCount);
+            here = conn.Walk.Position(requestedAt);
+            conn.Walk.Order(here.X, here.Y, requestedAt);
+            conn.ChannelSkill = 0;
+        }
+        var (x, y) = target ?? here;
+        await Send(remote, stream, ciphers,
+            InstanceProtocol.ActionStarted(PlayerId, here.X, here.Y, x, y, TutorialObjects.WashedUpSkillId, sequence, flags),
+            $"0x01ab player gets up on the beach at ({here.X}, {here.Y})",
+            still: () =>
+            {
+                if (PlayerActionCurrent(conn, action)) return true;
+                // Dropped: the client is still down, so its next request tries again.
+                lock (conn.Monsters) conn.TutorialGettingUp = false;
+                return false;
+            });
+    }
+
+    internal static bool LyingOnBeach(ClientState conn) => conn.PeerTemplate is { WashedUp: true } && !conn.TutorialGettingUp;
+
     // Ids of the invisible SunkenPassageBlockers on the server's walk estimate (blockers only: the client spawns them).
     internal const uint PassageBlockerFirstId = 0xff000000;
     // a1q4's objects have ids of their own, between the quest room objects (QuestRoomObjectFirstId) and the waypoint, so

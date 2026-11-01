@@ -15,6 +15,8 @@ Items keep the Roadmap's priority groups, and are in rough priority order within
   have not had one yet (check that the Pantheon panel highlights the chosen gods); the bandit vote (a2q7's help path)
   and the Pantheon's souls (Divine Vessels, Sin's "Unlock Power": [pantheon](../docs/game/campaign/pantheon.md) §1) are
   not built.
+  The opening encounter's remaining work is popup acknowledgements and force walls 1/2
+  ([opening encounter](../docs/protocol/12-quests.md#opening-encounter-2026-10-25)).
   The Strand's visual pieces (the gate's animation, the Doorman;
   [12](../docs/protocol/12-quests.md) §6) and a1q4's waterfall animation (§4) are low priority.
 - **Done when:** the campaign's quests can be played through, with their world changes, logs and rewards.

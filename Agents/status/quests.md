@@ -157,9 +157,24 @@ Part of [Status](../Status.md); what to build next in this area is in
   [act 10](../docs/game/campaign/act10.md).
 
 - New characters pick up their class weapon, talk to the dying exile and kill the biting zombie for their skill gem.
+  Their first arrival starts lying down, facing the room's fitted start direction, and the first click plays getup
+  in place. The introduction is saved once and does not reset progressed characters.
+  Other players in the instance see the character standing throughout.
+  A first click on an object gets the character up the same way, instead of walking to it.
+  That follows the client's own server code and has not been checked in the client yet.
+  A Gateway regression covers the get-up echo and retry, both room-angle formulas and the wake-up bytes alongside
+  Vaal soul budgets, including soul-only Actor payloads and progressed characters.
   The support gem comes from its chest, which requires the player to walk into range.
   Placements use captured room data and gem claims are saved once; existing characters keep their items and progress.
   The complete Witch weapon, zombie/gem and chest/support-gem sequence was checked live.
+  The exile remembers his weapon prompt and uses the matching short or long dialogue before the bite.
+  Combat starts when the 3.1-second bite finishes, without the former frozen wait.
+  Closing the armed dialogue starts the bite immediately and retains only its 3.1-second animation before combat.
+  Closing the unarmed weapon prompt does not trigger it.
+  The corrected sequence was checked with an already-equipped Duelist and a Witch who equipped after the prompt.
+  Fresh Duelist and Witch client checks confirmed the corrected lying direction and getup action.
+  Skipped long and short speech started the bite within 0.07 seconds of closing, then combat after about 3.1 seconds.
+  The combat zombie moved and animated its attacks, and the Duelist claimed Double Strike.
   Tutorial popup acknowledgements and force walls 1/2 remain unimplemented, and placement still needs local captures.
   See [opening encounter](../docs/protocol/12-quests.md#opening-encounter-2026-10-25).
 - Quest exits with a Transitionable (Merveil's exit, the arena doors) open without their animation (plain

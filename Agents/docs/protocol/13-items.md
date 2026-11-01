@@ -1427,8 +1427,8 @@ target's walk takes their `base_movement_velocity_+%`: the server's speed and th
 (0x1b3 on the minion) change together (`MinionFlaskSpeedLocked`). Their other stats have nothing to act on or are
 not applied ([Paladin](../game/paladin.md#link-skills)).
 
-**What some flasks make on use** (`FlaskGrounds.cs`, `Program.FlaskGrounds.cs`), from their implicit mods, where the
-player stands (radii in cells):
+**What some flasks and Rational Doctrine make** (`FlaskGrounds.cs`, `Program.FlaskGrounds.cs`), from their implicit
+mods or the jewel's stats, where the player or the struck monster stands (radii in cells):
 - Stibnite (`local_smoke_ground_on_flask_use_radius` 16): a smoke cloud. Hostile monsters standing in it (not the
   player's minions) are blinded (buff 179 `blinded`): 20% less accuracy against the player (`MonsterSwing`) and 20% less evasion against the player's attacks
   (Path of Building's Blind; the tables have no default value for it). Live: Hillock's accuracy 14 → 11.
