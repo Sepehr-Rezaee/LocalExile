@@ -54,6 +54,14 @@ Its character panel and tooltip included the supported critical values; the Gate
 40% Delve attack multiplier.
 This verifies the native display path, not every support's special execution or a live before/after quality control.
 
+Ruthless makes every `support_ruthless_big_hit_max_count`-th use (3) of each supported skill a Ruthless Blow: that
+use's melee hits, spirit strikes included, take `support_ruthless_big_hit_damage_+%_final` as more damage (70% at
+level 1, 98% at 20; poedb). Each skill keeps its own count, counted as the use starts, so a use that misses still
+counts (the wiki: the count advances whether or not the hit lands); that a use cancelled before its contact counts
+too is not verified. The count is server state only;
+the client's invisible `ruthless_big_hit_counter` buff is not sent. Not built: the blow's 0.8 s stun duration, its
+more damage with bleeding, poison and ignite, and the count across Multistrike repeats.
+
 ## Remaining execution gaps
 
 A native compatibility match and a displayed support letter do not prove that its special mechanic is implemented.
