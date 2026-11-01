@@ -37,7 +37,7 @@ static partial class Game
 
     // One step of the player's debuffs on monsters, worked out at the send gate so a removed monster gets none: a taunt
     // shows the taunted buff (408) for its time left and goes when it ends, the monster dies or the player dies (wiki: a
-    // taunt ends when its source dies), and his hits' Intimidate and Unnerve (HitDebuffs) the same way; each enemy aura of his passives (Light of Divinity's Augury of Penitence, 2551)
+    // taunt ends when its source dies), and his hits' Intimidate, Unnerve and Blind (HitDebuffs) the same way; each enemy aura of his passives (Light of Divinity's Augury of Penitence, 2551)
     // and Born under Fire's) is on every hostile living monster within its radius of the player while he lives, and the
     // blind aura (SaboteurBlind) blinds them, shown with the blinded buff (PassiveBuffAuras.BlindState, Game.Blinded).
     // Pride adds its own enemy aura (BuffDefinitions 1331) with the ramp each monster keeps while it stays inside.
@@ -105,6 +105,7 @@ static partial class Game
                         FlaskGrounds.TauntedBuffRow, TauntedBuffValues);
                     Timed(id, living, ref m.IntimidatedUntil, ref m.IntimidateShownUntil, ref m.IntimidateBuff, IntimidatedBuffRow, null);
                     Timed(id, living, ref m.UnnervedUntil, ref m.UnnerveShownUntil, ref m.UnnerveBuff, UnnervedBuffRow, null);
+                    Timed(id, living, ref m.BlindedUntil, ref m.BlindShownUntil, ref m.BlindBuff, FlaskGrounds.BlindedBuffRow, null);
                     double distance = living && (enemyAuras.Count > 0 || m.PlayerAuras.Count > 0)
                         ? Dist(m.Walk.Position(now), here) : double.PositiveInfinity;
                     if (m.PlayerAuras.Count > 0)

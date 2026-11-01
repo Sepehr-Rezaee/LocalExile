@@ -144,6 +144,9 @@ sealed class SpawnedMonster(string label, WalkEstimator walk, int aggroRange, in
     public double IntimidatedUntil = double.NegativeInfinity, IntimidateShownUntil, UnnervedUntil = double.NegativeInfinity,
         UnnerveShownUntil;
     public ushort IntimidateBuff, UnnerveBuff;
+    // Blinded by his hits until when, one more source of his Blind (Game.Blinded), shown with its own blinded buff.
+    public double BlindedUntil = double.NegativeInfinity, BlindShownUntil;
+    public ushort BlindBuff;
     public readonly Dictionary<ushort, ushort> PlayerAuras = [];
     public (int All, int Elemental) TakenFromPlayer;
     // Pride's more Physical Damage taken, ramped by the time this monster has stayed in the aura (EnemyDebuffsTick).

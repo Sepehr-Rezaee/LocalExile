@@ -925,6 +925,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Blind from it or the smoke cloud lowers their accuracy and evasion by 20%, lets
   `critical_strike_chance_+%_vs_blinded_enemies` raise the player's critical chance against them (default attack, area
   sweeps, footstep skills, projectiles) and `damage_taken_+%_from_blinded_enemies` lower their hits and ignites.
+  Hits Blind by their on-hit and critical-strike chances for 4 s ([11](../docs/protocol/11-skills.md) §12).
   Other passive auras do nothing yet.
   Gateway coverage only (a Polytheist and an ordinary Saboteur), not checked with the real client.
   Code: Gateway (`PassiveBuffAuras`, `TickPassiveAuras`, `Game.Blinded`, `CriticalChanceOn`).
