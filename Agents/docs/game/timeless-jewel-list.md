@@ -298,7 +298,7 @@ These are the extra stats the client adds to a node that was not replaced (and t
 | Maraketh | **Add Physical Added As Cold** (type 3) | Gain 5% of Physical Damage as Extra Cold Damage | works |
 | Maraketh | **Add Flask Effect** (type 3) | 25% chance to gain Alchemist's Genius when you use a Flask | inert (no stat read) |
 | Maraketh | **Add Frenzy Charge On Kill** (type 3) | 5% chance to gain a Frenzy Charge on Kill | partial (1/1 stats read); conditional |
-| Maraketh | **Add Onslaught** (type 3) | You gain Onslaught for 8 seconds on Kill | inert (no stat read) |
+| Maraketh | **Add Onslaught** (type 3) | You gain Onslaught for 8 seconds on Kill | works |
 | Templar | **Devotion** (type 2) | +5 to Devotion | works |
 | Templar | **Devotion** (type 3) | +5 to Devotion | works |
 | Kalguur | **Ward** (type 2) | 2% increased Ward | works |

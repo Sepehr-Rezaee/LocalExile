@@ -232,6 +232,7 @@ static partial class Game
         if (Stats.Key("evasion_rating") is uint evasionKey && !devSet.Contains(evasionKey)) stats[evasionKey] = PlayerEvasion(conn, statsAt);
         ConfigureFortificationRecovery(conn, conn.Pools.Life, Get);
         ConfigureLeech(conn, Get, rawOverrides, CriticalOnLowLife(conn, stats));
+        ConfigureKillOnslaught(conn, Get);
         WithLeechConditions(conn, stats);
         // Capture the unmodified recovery baseline from this same snapshot, before the temporary contribution.
         // The resource writer integrates Fortification separately across exact expiry boundaries.

@@ -444,6 +444,7 @@ static partial class Game
                 await SendCharacterStats(remote, stream, ciphers, conn, "elemental ailments changed");
             }
             await SendAntiquarian(remote, stream, ciphers, conn);
+            await SendKillOnslaught(remote, stream, ciphers, conn);
             await SendTotems(remote, stream, ciphers, conn);
             await SendSpiritChieftain(remote, stream, ciphers, conn);
             await SendRecentEnemyHits(remote, stream, ciphers, conn);
