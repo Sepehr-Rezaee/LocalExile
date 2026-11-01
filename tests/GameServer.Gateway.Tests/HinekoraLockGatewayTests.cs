@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using GameServer.Core.Protocol.Instance;
 using GameServer.Core.Protocol.Login;
+using GameServer.Storage;
 
 namespace GameServer.Gateway.Tests;
 
@@ -12,7 +13,7 @@ public class HinekoraLockGatewayTests
     sealed record Preview(ushort Key, ushort Status, ulong Count, byte[] Payload);
 
     [Fact]
-    public async Task Lock_application_sets_the_flag_and_persists()
+    public async Task Gateway_lock_preview_commit_and_refusals()
     {
         await WithSession(async (conn, items, stash, send, _, _) =>
         {
@@ -33,11 +34,7 @@ public class HinekoraLockGatewayTests
             Assert.True(saved.Foreseeing);
             Assert.Equal(after.Item.ForeseeSeed, saved.ForeseeSeed);
         });
-    }
 
-    [Fact]
-    public async Task A_second_lock_is_refused_without_spending()
-    {
         await WithSession(async (conn, items, stash, send, _, _) =>
         {
             var currency = Put(items, stash, false,
@@ -51,11 +48,7 @@ public class HinekoraLockGatewayTests
             Assert.Equal(first, Current(items, target.Id));
             Assert.Equal(1, Current(items, currency.Id).Item.StackSize);
         });
-    }
 
-    [Fact]
-    public async Task Gems_corrupted_mirrored_and_unmodifiable_targets_are_refused_without_spending()
-    {
         await WithSession(async (conn, items, stash, send, _, _) =>
         {
             var currency = Put(items, stash, false,
@@ -75,15 +68,10 @@ public class HinekoraLockGatewayTests
                 Assert.Equal(2, Current(items, currency.Id).Item.StackSize);
             }
         });
-    }
 
-    [Fact]
-    public async Task The_preview_request_answers_with_the_preview_and_spends_nothing()
-    {
         await WithSession(async (conn, items, stash, send, sendRaw, readPreview) =>
         {
-            var locked = LockedWand();
-            var target = Put(items, stash, false, locked, 4);
+            var target = Put(items, stash, false, LockedWand(), 4);
             var currency = Put(items, stash, false,
                 ItemCatalog.Create(Program.Items.Find(CurrencyEffects.ChaosOrb)!) with { StackSize = 2 }, 0);
 
@@ -97,15 +85,10 @@ public class HinekoraLockGatewayTests
             Assert.True(Current(items, target.Id).Item.Foreseeing);
             Assert.Equal(2, Current(items, currency.Id).Item.StackSize);
         });
-    }
 
-    [Fact]
-    public async Task Committing_the_currency_applies_exactly_the_preview_and_clears_the_state()
-    {
         await WithSession(async (conn, items, stash, send, sendRaw, readPreview) =>
         {
-            var locked = LockedWand();
-            var target = Put(items, stash, false, locked, 4);
+            var target = Put(items, stash, false, LockedWand(), 4);
             var currency = Put(items, stash, false,
                 ItemCatalog.Create(Program.Items.Find(CurrencyEffects.ChaosOrb)!) with { StackSize = 2 }, 0);
 
@@ -124,11 +107,7 @@ public class HinekoraLockGatewayTests
             Assert.False(saved.Foreseeing);
             Assert.Equal(preview.Payload, saved.Payload());
         });
-    }
 
-    [Fact]
-    public async Task A_refused_currency_keeps_the_state_and_spends_nothing()
-    {
         await WithSession(async (conn, items, stash, send, sendRaw, readPreview) =>
         {
             var target = Put(items, stash, false, LockedWand(), 4);
@@ -171,7 +150,7 @@ public class HinekoraLockGatewayTests
     static async Task WithSession(Func<ClientState, PlayerInventories, AccountStash, Func<byte[], Task>,
         Func<byte[], Task>, Func<Task<Preview>>, Task> action)
     {
-        TestSaves.Ensure();
+        using var save = new SaveFixture();
         string name = "Hinekora" + Guid.NewGuid().ToString("N");
         var conn = new ClientState(new(ushort.MaxValue, "HinekoraTest", 128, 128, 32, 32, null, []), 0, 1)
         { Character = name, Account = name, League = "Standard" };
@@ -187,9 +166,9 @@ public class HinekoraLockGatewayTests
         var clientCiphers = new ConnectionCiphers(new byte[64], isClient: true);
         try
         {
-            Task Send(byte[] packet) => Program.OnClientMessages("hinekora-test", writer.GetStream(), ciphers,
+            Task Send(byte[] packet) => global::Game.OnClientMessages("hinekora-test", writer.GetStream(), ciphers,
                 [((ushort)(packet[0] << 8 | packet[1]), packet)], [], conn).WaitAsync(TimeSpan.FromSeconds(5));
-            Task SendRaw(byte[] packet) => Program.OnClientMessages("hinekora-test", writer.GetStream(), ciphers,
+            Task SendRaw(byte[] packet) => global::Game.OnClientMessages("hinekora-test", writer.GetStream(), ciphers,
                 [], packet, conn).WaitAsync(TimeSpan.FromSeconds(5));
             async Task<Preview> ReadPreview()
             {
@@ -247,4 +226,15 @@ public class HinekoraLockGatewayTests
     static byte[] PreviewRequest(ushort key, InventoryItem currency, InventoryItem target) =>
         new LoginWriter().U16(0x29c).U16(key).U32(PlayerInventories.InventoryId(Main))
             .U32(currency.Id).U32(PlayerInventories.InventoryId(Main)).U32(target.Id).ToArray();
+
+    sealed class SaveFixture : IDisposable
+    {
+        readonly string _path = Path.Combine(Path.GetTempPath(), $"localexile-hinekora-{Guid.NewGuid():N}.db");
+        public SaveFixture() => Saves.Open(_path);
+        public void Dispose()
+        {
+            Saves.Db.Dispose();
+            foreach (string suffix in new[] { "", "-wal", "-shm" }) File.Delete(_path + suffix);
+        }
+    }
 }
