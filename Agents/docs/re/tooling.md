@@ -174,6 +174,10 @@ call. There is no `cdb`/WinDbg installed.
   `loggedAo` from the log line is the complete path).
 - **What a crash needs:** Frida backtrace → decompile the faulting function → find the null field → find its writer
   → find the message that calls that writer.
+- **A UI flag the Gateway has never sent:** skip Ghidra. Filter unread instance messages from `schema.md` that contain
+  a loop, map them with `dispatch_ids.py`, probe the short ones with `/raw`, then walk `Game.exe` with Capstone
+  (`.pdata` bounds, displacement scan, RIP strings). Worked for Atlas completion ([013](013-atlas-progress.md)):
+  `AtlasMapCompletedFrame` → drawer `+0x9ce` → set at instance `+0xd070` → S→C 0x1a3 / 0x1a4.
 
 ## 7. Schema generators (objects and messages without live trial and error)
 

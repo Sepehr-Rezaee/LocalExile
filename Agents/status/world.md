@@ -125,6 +125,10 @@ Part of [Status](../Status.md); what to build next in this area is in
   A seed the port cannot generate (2 of 21 for The Coast, 5 of 21 for 1_2_12) is played at the first of 8 replacements
   derived from it that the port generates (`ServerLevels.PlayableSeed`, sent in 0x1d): before, such a map had no walk
   grid, area transitions or waypoint.
+  An opened map is generated at the area level 0x1d sends (its tier: 83 for tier 16), the level the client generates
+  at, not its WorldAreas level (2026-11-01). Before, a tier-16 Chateau (WorldAreas 71) took another topology than the
+  client's, so the player spawned outside the client's layout (a black screen), and seeds the client cannot build
+  were played.
 - **Level generator port.** `GameServer.Data/Terrain/Generation` reproduces the client's level generator: the tile
   grid, the walkability and projectile grids, the doodads, every cell's ground height (`CellHeights.cs`) and the area
   transitions and waypoints (`AreaObjects.cs`: the tiles' objects, and a room's `Waypoint` line where no tile places
