@@ -37,7 +37,8 @@ static partial class Game
 
     internal static Task ScheduleGemProjectile(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn,
         ushort skillId, (ushort Id, int Effect, string Name, int Level, int Quality, uint Gem) gem,
-        (int X, int Y) aim, int action, int recoveryGeneration, CooldownUseTicket? ticket, SkillCriticalRoll criticalRoll)
+        (int X, int Y) aim, int action, int recoveryGeneration, CooldownUseTicket? ticket, SkillCriticalRoll criticalRoll,
+        ushort sequence = 0)
     {
         var session = ProjectilesFor(remote, stream, ciphers, conn);
         session.Advance();
@@ -58,8 +59,98 @@ static partial class Game
                 ? PlayerActionCurrent(conn, action)
                 : conn.PlayerLife > 0 && conn.ElementalAilments.ActionFactor(conn.Clock.Elapsed.TotalSeconds) > 0 && !conn.HitRecovery.Active(conn.Clock.Elapsed.TotalSeconds)))
                 && GemSkillInstanceDisabled(conn, gem.Effect, skillId) is null,
-            () => CaptureGemProjectile(conn, session, skillId, gem, aim, criticalRoll));
+            () => ClientDrawnVolley(conn, session, skillId, gem,
+                CaptureGemProjectile(conn, session, skillId, gem, aim, criticalRoll), sequence));
         return Task.CompletedTask;
+    }
+
+    // A spell's projectiles are the client's own (ClientPredicted): the server spreads them as the client's volley
+    // does, and flies Spark's sparks on the client's seeded wander from the caster's cell (SparkLegs), so a hit lands
+    // where a projectile is drawn.
+    static ProjectileUse ClientDrawnVolley(ClientState conn, ProjectileSession session, ushort skillId,
+        (ushort Id, int Effect, string Name, int Level, int Quality, uint Gem) gem, ProjectileUse use, ushort sequence)
+    {
+        if (use.Payload is not ProjectileOffense { ClientPredicted: true }) return use;
+        var player = CharacterPlayerStats(conn);
+        var own = SupportedSkill(conn, skillId).Stats;
+        int Player(string key) => Stats.Key(key) is uint k ? player.GetValueOrDefault(k) : 0;
+        int Own(string key) => Stats.Key(key) is uint k ? own.GetValueOrDefault(k) : 0;
+        int Get(string key) => Player(key) + Own(key);
+        // The client's range (slot 0x600, 0x141ba62d0): projectile_maximum_range_override, else 50 with the Reclaimed
+        // Malevolence notable, else 150 cells. A return (0x141bb2ae0) flies back to the caster's cell and that range on.
+        double range = Get("projectile_maximum_range_override") is > 0 and var maximum ? maximum
+            : Get("reclaimed_malevolence_notable_abyss_searching") != 0 ? 50 : 150;
+        // The client's object contact uses the row's radii and the monster's size, not the server's 4-cell stand-in.
+        use = use with { Profile = use.Profile with { Range = range, ReturnOvershoot = range,
+            ContactCells = SkillsFor(conn).ProjectileContactCells(use.Profile.Id) } };
+        // 0x141bb13a0 picks parallel (0x141bb89d0) and random directions (0x141bb9280) before nova and fan.
+        // shortcut: parallel keeps the server's fan until it is ported.
+        if (use.Profile.ReturnChancePercent is > 0 and < 100)
+            use = use with { Profile = use.Profile with { ReturnRolls = ReturnRolls(sequence, use.Profile.Count, PlayerId) } };
+        if (Get("support_parallel_projectile_number_of_points_per_side") == 0)
+            use = use with
+            {
+                Profile = use.Profile with
+                {
+                    NativeVolley = Get("random_projectile_direction") != 0
+                        ? new() { Angles = RandomVolleyAngles(sequence, use.Profile.Count, PlayerId, use.Aim - use.Origin) }
+                        : new()
+                        {
+                            Width = Get("total_projectile_spread_angle_override") is > 0 and var width
+                                ? width / 10.869565 : 60 / 10.869565,
+                            FixedDegrees = Get("projectile_remove_default_spread") != 0 ? -1 : Get("fixed_projectile_spread"),
+                            SpreadPercent = Get("multiple_projectiles_projectile_spread_+%"),
+                            // 0x141bb33f0 (the Disgorge nova and the action's own flags are not tracked here).
+                            Nova = Get("projectiles_nova") != 0
+                        }
+                }
+            };
+        if (SkillsFor(conn).EffectId(gem.Effect) is not ("Spark" or "SparkAltX" or "SparkAltY" or "VaalSpark")) return use;
+        // The client's life is the skill record's skill_effect_duration, in whole milliseconds.
+        double life = Math.Round(1000 * SkillDurationModifiers.Seconds(Own("base_skill_effect_duration"), Player, Own)) / 1000;
+        int randomDuration = Get("spark_random_duration_%");
+        var at = conn.Walk.Position(session.Runtime.Now / (double)ProjectileRuntime.QuantaPerSecond);
+        double speed = use.Profile.Speed;
+        return use with
+        {
+            Origin = ProjectileSession.Vector(at),
+            Profile = use.Profile with
+            {
+                Legs = i => new SparkLegs(sequence, i, PlayerId, life, randomDuration, speed),
+                // 0x141b36170: a spark ends 150 cells from where it started.
+                LegLeash = 150
+            }
+        };
+    }
+
+    // random_projectile_direction (static RE 2026-10-31). A volley (0x141bb0f20 → 0x141bb9280) seeds 0x141bba070 from
+    // [sequence, action +0x11c (0), +0x2d0 (0), +0x458 (0), owner, slot 0x540 (0), 0] and turns each projectile's aim
+    // by a 0–2π draw. A single projectile (0x141bb13a0) seeds 0x141a0c9d0 from its detached copy, [sequence, 2, 0, 0,
+    // owner], and flies along (sin a, cos a) whatever the aim.
+    internal static double[] RandomVolleyAngles(ushort sequence, int count, uint owner, ProjectileVector aim)
+    {
+        const float Tau = 6.2831855f;
+        if (count == 1)
+        {
+            float a = new AnimationVariantSelector.NativeRandom([sequence, 2, 0, 0, owner]).Range(0, Tau);
+            return [Math.Atan2(MathF.Cos(a), MathF.Sin(a)) - Math.Atan2(aim.Y, aim.X)];
+        }
+        var random = new AnimationVariantSelector.NativeRandom([sequence, 0, 0, 0, owner, 0, 0]);
+        var angles = new double[count];
+        for (int i = 0; i < count; i++) angles[i] = random.Range(0, Tau);
+        return angles;
+    }
+
+    // projectile_return_%_chance (0x141bb04f0, static RE 2026-10-31): each projectile's own action copy rolls 0–99
+    // (0x1404d03d0) from a generator seeded (0x1419c29b0) with [sequence, +0x11c (2 + its index, as Spark's), owner,
+    // +0x2d0 (0), byte +0x2b8, 0, 0, 0] and returns when the roll is under the chance.
+    // shortcut: +0x2b8 is taken as 0 (only its decrement, 0x141ba4620, was found); check it live with a return chance.
+    internal static int[] ReturnRolls(ushort sequence, int count, uint owner)
+    {
+        var rolls = new int[count];
+        for (int i = 0; i < count; i++)
+            rolls[i] = new AnimationVariantSelector.NativeRandom([sequence, (uint)(i + 2), owner, 0, 0, 0, 0, 0]).Uniform(0, 99);
+        return rolls;
     }
 
     internal static ProjectileUse CaptureGemProjectile(ClientState conn, ProjectileSession session, ushort skillId,
