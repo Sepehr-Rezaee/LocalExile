@@ -153,6 +153,11 @@ sealed class SpawnedMonster(string label, WalkEstimator walk, int aggroRange, in
     public readonly double[] ExposureUntil = [double.NegativeInfinity, double.NegativeInfinity, double.NegativeInfinity];
     public readonly double[] ExposureShownUntil = new double[3];
     public readonly ushort[] ExposureBuff = new ushort[3];
+    // His Withered stacks on it (Game.WitherOnHitLocked): each one's end and chaos damage taken; the buff shown for them.
+    public readonly List<(double Until, double Pct)> Withered = [];
+    public int WitherShownStacks;
+    public double WitherShownUntil;
+    public ushort WitherBuff;
     public readonly Dictionary<ushort, ushort> PlayerAuras = [];
     public (int All, int Elemental) TakenFromPlayer;
     // Pride's more Physical Damage taken, ramped by the time this monster has stayed in the aura (EnemyDebuffsTick).

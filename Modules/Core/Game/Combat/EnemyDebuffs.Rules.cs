@@ -98,6 +98,28 @@ static partial class Game
                     }
                     return on;
                 }
+                // Its Withered stacks (WitherOnHitLocked): one buff with their count and the time the last one has left,
+                // shown again when either changes; off when none runs or it or the player dies.
+                void Withers(uint id, bool living, SpawnedMonster m)
+                {
+                    if (m.Withered.Count == 0 && m.WitherBuff == 0) return;
+                    if (living) m.Withered.RemoveAll(s => s.Until <= now);
+                    else m.Withered.Clear();
+                    int stacks = m.Withered.Count;
+                    double until = stacks > 0 ? m.Withered.Max(s => s.Until) : 0;
+                    if (m.WitherBuff != 0 && (stacks != m.WitherShownStacks || until != m.WitherShownUntil))
+                    {
+                        bytes.AddRange(InstanceEntities.RemoveBuff(id, m.WitherBuff));
+                        m.WitherBuff = 0;
+                        removed++;
+                    }
+                    if (stacks == 0 || m.WitherBuff != 0) return;
+                    (m.WitherShownStacks, m.WitherShownUntil) = (stacks, until);
+                    bytes.AddRange(InstanceEntities.AddBuff(id, m.WitherBuff = conn.NextBuff++, WitheredBuffRow, PlayerId,
+                        values: [(uint)Math.Round(m.Withered[^1].Pct), 1], u68: BitConverter.SingleToUInt32Bits((float)(until - now)),
+                        stacks: (ushort)stacks));
+                    added++;
+                }
                 foreach (var (id, m) in conn.Monsters)
                 {
                     bool living = alive && !m.Dead && m.Life > 0 && m.Hostile;
@@ -110,6 +132,7 @@ static partial class Game
                         if (!Timed(id, living, ref m.ExposureUntil[i], ref m.ExposureShownUntil[i], ref m.ExposureBuff[i],
                                 ExposureBuffRows[i], null))
                             EndExposureLocked(m, ExposureTypes[i]);
+                    Withers(id, living, m);
                     double distance = living && (enemyAuras.Count > 0 || m.PlayerAuras.Count > 0)
                         ? Dist(m.Walk.Position(now), here) : double.PositiveInfinity;
                     if (m.PlayerAuras.Count > 0)

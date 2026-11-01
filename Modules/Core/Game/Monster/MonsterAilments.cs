@@ -7,11 +7,14 @@ using Kind = MonsterElementalAilments.Kind;
 static partial class Game
 {
     /// <summary>The factor on damage a monster takes: its mods' increased damage taken, its shock, Glacial Wave's chill and
-    /// the player's debuffs on it (his taunt's on every type, his enemy auras' on <paramref name="elemental"/> damage),
-    /// added together (PoB DamageTaken and ElementalDamageTaken INC), then a spell's less damage taken.</summary>
-    internal static double MonsterDamageTaken(SpawnedMonster m, bool spell, double now, bool elemental = false, bool hit = false) =>
+    /// the player's debuffs on it (his taunt's on every type, his enemy auras' on <paramref name="elemental"/> damage, his
+    /// Withered on <paramref name="chaos"/> damage), added together (PoB DamageTaken, ElementalDamageTaken and
+    /// ChaosDamageTaken INC), then a spell's less damage taken.</summary>
+    internal static double MonsterDamageTaken(SpawnedMonster m, bool spell, double now, bool elemental = false, bool hit = false,
+        bool chaos = false) =>
         m.Mods.Effects.DamageTaken(spell, m.Ailments.Magnitude(Kind.Shock, now) + m.Ailments.ChillDamageTakenPct(now)
-            + m.TakenFromPlayer.All + (elemental ? m.TakenFromPlayer.Elemental : 0) + (hit ? HitDebuffTaken(m, spell, now) : 0));
+            + m.TakenFromPlayer.All + (elemental ? m.TakenFromPlayer.Elemental : 0) + (hit ? HitDebuffTaken(m, spell, now) : 0)
+            + (chaos ? WitheredTaken(m, now) : 0));
 
     /// <summary>Within the Tempest (enemy_shock_on_kill): a monster the player just killed (its life reached 0 from a hit
     /// or Righteous Fire) is shocked through the player's modifiers, and its corpse spreads that shock by the player's own
@@ -84,6 +87,7 @@ static partial class Game
         }
         HitDebuffsOnHitLocked(m, name => Player(name) + Skill(name), spell, critical, now);
         ExposureOnHitLocked(m, name => Player(name) + Skill(name), mitigated, now, Random.Shared);
+        WitherOnHitLocked(m, name => Player(name) + Skill(name), now, Random.Shared);
         // Fleeing (MonsterFlee): its own draws (Random.Shared), so a projectile's reaction draws stay in order.
         if (!m.Fleeing && MonsterFlee.Rolls(MonsterFlee.Chance(spell, Player, Skill),
                 m.Mods.Effects["monster_chance_to_not_flee_%"], Random.Shared))

@@ -2,7 +2,7 @@ using GameServer.Core.World;
 
 // Intimidate and Unnerve from the player's hits (poedb Intimidate: "Intimidate Enemies for 4 seconds on Hit",
 // "Intimidated enemies take 10% increased Attack Damage"; Grattus Signet: "Unnerved enemies take 10% increased Spell
-// Damage"), Blind (poedb: 4 s base) and Exposure. Each lasts from the hit that inflicts it, a later one restarting it;
+// Damage"), Blind (poedb: 4 s base), Exposure and Withered. Each lasts from the hit that inflicts it, a later one restarting it;
 // EnemyDebuffsTick shows the buff.
 static partial class Game
 {
@@ -126,6 +126,41 @@ static partial class Game
     {
         if (m.Exposures.Count == 0) return;
         foreach (var key in m.Exposures.Keys.Where(k => k.Type == type).ToArray()) m.Exposures.Remove(key);
+    }
+
+    // Withered (poedb Withered: "6% increased chaos damage taken on the affected target, stacking up to 15 times"; most
+    // sources inflict it "for 2 seconds"). Each stack keeps its own end, and a 16th replaces the one ending first.
+    // BuffDefinitions withered is IsRecovery, with chaos_damage_taken_+% and is_withered.
+    internal const double WitheredPct = 6;
+    internal const int WitheredMaxStacks = 15;
+    internal const ushort WitheredBuffRow = 506;
+
+    /// <summary>How long a hit withers for, 0 for not: one roll for withered_on_hit_for_2_seconds_%_chance and Withering
+    /// Touch's withered_on_hit_chance_%, for its support_withered_base_duration_ms or else 2 s, expiring slower by
+    /// wither_expire_speed_+% (the Eldritch gloves' "Withered you Inflict expires X% slower").</summary>
+    internal static double WitherRoll(Func<string, int> get, Random random)
+    {
+        if (!RandomRolls.Chance(get("withered_on_hit_for_2_seconds_%_chance") + get("withered_on_hit_chance_%"), 100, random)) return 0;
+        double seconds = get("support_withered_base_duration_ms") is > 0 and var ms ? ms / 1000.0 : 2;
+        return seconds / Math.Max(0.01, 1 + get("wither_expire_speed_+%") / 100.0);
+    }
+
+    // A hit that landed on a living monster, under the Monsters lock: one more Withered stack, with withered_effect_+%.
+    internal static void WitherOnHitLocked(SpawnedMonster m, Func<string, int> get, double now, Random random)
+    {
+        if (m.Mods.Effects["immune_to_wither"] > 0 || WitherRoll(get, random) is not (> 0 and var seconds)) return;
+        m.Withered.RemoveAll(s => s.Until <= now);
+        if (m.Withered.Count >= WitheredMaxStacks) m.Withered.Remove(m.Withered.MinBy(s => s.Until));
+        m.Withered.Add((now + seconds, WitheredPct * Math.Max(0, 1 + get("withered_effect_+%") / 100.0)));
+    }
+
+    /// <summary>The increased chaos damage its running Withered stacks give at <paramref name="now"/>, 0 without a time.</summary>
+    internal static double WitheredTaken(SpawnedMonster m, double now)
+    {
+        double taken = 0;
+        foreach (var (until, pct) in m.Withered)
+            if (until > now) taken += pct;
+        return taken;
     }
 
     /// <summary>The increased damage a hit takes from them at <paramref name="now"/>: Intimidate's on an attack, Unnerve's
