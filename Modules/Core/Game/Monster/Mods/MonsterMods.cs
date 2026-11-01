@@ -89,7 +89,7 @@ static partial class Game
     /// <summary>
     /// The damage a resisted hit of the player deals to a monster: the physical part less its physical damage reduction,
     /// then its damage taken (Berserking's reduction, Spell Resistant's less spell damage, its shock and Glacial Wave's
-    /// chill at <paramref name="now"/>; without a time those two do not count). Blocking is rolled before
+    /// chill, the Intimidate or Unnerve on it at <paramref name="now"/>; without a time those do not count). Blocking is rolled before
     /// (<see cref="MonsterBlocks"/>).
     /// </summary>
     internal static int MonsterTakesMitigated(SpawnedMonster m, DamagePacket mitigated, bool spell, double now = double.NaN)
@@ -100,9 +100,10 @@ static partial class Game
         double total = mitigated.MinTotal - physical + physicalTaken;
         // The player's debuffs on it add to its own increased damage taken (MonsterDamageTaken): his enemy auras' elemental
         // increase on fire, cold and lightning only, and Pride's more Physical Damage on the physical part.
-        double factor = MonsterDamageTaken(m, spell, now);
+        double factor = MonsterDamageTaken(m, spell, now, hit: true);
         double elementalDamage = mitigated[DamageType.Fire].Min + mitigated[DamageType.Cold].Min + mitigated[DamageType.Lightning].Min;
-        double elementalFactor = m.TakenFromPlayer.Elemental == 0 ? factor : MonsterDamageTaken(m, spell, now, elemental: true);
+        double elementalFactor = m.TakenFromPlayer.Elemental == 0 ? factor
+            : MonsterDamageTaken(m, spell, now, elemental: true, hit: true);
         double physicalFactor = 1 + Math.Max(0, m.PridePhysicalMore) / 100.0;
         return (int)Math.Round((total - elementalDamage) * factor + elementalDamage * elementalFactor
             + physicalTaken * factor * (physicalFactor - 1));

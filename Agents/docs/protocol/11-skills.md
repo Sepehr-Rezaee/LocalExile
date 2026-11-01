@@ -2730,6 +2730,16 @@ failed I/O, allocation limits, actual official values and every skill's successf
   Taunt), raised by `taunt_duration_+%`; a new taunt replaces the player's older one; a death of the monster or the
   player ends it. BuffDefinitions 408 `taunted` shows it with its time left (flags bit1). The row is IsRecovery
   (+0x7c), so its 0x1c1 carries its two GrantedStats values: `taunt_target_id` (the player) and `is_taunted` 1.
+- **Intimidate and Unnerve** (`HitDebuffs`). A player hit that lands on a living monster rolls
+  `chance_to_intimidate_on_hit_%` (plus `attacks_intimidate_on_hit_%` for an attack) and `chance_to_unnerve_on_hit_%`
+  (plus `chance_to_unnerve_on_hit_with_spells_%` for a spell), with `Random.Shared`; Grattus Signet's
+  `spells_inflict_intimidate_on_crit` and `attacks_inflict_unnerve_on_crit` inflict them on a critical strike. Each lasts
+  4 s from the latest hit that inflicts it (poedb: "Intimidate Enemies for 4 seconds on Hit"). `intimidated` (733) and
+  `unnerved` (1412) show them with their time left, like the taunt; neither row is IsRecovery, so they carry no values.
+  An intimidated monster takes 10% increased damage from attack hits and an unnerved one from spell hits (poedb), added
+  to its `base_damage_taken_+%` in `MonsterTakesMitigated` and the hit's ailment damage, not in burns. Not read: the
+  weapon-local chance, "Nearby Enemies are Intimidated" auras, the full-life, curse, block and warcry sources, minions'
+  chances and Intimidate's stun duration stat.
 - **Where it runs.** The player tick (`RunPlayerTick`, 250 ms, not while paused) calls `TickPassiveAuras`, which
   does `EnemyDebuffsTick`; the step works at the send gate, so a removed monster gets no buff. The auras come from
   the allocated nodes at each step, `taunted_enemies_damage_taken_+%` from the stats last sent
