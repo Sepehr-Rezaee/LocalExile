@@ -304,6 +304,16 @@ remaining native checks are recorded in [the port record](../docs/dev/issue75-po
 
 ### Damage model (foundation done, deeper defence next)
 
+- **Client Buff descriptor consumer follow-up (#370, Known issues K1-K3):** follow one prepared descriptor
+  from `ChaosDegenerationAuraPlayersUniqueBodyStr3` to an actual reader and explain its output.
+  The [ownership/transfer report](../docs/re/client-buff-descriptor-consumers.md) is the bounded #466 delivery.
+  Mods `+0x38` and entity ObjectMagicProperties `+0xc8` embed the prepared structure separately.
+  Resume only with new same-object transfer or typed-reader evidence; stopped inventories remain stopped.
+  Bind a purpose-bearing reader and its output; copy/cleanup and the separate cache do not complete original N1/N2.
+  Reuse PR #371's fixed evidence without importing its full branch; no gameplay consumer is established yet.
+  A positive configuration/presentation classification is distinct from numerical DoT publication.
+  Scope any resumed investigation as a separate batch under #370; #466 leaves K1-K3 open.
+
 - **Done:** hits are per-type `DamagePacket`s; conversion follows physical, lightning, cold, fire, chaos, including
   chained conversion, the 100% cap and gain-as-extra.
   DoT/ailment formulas and fractional ticks are in the same model, and per-type resistance mitigation works on

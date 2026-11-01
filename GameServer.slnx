@@ -36,6 +36,7 @@
     <Project Path="Mods/Source/BossLoot/BossLoot.csproj" />
     <Project Path="Mods/Source/DoubleExperience/DoubleExperience.csproj" />
     <Project Path="Mods/Source/Example/Example.csproj" />
+    <Project Path="Mods/Source/FastCampaign/FastCampaign.csproj" />
     <Project Path="Mods/Source/Hello/Hello.csproj" />
     <Project Path="Mods/Source/ItemQuantity/ItemQuantity.csproj" />
     <Project Path="Mods/Source/ItemRarity/ItemRarity.csproj" />

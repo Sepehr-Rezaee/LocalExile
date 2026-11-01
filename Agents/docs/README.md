@@ -59,6 +59,7 @@ This research does not change the production simulator or certify native/officia
 |---|---|
 | [../GettingStarted.md](../GettingStarted.md) | setup from a fresh clone, third-party tools, troubleshooting |
 | [re/tooling.md](re/tooling.md) | Ghidra headless scripts, Python helpers, GGPK dump tool, Frida through REA, recipes |
+| [re/client-buff-descriptor-consumers.md](re/client-buff-descriptor-consumers.md) | Mod-derived Buff descriptor ownership/transfer evidence; actual consumer and output retained as Known issues |
 | [re/011-level-generation.md](re/011-level-generation.md) | the client's level generator: stages, RNG, topology pick, tile hash, generation traces; the server port in progress |
 | [dev/releases.md](dev/releases.md) | making a release, versions and commit subjects, what a package holds, `LocalExile.exe` and its `--json` events |
 | [dev/debugging.md](dev/debugging.md) | log timestamps and archives, error stack traces, the packet history and dumps, `Game_TRACE`, client crashes, `bugreport.ps1` |
@@ -98,6 +99,7 @@ This research does not change the production simulator or certify native/officia
 | [game/cluster-jewel-list.md](game/cluster-jewel-list.md) | generated full list of cluster notables, small-passive themes and keystones with support status |
 | [game/tattoos.md](game/tattoos.md) | all 100 tattoos: mechanics, target/limit rules, the C->S 0x77 / 0x33 fifth-list protocol, acquisition, interactions and the full per-item status table |
 | [re/ascendancy-client-3.29.3b.md](re/ascendancy-client-3.29.3b.md) | native identity and point evidence |
+| [re/hinekora-lock.md](re/hinekora-lock.md) | Hinekora's Lock state, C→S 0x29c / S→C 0x29f preview and the native commit evidence |
 | [game/league-modes.md](game/league-modes.md) | Hardcore deaths, SSF isolation, Ruthless native rules and editable balance |
 
 ## Working notes (history)
