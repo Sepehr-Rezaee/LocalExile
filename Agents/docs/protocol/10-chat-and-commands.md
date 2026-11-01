@@ -43,7 +43,7 @@ Candidates that read a wide string were found by mapping every S→C factory cas
 | 0x10 | u32, wstr | Nothing visible (no dispatcher case). |
 | 0x188 | wstr, u16 | Nothing visible. |
 | 0xa9 | party info | Not chat. |
-| 0xc9 | u8, wstr, wstr | Friend presence map. Not chat. |
+| 0xc9 | u8 flags, wstr account, wstr note | Friend relation: accepted bit 0, remove bit 2; see [28](28-player-trade.md) §6. |
 
 **S→C 0x17: chat line** (class `0x1435dcec0`, read `0x140e0c710`, dispatcher case 2 → listeners at instance +0xb78 →
 chat panel `0x140179f20` / `0x14017a300`; verified 2026-10-20 with `/raw`): wstr sender (its first character picks the
