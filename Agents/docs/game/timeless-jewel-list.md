@@ -271,7 +271,7 @@ These are the extra stats the client adds to a node that was not replaced (and t
 | Karui | **Add Physical Added As Fire** (type 3) | Gain 5% of Physical Damage as Extra Fire Damage | works |
 | Karui | **Add Physical Taken As Fire** (type 3) | Gain 1 Rage on Melee Hit | works (melee-hit event modelled) |
 | Karui | **Add Endurance Charge On Kill** (type 3) | 5% chance to gain an Endurance Charge on Kill | partial (1/1 stats read); conditional |
-| Karui | **Add Intimidate** (type 3) | 10% chance to Intimidate Enemies for 4 seconds on Hit | inert (no stat read) |
+| Karui | **Add Intimidate** (type 3) | 10% chance to Intimidate Enemies for 4 seconds on Hit | works |
 | Maraketh | **Dex** (type 1) | +2 to Dexterity | works |
 | Maraketh | **Dex** (type 2) | +4 to Dexterity | works |
 | Maraketh | **Add Dexterity** (type 3) | +20 to Dexterity | works |

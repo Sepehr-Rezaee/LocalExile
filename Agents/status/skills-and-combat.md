@@ -928,6 +928,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Blind from it or the smoke cloud lowers their accuracy and evasion by 20%, lets
   `critical_strike_chance_+%_vs_blinded_enemies` raise the player's critical chance against them (default attack, area
   sweeps, footstep skills, projectiles) and `damage_taken_+%_from_blinded_enemies` lower their hits and ignites.
+  Hits Blind by their on-hit and critical-strike chances for 4 s ([11](../docs/protocol/11-skills.md) §12).
   Other passive auras do nothing yet.
   Gateway coverage only (a Polytheist and an ordinary Saboteur), not checked with the real client.
   Code: Gateway (`PassiveBuffAuras`, `TickPassiveAuras`, `Game.Blinded`, `CriticalChanceOn`).
@@ -1393,7 +1394,9 @@ This is a research baseline, not new live skill acceptance or complete native/se
   still rewards its kills.
   The buffs, the sent action speed and the frozen pose are not checked with the real client.
   See [20](../docs/protocol/20-damage.md#outgoing-chill-freeze-and-shock-on-monsters).
-  Not yet: exposure, aura-dependent penetration, other added damage,
+  Hits inflict elemental Exposure by their chances, -10% for 4 s by default ([20](../docs/protocol/20-damage.md) §2).
+  Elemental Equilibrium removes the Exposure of a hit's elements and inflicts -25% Exposure of the others.
+  Not yet: Exposure from skills and auras, aura-dependent penetration, other added damage,
   increased/more support modifiers and outgoing ailment application/duration ([20](../docs/protocol/20-damage.md)),
   except the player's chill, freeze and shock on monsters and his ignites.
   Projectile hits ignite from the panel's ignite rows captured at release; Abberath's Fury's footstep hits work out
@@ -1447,6 +1450,8 @@ This is a research baseline, not new live skill acceptance or complete native/se
   (Light of Divinity's Augury of Penitence) sit on the hostile monsters near the living player.
   Their increased damage taken (taunted 20% from Bring the Battle, elemental 25%) adds to the monster's own in every
   player hit and in Righteous Fire's burn; `warcries_have_infinite_power` gives Enduring Cry the maximum charges.
+  Hits Intimidate and Unnerve: 10% increased hit damage taken for 4 s ([11](../docs/protocol/11-skills.md) §12).
+  Hits Wither: 6% increased chaos damage taken per stack, up to 15 stacks ([11](../docs/protocol/11-skills.md) §12).
   The other warcries' own buffs, exerts and summons, taunt immunity and other passive enemy auras are not done.
   Automated coverage only; not checked with the real client.
   See [11](../docs/protocol/11-skills.md) §12 and [Paladin](../docs/game/paladin.md).
