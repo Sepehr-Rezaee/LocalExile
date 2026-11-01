@@ -277,6 +277,8 @@ static partial class Game
                 var resistanceMods = HitResistMods(player, ownPenetration);
                 var hit = AttackHitConverted(weapon, player, WeaponProfileFor(conn, activeSet: true).Melee,
                     ConversionFor(conn, attackEffect, 1, attack: true));
+                if (WeaponProfileFor(conn, activeSet: true).Melee)
+                    hit = WithMeleeProximityLocked(conn, player, ownPenetration, m, hit, contactAt);
                 var gambler = GamblerFor(player);
                 var ownRolled = GameEvents.WithOutgoingDamage(conn, player, m, (gambler with { DamageMorePct = 0 }).RollOutgoingHit(hit, Random.Shared));
                 critical = RollCriticalStrike(conn, CriticalChanceOn(conn, targetId, conn.Pools.AttackCriticalStrikeChance,
@@ -1027,6 +1029,8 @@ static partial class Game
                     contactHit = contactHit.Scale(1 + Stat("groundslam_damage_to_close_targets_+%_final")
                         / 100.0 * Math.Max(0, 1 - distance / Math.Max(1, radius)));
                 }
+                if (!spell && SkillsFor(conn).IsMelee(gem.Effect))
+                    contactHit = WithMeleeProximityLocked(conn, player, skillStats, m, contactHit, ProjectileWorldTime(conn));
                 int hitChance = spell ? 100 : AttackHitChanceAt(conn, id, m, ProjectileWorldTime(conn), accuracy);
                 if (!spell && !accuracy.CannotBeEvaded && !m.AttackEvasion.Hits(hitChance, ProjectileWorldTime(conn), conn.AttackAccuracyRandom)) continue;
                 if (MonsterBlocks(m, Random.Shared, spell))
