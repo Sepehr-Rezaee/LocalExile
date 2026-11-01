@@ -1380,6 +1380,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Elemental Focus and the never-ailment stats stop those ailments ([20](../docs/protocol/20-damage.md) §3).
   Chill can raise damage taken and lessen the monster's swings (Glacial Wave), a freeze can have a minimum duration
   and a monster that hits the player can be frozen (Brine Bound).
+  "As though dealing more damage" raises the chill, shock or freeze it inflicts ([20](../docs/protocol/20-damage.md)).
   A corpse keeps its killing hit's ailments and a kill can shock it, unless the hit killed it frozen and it shatters.
   Each shock spreads to living enemies within its own `virtual_shock_proliferation_radius` of the shocked monster or
   corpse, like an aura.

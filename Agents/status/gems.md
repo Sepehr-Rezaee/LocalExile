@@ -66,6 +66,7 @@ Nothing yet.
 - **Linked support gems.** Native compatibility, link groups, duplicate families and skill-bar support records
   are implemented; Cyclone with Increased Area of Effect was read successfully by the real client.
   Ordinary hit, area, speed, critical, cost and reservation calculations use linked support stats.
+  Overcharge, Bloodthirst and four more supports scale hits by their more damage ([20](../docs/protocol/20-damage.md)).
   Item-granted supports join the same compatibility, duplicate resolution, calculations and native badge records
   for gems in their source item, independently of links; automated tests cover their addition and removal.
   Local socketed level/quality bonuses apply to physical gems, including support gems, without raising requirements.
