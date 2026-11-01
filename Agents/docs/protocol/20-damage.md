@@ -1291,6 +1291,15 @@ hit that inflicts an elemental ailment counts as killing an affected enemy); it 
 - **Stormy Seas.** `cold_damage_can_shock` lets the cold damage count for the shock's magnitude; the chance is still
   a critical strike or `chance_to_shock_%`. The client's calculator `0x1426f2660` makes `virtual_cold_damage_can_shock`
   (0x1bc6) from keys 0x451a, 0x1bc9 and 0x1b96, and nothing else in the client reads it.
+- **As though dealing more damage.** "Shock/Chill/Freeze Enemies as though dealing X% more Damage" multiplies the
+  damage the chill's and shock's magnitude and the freeze's duration read by 1 + X/100 per stat (PoB `CalcOffence`:
+  the ailment's damage × `<Ailment>AsThoughDealing` MORE). The stats read: Overcharge's
+  `support_pure_shock_shock_as_though_damage_+%_final`, the skills' `active_skill_shock_as_though_damage_+%_final`,
+  `active_skill_chill_as_though_damage_+%_final`, `freeze_as_though_dealt_damage_+%` and Ice Nova's
+  `ice_nova_freeze_as_though_damage_+%_final`, the Maven helmet mods `helmet_mod_shock/freeze_as_though_damage_+%_final`,
+  the quiver's `unique_quiver_chill_as_though_damage_+%_final` and `non_damaging_ailments_as_though_damage_+%_final`
+  for all three. The hit's damage and the chances do not change. Not read: the weapon-local and per-hand ones,
+  Manabond and Stormbind's, graft skills', Glacial Hammer's third hit and "Freeze Chilled Enemies as though".
 - **Mirrored** (`reflect_non_damaging_ailments_%_chance`, 100): the ailments a hit added to a living monster act on
   the player as well (wiki Reflect: "in addition to its target"), through `PlayerElementalAilments.Inflict` with the
   player's own effect modifiers, caps and floor (`ReflectAilmentsLocked`). The exact reflected magnitude is not
