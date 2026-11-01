@@ -276,7 +276,7 @@ static partial class Game
         var player = CharacterPlayerStats(conn);
         int speed = CastSpeedPct(player);
         if (Stats.Key("base_cast_speed_+%") is uint k) speed += own.GetValueOrDefault(k);
-        speed = FinalCastSpeedPct(conn, player, speed);
+        speed = FinalCastSpeedPct(conn, MergeSkillStats(player, own), speed);
         if (SpellCastTiming.ForSkill(SkillsFor(conn), effect, speed)?.DurationMilliseconds is not int duration) return null;
         // A new action starts at most once per server frame (30/s); channelling repeats are exempt and use their own
         // interval. Keep the fractional tick and round the final wait up to whole milliseconds.
@@ -288,16 +288,36 @@ static partial class Game
     internal static int CastSpeedPct(IReadOnlyDictionary<uint, int> stats) =>
         Stats.Key("cast_speed_+%") is uint k ? stats.GetValueOrDefault(k) : 0;
 
-    // Screaming Reels: cast_speed_+%_final_while_holding_fishing_rod is "more" cast speed on the summed increases
-    // (the skill's own included). As the client's cast_speed_+% calculator 0x142709610: round((increased + 100) × final
-    // − 100), at least −99; its combined final (0x142708190) counts the stat only for main_hand_weapon_type 15.
-    // A total of −100% or less keeps its existing refusal.
-    static int FinalCastSpeedPct(ClientState conn, IReadOnlyDictionary<uint, int> stats, int increased)
+    // "More" cast speed on the summed increases (the skill's own included), as the client's cast_speed_+% calculator
+    // 0x142709610: round((increased + 100) × (final + 100) / 100 − 100), at least −99. Its combined final (0x142708190)
+    // multiplies max(0, 1 + v / 100) of each source below in single precision and in this order, then rounds:
+    // Spell Echo's support_multicast_cast_speed_+%_final, Screaming Reels' only for main_hand_weapon_type 15 (a fishing
+    // rod), the totem supports' only off a totem, Fanaticism's only for a hand-cast spell, the Frostbolt one at most
+    // +200%, the metamorphosis boss's in permyriad. A total of −100% or less keeps its existing refusal.
+    static int FinalCastSpeedPct(ClientState conn, IReadOnlyDictionary<uint, int> stats, int increased) =>
+        FinalCastSpeedPct(name => Stats.Key(name) is uint k ? stats.GetValueOrDefault(k) : 0, () => HoldingFishingRod(conn), increased);
+
+    internal static int FinalCastSpeedPct(Func<string, int> get, Func<bool> holdingFishingRod, int increased)
     {
-        int more = Stats.Key("cast_speed_+%_final_while_holding_fishing_rod") is uint k ? stats.GetValueOrDefault(k) : 0;
-        if (more == 0 || increased <= -100 || !HoldingFishingRod(conn)) return increased;
-        double total = (100.0 + increased) * Math.Max(0, 100 + more) / 100 - 100;
-        return (int)Math.Clamp(Math.Round(total, MidpointRounding.AwayFromZero), -99, int.MaxValue);
+        if (increased <= -100) return increased;
+        static float Factor(int value, float scale = 100) => Math.Max(0, (value + scale) / scale);
+        float Final(string name) => Factor(get(name));
+        bool totem = get("is_totem") != 0, handCast = get("casting_spell") != 0 && get("is_not_hand_cast") == 0;
+        int fishing = get("cast_speed_+%_final_while_holding_fishing_rod");
+        float final = Final("active_skill_cast_speed_+%_final") * 100 * Final("righteous_fire_cast_speed_+%_final")
+            * Final("suppressing_fire_debuff_cast_speed_+%_final") * Final("support_multicast_cast_speed_+%_final")
+            * Final("echoing_shrine_cast_speed_+%_final") * Final("essence_support_attack_and_cast_speed_+%_final")
+            * Final("weapon_tree_cast_speed_+%_final_in_main_hand") * Final("weapon_tree_cast_speed_+%_final_in_off_hand")
+            * Final("covered_in_spiders_attack_and_cast_speed_+%_final")
+            * (totem ? 1 : Final("support_spell_totem_cast_speed_+%_final")) * (totem ? 1 : Final("support_crab_totem_cast_speed_+%_final"))
+            * Factor(Math.Min(200, get("cast_speed_+%_final_per_frostbolt_destroyed_recently") * get("number_of_frostbolts_destroyed_recently")))
+            * (handCast ? Final("fanaticism_hand_cast_speed_+%_final") : 1)
+            * (fishing != 0 && holdingFishingRod() ? Factor(fishing) : 1)
+            * Factor(get("metamorphosis_boss_cast_speed_+%_final_permyriad"), 10000) * Final("cast_speed_+%_final_for_minion") - 100;
+        int more = (int)MathF.Round(final, MidpointRounding.AwayFromZero);
+        if (more == 0) return increased;
+        float total = (increased + 100) * Factor(more) - 100;
+        return Math.Max(-99, (int)MathF.Round(total, MidpointRounding.AwayFromZero));
     }
 
     // Righteous Fire (GrantedEffects RighteousFire): casting it puts the righteous_fire buff (BuffDefinitions row 12: the

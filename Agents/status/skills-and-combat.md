@@ -1107,8 +1107,9 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Real-client Q Fireball clips measured 3.750000157 s at -80%, 0.375 s at +100%, and 0.75 s at zero.
   Native virtual base stayed 750 ms; emitted cast rates were 0.27, 2.67 and 1.33 casts/s respectively.
   Projectile release/contact alignment was not separately measured.
-  Screaming Reels' 60% more cast speed with a Fishing Rod uses the native calculator's formula in the server wait and in
-  the spell record's `cast_speed_+%`.
+  "More" cast speed (Spell Echo's 40%, Screaming Reels' 60% with a Fishing Rod, Fanaticism's, the totem supports' and
+  the other sources of the native combined final) uses the native calculator's formula in the server wait and in the
+  spell record's `cast_speed_+%`.
   That record value now also includes a support's own cast speed (Faster Casting), as the server wait already did.
   Neither change is checked with the real client; only the Gateway tests cover them.
   Area spells without a projectile (Ice Nova) release at their `spell_aoe` clip's contact (Witch 266/766 of the cast,
