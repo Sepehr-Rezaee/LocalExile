@@ -645,6 +645,8 @@ sealed partial class ClientState(AreaLayout layout, uint ticket, uint seed)
     public TutorialObjects.Placement? TutorialChest;
     public AreaPopulation.RoomObject? TutorialZombiePlacement;
     public bool TutorialSceneRunning;
+    public bool TutorialGettingUp;
+    public TaskCompletionSource? TutorialDialogueSkipped;
     public string? NpcFinishFlag;
     // The dialogue row whose script acts when its talk ends (DoNPCChat, FinishNPCChat, SendOpenScreen, AreaTransitionTo:
     // Game.EndTalkScript), or null.

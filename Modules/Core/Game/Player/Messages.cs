@@ -38,6 +38,11 @@ static partial class Game
                 // (below). The client starts the action itself and waits for this echo before sending the next one.
                 var use = InstanceProtocol.ReadUseSkillAtLocation(bytes);
                 double at = conn.ClockAt(readAt);   // when the client applied the click, not when this handler runs
+                if (use.SkillId == TutorialObjects.WashedUpSkillId)
+                {
+                    await WakeUpOnBeach(remote, stream, ciphers, conn, (use.X, use.Y), use.Slot, use.Flags, at);
+                    continue;
+                }
                 // A gem skill cast at the ground (Fireball) stops the player where it stands; anything else (Move) walks there.
                 if (InTown(conn) && SkillsFor(conn).ActionName(use.SkillId) != "Move") continue;
                 if (SkillsFor(conn).ActionName(use.SkillId) != "Move")

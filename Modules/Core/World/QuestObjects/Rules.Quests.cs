@@ -32,25 +32,31 @@ static partial class QuestobjectsRules
         { if (!conn.Closed) Console.WriteLine($"[gateway] tutorial chest: {ex.Message}"); }
     }
 
-    internal static async Task RunOpeningScene(string remote,NetworkStream stream,ConnectionCiphers ciphers,ClientState conn,uint id,SpawnedNpc npc)
+    internal static async Task RunOpeningScene(string remote,NetworkStream stream,ConnectionCiphers ciphers,ClientState conn,uint id,SpawnedNpc npc,double biteAt,Task skipped)
     {
         try
         {
             double start=conn.Clock.Elapsed.TotalSeconds;
-            // NPCTalk's actual script: triggerer.TalkToWoundedExile(8.2,22.8). Use the paused instance clock.
-            async Task Until(double elapsed) { while (!conn.Closed && conn.Clock.Elapsed.TotalSeconds < start+elapsed) await Task.Delay(50); }
-            await Until(8.2); if(conn.Closed) return;
+            // Finish the selected voice line, then play the whole bite before handing over to the combat monster.
+            // Use the paused instance clock for both waits.
+            while (!conn.Closed && !skipped.IsCompleted && conn.Clock.Elapsed.TotalSeconds < start+biteAt)
+                await Task.Delay(50);
+            await WhilePaused(conn);
+            if(conn.Closed) return;
+            double biteStarted = conn.Clock.Elapsed.TotalSeconds;
             int component=npc.Npc.Components!.ToList().IndexOf("Transitionable");
             if(component>=0) await Send(remote,stream,ciphers,InstanceEntities.TransitionableUpdate(id,(byte)component,2),"0x02ba wounded exile bitten");
             if(conn.TutorialSceneId!=0) await Send(remote,stream,ciphers,TutorialObjects.BiteAnimation(conn.TutorialSceneId,1),"0x01b2 opening zombie bites exile");
-            await Until(22.8); if(conn.Closed) return;
+            while (!conn.Closed && conn.Clock.Elapsed.TotalSeconds < biteStarted+TutorialObjects.BiteSeconds)
+                await Task.Delay(50);
+            if(conn.Closed) return;
             if(conn.TutorialSceneId!=0) await Send(remote,stream,ciphers,InstanceProtocol.RemoveObject(conn.TutorialSceneId),null);
             if(conn.TalkingTo==id) { conn.InNpcTalk=false;conn.TalkingTo=0;await Send(remote,stream,ciphers,InstanceNpcs.Talk(0),null); }
             await SpawnTutorialZombie(remote,stream,ciphers,conn);
         }
         catch(Exception ex) when(ex is IOException or ObjectDisposedException)
         { if(!conn.Closed) Console.WriteLine($"[gateway] opening scene: {ex.Message}"); }
-        finally { conn.TutorialSceneRunning=false; }
+        finally { conn.TutorialSceneRunning=false; conn.TutorialDialogueSkipped=null; }
     }
 
     internal static async Task SpawnTutorialZombie(string remote,NetworkStream stream,ConnectionCiphers ciphers,ClientState conn)

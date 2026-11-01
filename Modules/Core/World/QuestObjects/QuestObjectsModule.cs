@@ -76,6 +76,11 @@ public sealed class QuestObjectsModule : IModule, IDisposable
             await TalkToWoundedExile(remote, stream, ciphers, conn, id, npc);
             return true;
         });
+        On(GameEvents.NpcDialogueClosing, conn =>
+        {
+            TutorialObjects.SkipDialogue(conn);
+            return Task.CompletedTask;
+        });
         // Deathrattle: a warcry opens the quest chests within its radius.
         On(GameEvents.ChestsOpened, async (conn, at, radius) =>
         {
