@@ -930,6 +930,9 @@ static partial class Game
         for (int preset = 0; preset < conn.AtlasPassives.Length; preset++)
             messages.Add(($"0x003d atlas passive preset {preset} ({conn.AtlasPassives[preset].Count}/{conn.AtlasPassivePoints} points)",
                 AtlasSlots(conn, preset)));
+        if (ExtraPlayerMessages is { } extra)
+            foreach (var (log, message) in extra(conn))
+                messages.Add((log, message));
         var (passives, passivesLabel) = PassivesMessage(conn);
         messages.Add((passivesLabel, passives));
         // Area transitions. Like the player they are queued by the world and created when 0x21 activates it.

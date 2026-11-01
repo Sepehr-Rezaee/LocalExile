@@ -158,7 +158,7 @@ Both run before `ServerLog`, so their output is JSON lines only.
 |---|---|
 | `/commands [page \| name]`, `/com …` | lists the commands, 8 per page (`/com 2`, `/com 3`, …; after four blank lines a green header, then each command's syntax only), or the full usage of one command (`/com item`; otherwise every command whose name contains the text) |
 | `/raw <hex>` | sends the bytes as one S→C message (dev probe; spaces allowed) |
-| `/atlas_complete <map name or AtlasNode id \| all>`, `/atlas_reset` | Atlas module: marks Atlas maps completed or clears them, saved, and re-sends 0x1a3 ([21](21-hideouts.md) §4) |
+| `/atlas_complete <map name or AtlasNode id \| all>`, `/atlas_reset` | Atlas module: marks Atlas maps completed or clears them, saved ([21](21-hideouts.md) §4); one map sends 0x1a4, `all` only saves, reset sends an empty 0x1a3 |
 | `/set_speed <percent>` | 0x1b3 `movement_velocity_+%` = percent − 100 on the player; the server's walk estimate uses 37 × percent / 100 cells/s |
 | `/set_stat <stat name or client key> <value\|off>` | replaces a raw stat or removes its development replacement |
 | `/spawn_mob <row, Id or name>[@level] [friendly] [normal\|magic\|rare\|unique] [name]` | 0x20 + 0x2b9 + 0x1a9 for a MonsterVarieties row at a level (default 1), hostile unless `friendly`, with a rarity and an optional name, a few cells from the player (§5) |

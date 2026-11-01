@@ -143,12 +143,15 @@ instance + 8, so its +0xd068 is +0xd070:
   AtlasNode table's HASH16 index), u8 → +0xc400, u8 → +0xc401, u8 flags. The node is added to +0xd030, with bit 0x2 also
   to +0xd070, with bit 0x4 its area to +0xcff0.
 
-The Atlas module (`AtlasProgress.cs`) saves the completed AtlasNode Ids per character (module data `completed`), sends
-0x1a3 with both masks on every area entry (`OnEnterMessages`), and 0x1a4 with flags 0x02 when the map is completed: a
-kill, in an AtlasNode's Area1/Area2, of its WorldAreas `Bosses_MonsterVarietiesKeys` or of any unique monster.
-`/atlas_complete <map | all>` and `/atlas_reset` (dev) change the saved set and re-send 0x1a3. Not yet: the meaning of
-+0xc400/+0xc401 and the 0x4/0x8/0x10 sections (bonus objectives, Voidstones and the like), and Atlas passive points
-from progress.
+The Atlas module (`AtlasProgress.cs`) saves the completed AtlasNode Ids per character (module data `completed`). Area
+entry sends one filled 0x1a3 with the 0x3d presets, before 0x21, so the HUD is not up and does not announce them
+(live 2026-11-01: a filled 0x1a3 or a 0x1a4 after 0x21 listed every saved map as completed). A kill, in an AtlasNode's
+Area1/Area2, of its WorldAreas `Bosses_MonsterVarietiesKeys` or of any unique monster sends 0x1a4 with flags 0x02 and
+one chat line, only the first time.
+`/atlas_complete <one map>` sends 0x1a4 like a first completion; `/atlas_complete all` only saves (a filled 0x1a3 after
+0x21 announced every map); `/atlas_reset` sends an empty 0x1a3. Method: [re/013](../re/013-atlas-progress.md). Not yet:
+the meaning of +0xc400/+0xc401 and the 0x4/0x8/0x10 sections (bonus objectives, Voidstones and the like), and Atlas
+passive points from progress.
 
 ## 5. The map device: slots, Activate, portals
 

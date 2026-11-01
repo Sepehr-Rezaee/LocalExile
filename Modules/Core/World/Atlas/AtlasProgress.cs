@@ -45,8 +45,15 @@ public static class AtlasProgress
 
     public static bool Reset(ISavedData data) => data.Change(CompletedKey, old => string.IsNullOrEmpty(old) ? null : "");
 
-    /// <summary>S→C 0x1a3: u8 ×3 (unknown, 0), u8 sections (bit 0: first mask, bit 1: second mask), u8 count of u16 pairs
-    /// (none), then the masks (bit r of byte r / 8 = AtlasNode row r). Both masks hold the completed maps.</summary>
+    /// <summary>S→C 0x1a3 with empty masks. The client rebuilds its instance per area and treats a filled 0x1a3 as a
+    /// burst of completions (chat / notifications); this only clears the two AtlasNode sets. Completed maps then go
+    /// out as 0x1a4.</summary>
+    public static byte[] EmptyMessage() => [0x01, 0xa3, 0, 0, 0, 0x03, 0, .. new byte[MaskBytes], .. new byte[MaskBytes]];
+
+    /// <summary>S→C 0x1a3: u8 → +0x71, u8 → +0x72, u8 → +0x70, u8 sections (bit 0: first mask, bit 1: second mask),
+    /// then always 0x141fa4050 (u8 count of u16 pairs, 0 here) and the selected 22-byte masks (bit r of byte r / 8 =
+    /// AtlasNode row r). Both masks hold the completed maps. Used by tests; live enter uses <see cref="EmptyMessage"/>
+    /// plus <see cref="NodeMessage"/> so the client does not announce every saved map.</summary>
     public static byte[] FullMessage(IReadOnlySet<string> completed)
     {
         var mask = new byte[MaskBytes];
