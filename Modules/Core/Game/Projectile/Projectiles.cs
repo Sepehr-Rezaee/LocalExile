@@ -273,7 +273,8 @@ static partial class Game
             var gambler = GamblerFor(player);
             var rolled = GameEvents.WithOutgoingDamage(Conn, player, target, (gambler with { DamageMorePct = 0 }).RollOutgoingHit(packet, random));
             int chance = contact.Projectile.Form > 0 && shot.SecondFormCriticalChance is int second ? second
-                : CriticalChanceOn(Conn, contact.Target.Id, shot.CriticalChance, shot.VsBlindedCriticalChance);
+                : CriticalChanceOn(Conn, contact.Target.Id, shot.CriticalChance, shot.VsBlindedCriticalChance,
+                    shot.VsProfaneCriticalChance);
             // Base chance/multiplier belong to release; conditional owner state is read at this contact.
             bool critical = RollCriticalStrike(Conn, chance, shot.SkillStats, attack: !shot.Spell, skillRoll: shot.CriticalRoll, player: player)
                 && (shot.Spell || EvasionEntropy.ConfirmsCritical(hitChance, Conn.AttackAccuracyRandom));
@@ -295,6 +296,7 @@ static partial class Game
                 contact.Projectile.ReactionRandomSource, player);
             ChargesOnHit(Conn, target, critical, shot.Spell, shot.Effect, shot.Level, shot.Quality, melee: false);
             CommitProjectileHit(this, contact, target, hit.Value, damage, shot, critical);
+            if (critical) Enqueue(() => MaybeCreateProfaneGround(remote, stream, ciphers, Conn, target.Walk.Position(at)));
             return ProjectileHitResult.Hit;
         }
 
