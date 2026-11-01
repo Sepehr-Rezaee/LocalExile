@@ -901,6 +901,16 @@ their instances. Instant flasks, block gains and the recovery writer trim full p
 successful area transfer and disconnect clear state. Pause uses the stopped game clock. Supported cannot-leech flags
 remove matching instances; cannot-recover Life/ES suppress recovery without inventing a cannot-leech source.
 
+A kill by the player recovers its "on kill" amounts at once (`KillRecovery`, `RecoverOnKill`), from the ordinary
+death (`MonsterKilled`, including ignite kills) and the projectile commit (`CommitProjectileKill`); a minion's kill
+does not. The flat `base_*_gained_on_enemy_death` plus `*_gained_on_enemy_death_per_level` × character level, and
+`recover_%_maximum_life_on_kill`, `recover_%_maximum_mana_on_kill`, `maximum_mana_%_gained_on_kill` and
+`recover_energy_shield_%_on_kill` of the maximum pool, are summed and floored per pool, with no recovery-rate
+multiplier (PoB `CalcOffence.lua` "LifeOnKill"). Mana stops at unreserved Mana. The amounts are read when the player
+stats are built (`ConfigureLeech`), not per death, and the cannot-recover Life/ES flags stop their pool. Conditional
+sources (killing a cursed, chilled, ignited, shocked or frozen enemy, with Rage, with a tincture, per mastery type)
+and the "lost on kill" stats are not read.
+
 Decisions and alternatives:
 
 - Keep existing total-hit rounding and critical/return scaling. Retain post-mitigation type proportions and scale them
