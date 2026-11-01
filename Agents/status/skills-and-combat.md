@@ -552,6 +552,7 @@ Part of [Status](../Status.md); what to build next in this area is in
   Highwayman's real modifier now doubles total Life-leech recovery once, independently of the explicit Life
   maximum-rate doubling flag. Source/removal, duplicate flags, caps, duration, instant and conversion controls pass;
   current Vaal Pact acquisition and native stacking/recovery parity are not implied by raw-flag support.
+  Attack gain on hit recovers Life, Mana and ES; not checked live ([20](../docs/protocol/20-damage.md) §5b).
   Code: `LeechLimits.cs`, `LeechSources.cs`, `LeechRecoveryState.cs`, `LeechSession.cs`, Gateway (`Program.Leech`, resource writer).
   Docs: [20](../docs/protocol/20-damage.md) §5b.
 - Ordinary Life/Mana regeneration: flat and maximum-pool percentage sources receive regeneration and recovery increases.

@@ -896,6 +896,17 @@ General/resource instant percentages split off immediate recovery inside the acc
 enemy hit can act. Instant Life/Mana notifications are marked dirty for the existing writer; ES uses its normal sender.
 Sub-point instant recovery retains a separate carry and discards overflow at full pools.
 
+Life, Mana and ES gained per enemy hit join that instant recovery: `LeechSources.GainOnHit` is computed with the
+coefficients, and every accepted enemy hit adds it once, whatever the hit's damage (an area attack hitting five
+monsters gains five times). Every 3.29 source is an attack's: `base_life_gain_per_target` (the Life Gain on Hit support,
+"Gain X Life per Enemy Hit with Attacks" on jewellery and quivers), `mana_gain_per_target`,
+`energy_shield_gain_per_target`, and the attacking weapon's local `local_life_gain_per_target`,
+`local_mana_gain_per_target` and `local_life_and_mana_gain_per_target` (PoB `SkillStatMap` maps
+`base_life_gain_per_target` to `LifeOnHit` for attacks; its `CalcOffence.lua` "Calculate gain on hit" applies no
+recovery-rate multiplier). Spells gain nothing. The cannot-recover Life/ES flags stop the gain; a monster's
+cannot-be-leeched flags do not. The conditional sources (against blinded, cursed or ignited enemies, while leeching,
+while affected by Vitality or Discipline, after a Vaal skill) are not read.
+
 Ordinary leech ends at full unreserved Mana/full Life/full ES; supported unconditional Life/ES overleech flags retain
 their instances. Instant flasks, block gains and the recovery writer trim full pools at their commits. Death, resurrection,
 successful area transfer and disconnect clear state. Pause uses the stopped game clock. Supported cannot-leech flags
@@ -1075,7 +1086,8 @@ mitigation are composed as described in the [projectile module](../game/projecti
   suppresses; bleed movement bonus; poison stacking.
   Supported incoming elemental ailments are bounded by [Gambler](../game/gambler.md#incoming-elemental-ailments).
 - Per-monster damage conversion and monster-specific mitigation.
-- Damage reflection, specialized leech conversions/conditions, life/mana gain on hit, and recoup. Ordinary leech is in §5b.
+- Damage reflection, specialized leech conversions/conditions, conditional gain on hit, and recoup. Ordinary leech and
+  gain on hit are in §5b.
 - Party/minion damage and the full support-gem effect set.
 
 The next support-gem work (#64) can add its effects as packet operations: `Add` for added damage, `Scale` for
