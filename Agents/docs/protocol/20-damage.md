@@ -74,6 +74,20 @@ A level-68 fire skeleton took 60 from fixed 100 fire, then 80, 90 and 100 as pen
 The prohibition restored 60; its zero cold resistance took 100, then 120 with 20 cold penetration.
 Map Hillock's 25% chaos resistance took 75, then 105 with 30 attack chaos penetration.
 
+Exposure on hit (`HitDebuffs`) lowers the monster's resistance before the cap, like its mods'. A player hit that lands
+on a living monster rolls each element: `base_inflict_{fire,cold,lightning}_exposure_on_hit_%_chance`,
+`chance_to_inflict_{element}_exposure_on_hit_with_{element}_damage_%` when the hit deals that element, and
+`inflict_all_exposure_on_hit` inflict the default -10%; `{element}_exposure_on_hit_magnitude` (the Eldritch implicits)
+always inflicts its own value. The stronger one counts, plus `{element}_exposure_you_inflict_applies_extra_{element}_resistance_+%`
+and `exposure_you_inflict_applies_extra_%_to_affected_resistance`, and at least
+`exposure_you_inflict_has_minimum_resistance_%`. `cannot_inflict_exposure` and the monster's `immune_to_exposure` stop it.
+Each lasts 4 s, kept by element and magnitude; only the highest running one of an element applies (poedb Exposure:
+-10% and 4 s are its defaults). `MonsterHitResistance` takes it at the hit's time and `MonsterDotTaken` at the burn's;
+paths without a time (minions, Rampage, warcries) leave it out. The hit that inflicts it does not gain from it.
+`EnemyDebuffsTick` shows BuffDefinitions 1268-1270 (Fire, Cold and Lightning Exposure; not IsRecovery, so no values)
+with the time left. Not read: skill and aura Exposure (Hydrosphere's `water_sphere_cold_lightning_exposure_%`, Flame
+Wall's `firewall_applies_%_fire_exposure`, the Heralds' nearby-enemy Exposure), `exposure_effect_+%` on the target, Elemental Equilibrium and the conditional and minion sources.
+
 The unconditional stats the server reads (whole percents, this client's Stats.dat names):
 
 | Stats | Scope |
@@ -1068,7 +1082,7 @@ mitigation are composed as described in the [projectile module](../game/projecti
 
 ## 6. Not modelled yet
 
-- Exposure, full monster armour and specialized damage-taken modifiers; ordinary player Energy Shield and the
+- Skill and aura Exposure (on-hit Exposure is in §2), full monster armour and specialized damage-taken modifiers; ordinary player Energy Shield and the
   supported incoming shock path are implemented. The monsters' base resistances are in §4, with penetration.
 - Remaining skill-specific increased/more/effectiveness mechanics beyond the documented packet and support paths.
   Weapon-local and character flat ranges retain conversion history and their separate scopes.

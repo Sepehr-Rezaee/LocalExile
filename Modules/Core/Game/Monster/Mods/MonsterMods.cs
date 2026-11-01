@@ -75,10 +75,10 @@ static partial class Game
     /// <summary>A monster's resistance to one type of the player's hit: base and mod resistance compose before
     /// Monster.ot's 75% cap; penetration subtracts once after that cap.</summary>
     internal static DamageModel.ResistanceValue MonsterHitResistance(SpawnedMonster m, DamageType type,
-        Penetration.PerType pen)
+        Penetration.PerType pen, double now = double.NaN)
     {
         var resistance = HitMitigation.Resistance(Monsters, m.Variety, m.Level, type);
-        return resistance with { Value = resistance.Value + m.Mods.Effects.Resistance(type),
+        return resistance with { Value = resistance.Value + m.Mods.Effects.Resistance(type) + MonsterExposure(m, type, now),
             Maximum = MonsterModEffects.MaxResistance, Penetration = pen.Of(type) };
     }
 
@@ -148,7 +148,7 @@ static partial class Game
     /// description saying it covers damage over time.</summary>
     internal static double MonsterDotTaken(SpawnedMonster m, DamageType type, double now = double.NaN)
     {
-        var resistance = MonsterHitResistance(m, type, default);
+        var resistance = MonsterHitResistance(m, type, default, now);
         double factor = (100 - DamageModel.Capped(resistance.Value, resistance.Maximum)) / 100.0
             * MonsterDamageTaken(m, spell: false, now, DamageTypes.IsElemental(type));
         if (type == DamageType.Physical) factor *= 1 + Math.Max(0, m.PridePhysicalMore) / 100.0;
