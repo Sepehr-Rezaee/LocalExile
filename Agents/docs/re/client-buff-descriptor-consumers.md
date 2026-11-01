@@ -1,17 +1,18 @@
-# Mod-derived Buff descriptors: consumer research workbench
+# Mod-derived Buff descriptors: ownership and transfer boundaries
 
 ## Objective and current state
 
-Follow one prepared Mod-derived Buff descriptor to an actual reader and explain
-the reader's output. Begin with Mod row 7300
+Document the established ownership, storage and structural transfer of one
+prepared Mod-derived Buff descriptor. The selected slice begins with Mod row 7300
 `ChaosDegenerationAuraPlayersUniqueBodyStr3`, BuffTemplates row 130 and its
 foreign-key-linked `unique_deaths_oath_aura` definition. Rows are zero-based
 extracted ordinals for the pinned 3.29.3b artifact.
 
-This is the next bounded research batch under issue #370. **N0 is complete;
-N1 has owner/storage and structural-transfer evidence, but no reader with an
-identified purpose. N2 remains open.** The numerical receiver, target eligibility
-and rate-publication connection remain unknown. Keep PR #466 Draft.
+PR #466 delivers this structural evidence under issue #370. Its scope was
+explicitly revised to publish the established findings and retain unfinished
+consumer research as Known issues. Readiness applies to this documentation
+delivery; it does not mean the original consumer investigation passed.
+Original N1 remains partial, original N2 remains open, and R2/R3/R4 stay Partial.
 
 ## Base and inherited evidence
 
@@ -52,7 +53,7 @@ flowchart TD
     P -->|"142201d70 tail-calls 1421ff3c0"| B["R75 preparation: selected Mod if supplied"]
     B --> V["P + 160 vector; 0x68-byte descriptors"]
     V -->|"1421debb0 → 1421deda0"| C["Structural assignment to another Mods object"]
-    V -. "missing purpose-bearing reader" .-> U["Meaningful consumer / output: unresolved"]
+    V -. "K1: actual reader unresolved" .-> U["K2: consumer purpose / output unresolved"]
     P --> K["Separate pointer P + 1d8"]
     K --> Q["Cache + 160: 0x28-byte records; different vector"]
 ```
@@ -110,8 +111,25 @@ no subsequent business-object reassignment in the decoded functions. Those
 operand matches therefore do not establish prepared-object fields. This does
 not exclude descriptor-related stack temporaries or other consumers. Stop this
 finite query as well; do not replace the missing typed escape with another
-global offset, stride or getter inventory. **N1/N2 remain evidence-blocked and
-the PR remains Draft.**
+global offset, stride or getter inventory. These results delimit the unfinished
+consumer research; they do not prevent delivery of the structural findings.
+
+## Known issues and re-entry evidence
+
+| ID | Unresolved connection | Evidence needed to resume |
+|---|---|---|
+| K1: actual reader | No purpose-bearing reader is bound to this same descriptor; original N1 is partial | An original call/field path carrying this vector or a proven descriptor into a non-lifetime reader, or independently typed evidence for an indirect reader |
+| K2: reader output | Original N2 is open: numerical use versus configuration/dependency/presentation use is unclassified | After K1, trace guarded inputs and operations to an actual output; for numerical use identify the recipient, Stat/provider, contribution token or equivalent endpoint |
+| K3: damage connection | Target eligibility, actual Buff application, snapshot/update/removal and target rate publication remain unknown | Independent original-byte or separately scoped runtime evidence connecting the descriptor consumer to those operations; the separate received-rate contract alone is insufficient |
+
+The inherited `27000/min` remains descriptor preparation input, not observed
+target damage or an established effective rate. Failed searches do not prove
+that no consumer exists, that all consumers are presentation-only, or that
+the missing operation belongs to the server.
+
+K1–K3 remain follow-up research under issue #370. They are not acceptance
+requirements for the revised ownership/transfer delivery. A later batch must
+define its own entry evidence and acceptance criteria before reopening them.
 
 ## Claim audit at this boundary
 
@@ -119,55 +137,38 @@ the PR remains Draft.**
 |---|---|
 | Prepared-object embeddings and selected structural assignment | Supported by the focused original-byte index |
 | The cache getter reads these prepared descriptors | Rejected for this candidate: the intermediate object and stride differ |
-| A meaningful reader/output for the selected descriptor | Unresolved; copying and cleanup do not satisfy N1/N2 |
+| A meaningful reader/output for the selected descriptor | K1/K2 unresolved; copying and cleanup do not complete the original N1/N2 |
 | `27000/min` is actual target damage, or client DoT publication is recovered | Not established; original R2/R3/R4 remain Partial |
-| N0–N3 pass and PR #466 is Ready | Not established; keep Draft |
+| The original consumer investigation passed N0–N3 | Not established; original N1/N2 remain unfinished |
+| PR #466 can be reviewed as an ownership/transfer delivery | Revised scope: structural findings plus explicit Known issues; final publication checks apply below |
 
-## Delivery gates
+## Delivery acceptance
 
-| Gate | Required result | State |
+| Requirement | Acceptance evidence | State |
 |---|---|---|
-| N0: fix the slice | Selected row, precise missing connection, fixed prior evidence and scope exclusions | Complete: this workbench and the Draft PR; no new numerical findings |
-| N1: bind a reader | One original-byte field/call path from the prepared descriptor to an identified reader, with owner/object provenance | Partial: embeddings and structural assignment bound; purpose-bearing reader unresolved |
-| N2: explain its output | A conditional input → operation → output contract for that actual reader; identify numerical versus configuration/dependency/presentation use through positive output evidence | Pending |
-| N3: independent reviewable delivery | One small diagram, field/value-flow table, focused evidence index, remaining gaps and claim audit; latest-main/exact-head and appropriate documentation/tool checks | Pending |
+| Fixed slice and dependency | Selected Mod/template, pinned artifact and PR #371 references above; no imported baseline diff | Established |
+| Owner/storage and transfer | Diagram, offset/call contract and focused original-byte index; distinct cache positively excluded | Established within the stated static guards |
+| Limits and follow-up | K1–K3, bounded coverage and claim audit; original consumer gates and R2/R3/R4 not promoted | Explicit |
+| Publication validation | Current main ancestry, exact published head/body, pinned source identities, byte/anchor/slot checks, relative links/privacy/whitespace and required build/test results | Record in the PR; Ready only after these checks pass |
 
-Ready requires N0–N3 for **one actual consumer path**. A positively bound
-configuration/dependency/presentation consumer can satisfy consumer classification,
-but it does not close actual DoT numerical publication or prove that other
-consumers do not exist. The diagram and conclusion must preserve that distinction.
-Original R2/R3/R4 stay Partial unless separate evidence justifies a specific change;
-this batch does not require or authorize completing all of them.
+The former N0–N3 plan required a meaningful consumer and its output. It is
+retained here as an unfinished research objective, not retroactively marked
+complete. This delivery accepts the owner/transfer findings and their explicit
+boundary. Neither documentation readiness nor passing build/tests establishes
+gameplay numerical behavior or live parity.
 
-If N1 or N2 cannot be established, keep Draft and report the exact missing edge.
-A search failure, field-copy inventory or same-offset getter is not a passing gate.
+## Follow-up boundaries
 
-## Work-selection and stop rules
+The stopped getter and operand-inventory routes remain stopped until new typed
+evidence appears. Do not repeat broad offset/stride/getter searches, preparation
+catalogues or parent-table scans. Once a future path is positively classified,
+record its actual output and stop unrelated configuration/rendering branches.
 
-1. Work on the first unfinished gate with one active missing connection. Before
-   investigating, record the start, expected evidence and stopping boundary.
-2. Trace the same descriptor's storage/copy/reader with concrete object identity.
-   Prioritize a numerical recipient, Stat/provider or contribution token if the
-   actual path exposes one; do not assume one exists in the client.
-3. After two bounded investigations fail to advance the same missing edge,
-   stop that route. Record facts, inspected coverage and next required evidence.
-   If a mandatory gate remains unmet, report it as blocked rather than relabeling
-   failed searches as proof of absence or server ownership.
-4. Once a path is positively classified as configuration, dependency collection
-   or presentation, record its actual output and stop that branch. Do not expand
-   into resource packages, rendering or unrelated container internals.
-5. Use another Mod only as a minimal control necessary to distinguish the selected
-   path. Do not reopen the seven-row preparation catalogue or whole parent-table scan.
-6. Add directed numerical comparisons only for newly established arithmetic.
-   Reused verification counts and copying/dependency handling are not new formulas.
-7. Protect sealed scripts, reports and snapshots. Do not rerun sealed producer
-   mains; reference prior identities and their disclosed fixtures. Keep tool and
-   evidence memory bounded; use one-shot interpreters, not resident `python -i`.
-8. Share through the existing owned research ledger; inspect the projectile
-   ledger read-only before a potential overlap. No routine cross-thread messages
-   or duplicate Actor/projectile/World/protocol-ingress research.
-9. After N0–N3 and final publication checks pass, mark this PR Ready and stop.
-   Do not automatically merge, close issue #370 or begin another batch.
+Protect sealed scripts, reports and snapshots; do not rerun producer mains.
+Use bounded one-shot tools and the owned coordination ledger. Do not duplicate
+Actor/projectile/World/protocol-ingress work or send routine peer messages.
+After this revised delivery passes validation, mark #466 Ready and stop.
+Do not merge automatically, close issue #370 or start another research batch.
 
 ## Exclusions
 
