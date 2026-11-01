@@ -245,7 +245,7 @@ static partial class Game
                 // Stop the sweep, but not the kills it already queued.
                 if (conn.Closed || conn.LeavingArea || conn.RageRetired || conn.PlayerLife == 0 || conn.Paused) break;
                 if (m.Dead || m.Life == 0 || MonsterBlocks(m, Random.Shared, spell: true)) continue;
-                var rolled = (gambler with { DamageMorePct = 0 }).RollOutgoingHit(hit, Random.Shared);
+                var rolled = (gambler with { DamageMorePct = 0 }).ForSkill(Own, spell: true).RollOutgoingHit(hit, Random.Shared);
                 critical = RollCriticalStrike(conn, CriticalChanceOn(conn, id, chance, vsBlinded, vsProfane), own, attack: false);
                 double hitAt = ProjectileWorldTime(conn);
                 (damage, _, var mitigated) = MonsterHitDamage(m, rolled, critical, attack: false, hitAt, mods, pen,

@@ -2572,7 +2572,7 @@ failed I/O, allocation limits, actual official values and every skill's successf
   each living hostile monster within the radius of the living player with 0x1c1 and takes it off with 0x1c2 when it
   leaves, the player dies or the node is refunded; a vanished monster is forgotten without a message
   (`PassiveBuffAuras.BlindState`). The invisible aura buff on the player is not sent: nothing on the client reads it
-  that we know of. `Game.Blinded` (smoke cloud or aura) is the one Blind condition the hits read: 20% less monster
+  that we know of. `Game.Blinded` (smoke cloud, aura or a hit's Blind, below) is the one Blind condition the hits read: 20% less monster
   accuracy and evasion, `critical_strike_chance_+%_vs_blinded_enemies` in the player's increased critical chance
   against the target, `damage_taken_+%_from_blinded_enemies` on its hits ([Polytheist](../game/polytheist.md)).
 - **Passive-granted skills** (`PassiveGrantedSkills.cs`, §10f): a passive's PassiveSkills `GrantedEffectsPerLevel`
@@ -2730,6 +2730,35 @@ failed I/O, allocation limits, actual official values and every skill's successf
   Taunt), raised by `taunt_duration_+%`; a new taunt replaces the player's older one; a death of the monster or the
   player ends it. BuffDefinitions 408 `taunted` shows it with its time left (flags bit1). The row is IsRecovery
   (+0x7c), so its 0x1c1 carries its two GrantedStats values: `taunt_target_id` (the player) and `is_taunted` 1.
+- **Intimidate and Unnerve** (`HitDebuffs`). A player hit that lands on a living monster rolls
+  `chance_to_intimidate_on_hit_%` (plus `attacks_intimidate_on_hit_%` for an attack) and `chance_to_unnerve_on_hit_%`
+  (plus `chance_to_unnerve_on_hit_with_spells_%` for a spell), with `Random.Shared`; Grattus Signet's
+  `spells_inflict_intimidate_on_crit` and `attacks_inflict_unnerve_on_crit` inflict them on a critical strike. Each lasts
+  4 s from the latest hit that inflicts it (poedb: "Intimidate Enemies for 4 seconds on Hit"). `intimidated` (733) and
+  `unnerved` (1412) show them with their time left, like the taunt; neither row is IsRecovery, so they carry no values.
+  An intimidated monster takes 10% increased damage from attack hits and an unnerved one from spell hits (poedb), added
+  to its `base_damage_taken_+%` in `MonsterTakesMitigated` and the hit's ailment damage, not in burns. Not read: the
+  weapon-local chance, "Nearby Enemies are Intimidated" auras, the full-life, curse, block and warcry sources, minions'
+  chances and Intimidate's stun duration stat.
+- **Blind on hit** (`HitDebuffs.BlindRoll`). The same hit makes one roll for the sum of `global_chance_to_blind_on_hit_%`
+  (the Blind support's 10%), `attacks_chance_to_blind_on_hit_%` for an attack and
+  `%_chance_to_blind_on_critical_strike` on a critical strike. Blind lasts 4 s (poedb: "base duration of Blind is 4
+  seconds") × (1 + `blind_duration_+%`/100) from the latest hit that inflicts it (`SpawnedMonster.BlindedUntil`), and
+  `EnemyDebuffsTick` shows it with the `blinded` buff (179) and its time left, like Intimidate. `Game.Blinded` counts
+  it, so it has the aura's effects above. Not read: `blind_effect_+%`, the weapon-local chance
+  (`local_chance_to_blind_on_hit_%`, on the panel only), `cannot_be_blinded` and `avoid_blind_%` on monsters (no
+  Blind source checks them), the conditional chances and minions' chances.
+- **Withered on hit** (`HitDebuffs.WitherRoll`). The same hit makes one roll for `withered_on_hit_for_2_seconds_%_chance`
+  (items, the weapon tree) plus Withering Touch's `withered_on_hit_chance_%`. A stack lasts the support's
+  `support_withered_base_duration_ms` or else 2 s, divided by (1 + `wither_expire_speed_+%`/100) for the Eldritch gloves'
+  "expires slower". Each gives 6% increased chaos damage taken × (1 + `withered_effect_+%`/100), up to 15 stacks with
+  their own ends; a 16th replaces the one ending first (poedb Withered: 6%, "stacking up to 15 times"; the replacement is
+  not checked). It adds to the monster's increased damage taken on the chaos part of a hit in `MonsterTakesMitigated`
+  and on chaos damage over time in `MonsterDotTaken`. `EnemyDebuffsTick` shows the `withered` buff (506, IsRecovery:
+  `chaos_damage_taken_+%` and `is_withered`, sent as one stack's value and 1) once, with the stack count and the time
+  the last stack has left, again when either changes. Whether the client wants one instance per stack instead is not
+  checked. A monster with `immune_to_wither` takes none. Not read: the weapon-local chance, the target's
+  `withered_effect_on_self_+%`, Wither the skill, the auras and the conditional sources.
 - **Where it runs.** The player tick (`RunPlayerTick`, 250 ms, not while paused) calls `TickPassiveAuras`, which
   does `EnemyDebuffsTick`; the step works at the send gate, so a removed monster gets no buff. The auras come from
   the allocated nodes at each step, `taunted_enemies_damage_taken_+%` from the stats last sent
