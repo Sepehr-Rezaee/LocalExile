@@ -848,6 +848,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Gateway coverage; not yet checked with the real client.
   Code: `PlayerMinions.cs`, `MinionAttacks.cs`, `RunMonsterAi`.
   Docs: [11](../docs/protocol/11-skills.md) section 10h.
+- Life Recoup returns a share of each hit taken over the next 4 s ([20](../docs/protocol/20-damage.md) §5).
 - Ancestral Commander defences: `damage_reduction_rating_from_body_armour_doubled` doubles the body armour's armour
   (and, with Iron Reflexes, its converted evasion) before the increases.
   `missing_unreserved_life_%_gained_as_life_before_hit` gains that share of missing Life before every non-evaded
