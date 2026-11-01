@@ -70,7 +70,7 @@ def hidden_characters(text, allow_leading_bom):
     names = set()
     for index, char in enumerate(text):
         code = ord(char)
-        if char == "\t" or (allow_leading_bom and index == 0 and char == "﻿"):
+        if char == "\t" or (allow_leading_bom and index == 0 and char == chr(0xFEFF)):
             continue
         if (unicodedata.category(char) in ("Cf", "Cc", "Zl", "Zp", "Co", "Cn")
                 or 0xFE00 <= code <= 0xFE0E or 0xE0100 <= code <= 0xE01EF
