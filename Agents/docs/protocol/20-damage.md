@@ -84,9 +84,15 @@ and `exposure_you_inflict_applies_extra_%_to_affected_resistance`, and at least
 Each lasts 4 s, kept by element and magnitude; only the highest running one of an element applies (poedb Exposure:
 -10% and 4 s are its defaults). `MonsterHitResistance` takes it at the hit's time and `MonsterDotTaken` at the burn's;
 paths without a time (minions, Rampage, warcries) leave it out. The hit that inflicts it does not gain from it.
+With `keystone_elemental_equilibrium`, a hit that deals fire, cold or lightning then removes every Exposure of those
+elements on the monster and inflicts -25% Exposure of the others (poedb's keystone text), × (1 +
+`elemental_equilibrium_effect_+%`/100) truncated, with the extra and minimum stats, for 4 s. The keystone names no
+duration, so that is Exposure's default. It runs after the hit's own Exposure, so it removes an on-hit Exposure of the
+hit's element, as PoB's calculation does (`CalcPerform` skips an element the enemy was hit by).
 `EnemyDebuffsTick` shows BuffDefinitions 1268-1270 (Fire, Cold and Lightning Exposure; not IsRecovery, so no values)
 with the time left. Not read: skill and aura Exposure (Hydrosphere's `water_sphere_cold_lightning_exposure_%`, Flame
-Wall's `firewall_applies_%_fire_exposure`, the Heralds' nearby-enemy Exposure), `exposure_effect_+%` on the target, Elemental Equilibrium and the conditional and minion sources.
+Wall's `firewall_applies_%_fire_exposure`, the Heralds' nearby-enemy Exposure), `exposure_effect_+%` on the target, Malachai's Artifice's socketed Elemental Equilibrium and the conditional and
+minion sources.
 
 The unconditional stats the server reads (whole percents, this client's Stats.dat names):
 

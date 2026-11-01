@@ -1388,6 +1388,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   The buffs, the sent action speed and the frozen pose are not checked with the real client.
   See [20](../docs/protocol/20-damage.md#outgoing-chill-freeze-and-shock-on-monsters).
   Hits inflict elemental Exposure by their chances, -10% for 4 s by default ([20](../docs/protocol/20-damage.md) §2).
+  Elemental Equilibrium removes the Exposure of a hit's elements and inflicts -25% Exposure of the others.
   Not yet: Exposure from skills and auras, aura-dependent penetration, other added damage,
   increased/more support modifiers and outgoing ailment application/duration ([20](../docs/protocol/20-damage.md)),
   except the player's chill, freeze and shock on monsters and his ignites.

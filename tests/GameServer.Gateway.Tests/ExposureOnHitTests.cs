@@ -36,4 +36,33 @@ public sealed class ExposureOnHitTests
         Assert.Equal(unexposed, Game.MonsterHitResistance(m, DamageType.Cold, default, now: 11).Value);
         Assert.Equal(14, m.ExposureUntil[0]);
     }
+
+    // Elemental Equilibrium (this PR): an elemental hit removes Exposure of its own elements and inflicts -25% of the
+    // others, scaled by elemental_equilibrium_effect_+%; a hit without elemental damage does neither.
+    [Fact]
+    public void Elemental_equilibrium_removes_the_hits_exposure_and_exposes_the_other_elements()
+    {
+        static Func<string, int> With(params (string Name, int Value)[] stats) =>
+            name => stats.FirstOrDefault(s => s.Name == name).Value;
+        var random = new Random(1);
+        var m = new SpawnedMonster("balanced", new(105, 100, 0), 0, 0, 100);
+        var keystone = With(("keystone_elemental_equilibrium", 1));
+        var physical = DamagePacket.Of(DamageType.Physical, 10, 10);
+        Game.ExposureOnHitLocked(m, With(("base_inflict_fire_exposure_on_hit_%_chance", 100)), physical, now: 10, random);
+        Game.ExposureOnHitLocked(m, keystone, physical, now: 10.5, random);
+        Assert.Equal(-10, Game.MonsterExposure(m, DamageType.Fire, 11));
+        Assert.Equal(0, Game.MonsterExposure(m, DamageType.Cold, 11));
+
+        Game.ExposureOnHitLocked(m, keystone, DamagePacket.Of(DamageType.Cold, 10, 10), now: 11, random);
+        Assert.Equal(-25, Game.MonsterExposure(m, DamageType.Fire, 12));
+        Assert.Equal(-25, Game.MonsterExposure(m, DamageType.Lightning, 12));
+        Assert.Equal(0, Game.MonsterExposure(m, DamageType.Cold, 12));
+
+        Game.ExposureOnHitLocked(m, With(("keystone_elemental_equilibrium", 1), ("elemental_equilibrium_effect_+%", 20)),
+            DamagePacket.Of(DamageType.Fire, 10, 10), now: 12, random);
+        Assert.Equal(0, Game.MonsterExposure(m, DamageType.Fire, 12.5));
+        Assert.Equal(double.NegativeInfinity, m.ExposureUntil[0]);
+        Assert.Equal(-30, Game.MonsterExposure(m, DamageType.Cold, 12.5));
+        Assert.Equal(-30, Game.MonsterExposure(m, DamageType.Lightning, 12.5));
+    }
 }
