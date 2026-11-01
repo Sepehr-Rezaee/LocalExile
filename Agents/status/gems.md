@@ -70,6 +70,7 @@ Nothing yet.
   for gems in their source item, independently of links; automated tests cover their addition and removal.
   Local socketed level/quality bonuses apply to physical gems, including support gems, without raising requirements.
   The Delve socketed attack/spell more-damage effects reach the ordinary hit calculation.
+  Hypothermia, Behead and Damage on Full Life scale the hits they apply to ([25](../docs/protocol/25-gem-supports.md)).
   A real-client Cyclone control accepted the item-support records and displayed blue s/c, red W and white d.
   The supported critical values appeared in its panel and tooltip; special execution still has the gaps below.
   Spell Echo repeats a supported spell's releases and area hits a cast time apart, with its 40% more cast speed

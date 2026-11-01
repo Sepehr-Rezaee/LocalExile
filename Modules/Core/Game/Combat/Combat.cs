@@ -1035,7 +1035,9 @@ static partial class Game
                     continue;
                 }
                 var gambler = GamblerFor(player);
-                var rolled = GameEvents.WithOutgoingDamage(conn, player, m, (gambler with { DamageMorePct = 0 }).RollOutgoingHit(contactHit, Random.Shared));
+                var rolled = WithConditionalSupportDamageLocked(conn, skillStats, !spell, m,
+                    GameEvents.WithOutgoingDamage(conn, player, m, (gambler with { DamageMorePct = 0 }).RollOutgoingHit(contactHit, Random.Shared)),
+                    ProjectileWorldTime(conn));
                 // The shared roll meets each target's current chance: a source can change between targets.
                 int criticalChance = CriticalChanceOn(conn, id, SupportedCriticalChance(conn, skillId),
                     SupportedCriticalChanceVsBlinded(conn, skillId, release: false),
