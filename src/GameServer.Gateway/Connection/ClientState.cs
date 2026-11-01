@@ -147,6 +147,12 @@ sealed class SpawnedMonster(string label, WalkEstimator walk, int aggroRange, in
     // Blinded by his hits until when, one more source of his Blind (Game.Blinded), shown with its own blinded buff.
     public double BlindedUntil = double.NegativeInfinity, BlindShownUntil;
     public ushort BlindBuff;
+    // His Exposure on it (Game.ExposureOnHitLocked): until when, by element and magnitude, the highest running one lowering
+    // its resistance; per element (fire, cold, lightning) when the last of them ends and its shown buff.
+    public readonly Dictionary<(DamageType Type, int Magnitude), double> Exposures = [];
+    public readonly double[] ExposureUntil = [double.NegativeInfinity, double.NegativeInfinity, double.NegativeInfinity];
+    public readonly double[] ExposureShownUntil = new double[3];
+    public readonly ushort[] ExposureBuff = new ushort[3];
     public readonly Dictionary<ushort, ushort> PlayerAuras = [];
     public (int All, int Elemental) TakenFromPlayer;
     // Pride's more Physical Damage taken, ramped by the time this monster has stayed in the aura (EnemyDebuffsTick).

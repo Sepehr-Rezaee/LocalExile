@@ -1387,7 +1387,8 @@ This is a research baseline, not new live skill acceptance or complete native/se
   still rewards its kills.
   The buffs, the sent action speed and the frozen pose are not checked with the real client.
   See [20](../docs/protocol/20-damage.md#outgoing-chill-freeze-and-shock-on-monsters).
-  Not yet: exposure, aura-dependent penetration, other added damage,
+  Hits inflict elemental Exposure by their chances, -10% for 4 s by default ([20](../docs/protocol/20-damage.md) §2).
+  Not yet: Exposure from skills and auras, aura-dependent penetration, other added damage,
   increased/more support modifiers and outgoing ailment application/duration ([20](../docs/protocol/20-damage.md)),
   except the player's chill, freeze and shock on monsters and his ignites.
   Projectile hits ignite from the panel's ignite rows captured at release; Abberath's Fury's footstep hits work out
