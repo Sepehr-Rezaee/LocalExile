@@ -130,8 +130,7 @@ static partial class Game
     // (until Walk.ArrivesAt; a movement skill's blink is no walk) at the walk's speed over the base speed, so movement speed
     // and chill change the step rate (the wiki: movement speed raises the frequency). It starts over when the walk ends, as
     // the run animation does.
-    // shortcut: Shield Charge blinks here, so it takes no steps (the wiki: it triggers footsteps); advance this clock
-    // during its charge once Shield Charge moves like a walk.
+    // Shield Charge walks its charge (ShieldCharge.cs), so it takes steps at the charge speed, as the wiki says.
     internal static int FootstepsDue(ClientState conn, ref double run, double from, double now)
     {
         double before = run, until = Math.Min(now, conn.Walk.ArrivesAt);

@@ -1583,7 +1583,7 @@ use) with and without the stat is not checked live yet; the Gateway log's 0x01ab
 
 **Movement skills** (ActiveSkillType Movement: Leap Slam, Whirling Blades …): the server puts the player at the aimed
 cell when the skill starts (`SkillCatalog.IsMovement`); it kept the starting cell before, and a later resync pulled the
-player back there (live 2026-10-23).
+player back there (live 2026-10-23). Shield Charge instead walks there at its charge speed and hits on the way (§10k).
 
 **Channelled skills** (Cyclone): after the skill's 0x1ab start the client sends **C→S 0x197** (10 bytes: u32 BE x,
 u32 BE y, the player's cell) every few frames while the button is held, and **C→S 0x199** (2 bytes) when it is let go
@@ -2454,6 +2454,55 @@ A Righteous Fire already burning keeps burning: it deals the enemies no damage (
 handling of an aura that is running when the restriction starts is unverified.
 Coverage: `PhreciaFourClassesTests` (Polytheist's admission).
 
+## 10k. Shield Charge: the charge action
+
+Found with Frida on 2026-11-01 (`scripts/re/frida/trace-action-state.js`, `trace-call-stats.js`, `trace-stat-source.js`,
+`trace-charge-hits.js`); usability (the shield beside a one-handed weapon) is §10a.
+
+**The action.** The client creates the local player's actions in `0x141ee97f0` (manager, &action, skill id) and starts
+them in `0x141e8cf10`; an action's +0x118 is its type HASH16 and +0x11a the use's sequence (the skill id is not stored
+there; older notes had the two swapped). Shield Charge is type 0x2bc0, vtable `0x143324da8`, constructor `0x1413c6d80`.
+It derives from a moving-attack class (`0x141a6b7d0`) whose per-frame update `0x141a6c060` has three phases:
+
+- **Travel** (+0x3e5 and +0x3e8 set): the setup `0x141a6bae0` reads `shield_charge_range_+%`,
+  `shield_charge_extra_distance` and `global_knockback` and lays out the path; the update moves the player at its
+  mover's speed (float +0x240 of `[[action+0xe8]+8]+0x98`) and calls the action's hit function (vtable +0x550,
+  `0x1413c79d0`, which forwards to `0x141a6d7c0`) with kind 0 along the way.
+- **Arrival**: `0x141a6ca30` stops the mover and calls vtable +0x530. The parent's `0x141a6cb60` would start the end
+  phase at once (kind 2); Shield Charge overrides it with `0x1413c7780`, which tail-calls `0x141a6df00`: the final hit
+  (kind 1), then the end-of-charge attack's animation (`0x141e9a3c0`), reading `shield_charge_attack_time_+30%_if_no_charge`.
+- **End phase** (+0x3f8): only `0x141a6d7c0` with kind 2 sets it, from that animation's completion; it runs the scheduled
+  events (count +0x3fc, next +0x400, elapsed +0x404 against duration +0x420) and ends the action.
+
+**The end attack swings the shield.** It reads `off_hand_total_base_weapon_attack_duration_ms`, which the Gateway sent
+only for an off-hand weapon (`SkillCatalog.Unarmed.OffStats`). At 0 the animation started but never completed: the
+end phase never began, the player kept running in place after arriving and no other skill could be used until a walk.
+A shield skill with a shield in the off hand now carries the gem's own GrantedEffectsPerLevel `AttackTime` (Shield
+Charge 500 ms) as `off_hand_base_weapon_attack_duration_ms` and `off_hand_total_base_weapon_attack_duration_ms`
+(`SkillCatalog.AttackTimeMs`, `RequiresShield`); the client adds the +30% itself. Verified live: the charge stops and
+plays its end effect.
+
+**Speed.** The mover's speed comes from `0x141e7c0b0`: base (+0x548) × (1 + `movement_velocity_+%` / 100) ×
+(1 + `virtual_action_speed_+%` / 100), capped by `movement_velocity_cap`, all read from the player's own Stats component
+(the network getter `0x1424cfa40`: sorted (key, value) pairs at +0xf0..+0xf8, then the provider at +0xe0), not the
+skill's record. The game adds the gem's `base_movement_velocity_+%` (+90 at level 1) through the invisible buff
+`shield_charge_movement_speed_while_charging` (BuffDefinitions 1352); network stats run no calculators, so the Gateway
+adds it to the pools' movement speed from the use until its own walk arrives (`ShieldCharge.cs`, `Progression.cs`) and
+sends the player stats at both ends. Its walk estimate goes to the aimed cell at that speed instead of the generic
+movement skill's teleport (§9a). Verified live: `movement_velocity_+%` 22 → 112 → 22, the charge twice as fast; the
+first stats update arrives after the client has started the charge, and the client takes it up mid-charge.
+
+**Hits.** The client's (`trace-charge-hits.js`, four charges): kind 0 at its position as it starts and then about every
+100 ms (every ~8 cells at charge speed) within 8 cells (`0x141a6d760` returns the range), kind 1 within 16 cells where
+it arrives, and kind 2 (range 28) as the end phase starts. The Gateway lands kind 0 and 1 on its own walk
+(`RunShieldCharge`): path hits every 100 ms within 8 cells, each monster at most once per charge (neighbouring path
+areas overlap), and a final hit within 16 cells reaching every monster there. The generic area hit, which landed once
+around the starting cell, skips Shield Charge. Verified live: path and arrival hits land.
+
+**Not modelled yet:** the gem's shield damage (`off_hand_local_minimum/maximum_added_physical_damage`, the added damage
+per 15 shield armour and evasion), `shield_charge_damage_+%_maximum` by distance, the stun and knockback scaling, and
+the end phase's kind-2 effects; the hits deal the ordinary weapon hit.
+
 ## 10f. Synthetic action instructions (S→C 0x1ce / 0x1cf)
 
 These are action instructions, distinct from per-target hit results or C→S collision reports.
@@ -2597,7 +2646,8 @@ failed I/O, allocation limits, actual official values and every skill's successf
   restarts it when the walk ends. The Templar rig's 18 run clips loop in 800 ms with footstepright at 233 ms and
   footstepleft at 633 ms, so each passed event is one trigger. A movement skill teleports the walk, so it takes no
   steps (the wiki: movement skills do not trigger it). The wiki's exception, Shield Charge (the player still walks,
-  faster), is a known gap: it is a Movement skill here and blinks too, so it triggers nothing. `TriggerFootstepSkill`
+  faster), now walks its charge (§10k), so the clock advances during it at the charge speed; not checked live yet.
+  `TriggerFootstepSkill`
   sends the explosion where the player
   stands: an `EffectObject` with SkillArtVariations `repeating_shockwave`'s default (MiscAnimated 1173
   `AbberathsHoovesImpact`, `Abberaths_Hooves_fireimpact.ao`, whose own SoundEvent is the step sound), its wake zone, and
