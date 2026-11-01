@@ -23,6 +23,8 @@
 # stack's ports that are not this checkout's (another checkout or program) stop the run: give this checkout its own
 # -PortBase. The variables it sets for the servers and the client (Game_RANDOM_SEEDS, Game_CLIENT_SESSION,
 # Game_CLIENT_NULLIFIER) get their previous values back when it ends.
+# No positional binding: a runner flag such as --list must reach $Rest, not become -Character.
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Character,
     [ValidateSet('Marauder', 'Witch', 'Scion', 'Ranger', 'Duelist', 'Shadow', 'Templar')][string]$Class = 'Witch',
@@ -118,8 +120,8 @@ function Get-PortOwners([int[]]$ports) {
 
 # Set for the servers and the client this run starts; the caller's values come back in the finally below.
 $previous = @{}
-foreach ($name in 'Game_RANDOM_SEEDS', 'Game_CLIENT_SESSION', 'Game_CLIENT_NULLIFIER') {
-    $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+foreach ($envName in 'Game_RANDOM_SEEDS', 'Game_CLIENT_SESSION', 'Game_CLIENT_NULLIFIER') {
+    $previous[$envName] = [Environment]::GetEnvironmentVariable($envName, 'Process')
 }
 $code = 1
 $pushed = $false
@@ -203,6 +205,6 @@ Write-CampaignSummary
 }
 finally {
     if ($pushed) { Pop-Location }
-    foreach ($name in $previous.Keys) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') }
+    foreach ($envName in $previous.Keys) { [Environment]::SetEnvironmentVariable($envName, $previous[$envName], 'Process') }
 }
 exit $code
