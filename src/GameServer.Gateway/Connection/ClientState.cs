@@ -411,7 +411,8 @@ sealed partial class ClientState(AreaLayout layout, uint ticket, uint seed)
     public uint NextObjectId = 0x3000;
     // Room server objects a quest keeps in the area until its flag is set (The Twilight Strand's force wall), by id.
     public readonly Dictionary<uint, (string Flag, IReadOnlySet<(int X, int Y)> Cells)> QuestRoomObjects = [];
-    // A Trial of Ascendancy's objects in this area (LabyrinthTrials), by id, and the cells its closed doors close, by id.
+    // A Trial of Ascendancy's objects in this area (LabyrinthTrials), by id, and the cells its closed doors and risen
+    // spike traps close, by id.
     public readonly Dictionary<uint, AreaPopulation.RoomObject> TrialObjects = [];
     public readonly Dictionary<uint, IReadOnlySet<(int X, int Y)>> DoorBarriers = [];
     // Cells quest walls and closed doors close to the player's walk estimate (QuestBarriers): the union of
