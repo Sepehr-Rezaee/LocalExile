@@ -277,6 +277,8 @@ static partial class Game
                 var resistanceMods = HitResistMods(player, ownPenetration);
                 var hit = AttackHitConverted(weapon, player, WeaponProfileFor(conn, activeSet: true).Melee,
                     ConversionFor(conn, attackEffect, 1, attack: true));
+                if (WeaponProfileFor(conn, activeSet: true).Melee)
+                    hit = WithMeleeProximityLocked(conn, player, ownPenetration, m, hit, contactAt);
                 var gambler = GamblerFor(player);
                 var ownRolled = GameEvents.WithOutgoingDamage(conn, player, m, (gambler with { DamageMorePct = 0 }).RollOutgoingHit(hit, Random.Shared));
                 critical = RollCriticalStrike(conn, CriticalChanceOn(conn, targetId, conn.Pools.AttackCriticalStrikeChance,
@@ -903,6 +905,8 @@ static partial class Game
         var weapon = WeaponFor(conn);
         int? castDuration = spell ? CastMs(conn, gem.Effect, skillId) : 0;
         if (castDuration is null) return;
+        // Ruthless: whether this use is its skill's Ruthless Blow, counted as it starts.
+        double ruthless = spell ? 1 : RuthlessBlowMore(conn, skillId, Stat);
         double delay;
         // A spell lands at its area cast clip's contact keyframe (a repeat a whole cast later each), an attack at its
         // swing's; the player swings where it stands, so without the walk-in offset.
@@ -1015,6 +1019,7 @@ static partial class Game
                     pen = Penetration.Of(player, Stats, attack: !spell, skillStats, local);
                     mods = HitResistMods(player, skillStats);
                     sweepHit = SupportedHit(conn, skillId);
+                    if (ruthless != 1) sweepHit = sweepHit.Scale(ruthless);
                     sweepMultiplier = SupportedCriticalMultiplier(conn, skillId);
                     if (!spell) accuracy = SupportedAccuracy(conn, skillId);
                     leech = HitLeechSources(player, !spell, skillStats, local);
@@ -1028,6 +1033,8 @@ static partial class Game
                     contactHit = contactHit.Scale(1 + Stat("groundslam_damage_to_close_targets_+%_final")
                         / 100.0 * Math.Max(0, 1 - distance / Math.Max(1, radius)));
                 }
+                if (!spell && SkillsFor(conn).IsMelee(gem.Effect))
+                    contactHit = WithMeleeProximityLocked(conn, player, skillStats, m, contactHit, ProjectileWorldTime(conn));
                 int hitChance = spell ? 100 : AttackHitChanceAt(conn, id, m, ProjectileWorldTime(conn), accuracy);
                 if (!spell && !accuracy.CannotBeEvaded && !m.AttackEvasion.Hits(hitChance, ProjectileWorldTime(conn), conn.AttackAccuracyRandom)) continue;
                 if (MonsterBlocks(m, Random.Shared, spell))
@@ -1036,7 +1043,10 @@ static partial class Game
                     continue;
                 }
                 var gambler = GamblerFor(player);
-                var rolled = GameEvents.WithOutgoingDamage(conn, player, m, (gambler with { DamageMorePct = 0 }).RollOutgoingHit(contactHit, Random.Shared));
+                var rolled = WithConditionalSupportDamageLocked(conn, skillStats, !spell, m,
+                    GameEvents.WithOutgoingDamage(conn, player, m, (gambler with { DamageMorePct = 0 }).ForSkill(Stat, spell)
+                        .RollOutgoingHit(contactHit, Random.Shared)),
+                    ProjectileWorldTime(conn));
                 // The shared roll meets each target's current chance: a source can change between targets.
                 int criticalChance = CriticalChanceOn(conn, id, SupportedCriticalChance(conn, skillId),
                     SupportedCriticalChanceVsBlinded(conn, skillId, release: false),

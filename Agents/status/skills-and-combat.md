@@ -959,6 +959,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Action speed does not change projectile range: projectile speed only shortens the flight, and `action_speed_-%` is
   composed additively with chill/freeze for attack, cast and movement pacing; Tailwind/Harbinger sources remain #246.
   Direct and area snapshots keep area increases/supports scoped to their damage stages.
+  Point Blank scales attack projectile hits by travel ([projectiles](../docs/game/projectile-framework.md)).
   Area effects scale to the committed radius when the selected art exports a native radius; unknown art stays unscaled.
   Terrain-blocked area centers are omitted without resampling or reserving time; surviving areas keep consecutive intervals.
   Skill explosions, pulses, children, forms, native art and specialized resources belong to skill definitions.
@@ -1381,8 +1382,10 @@ This is a research baseline, not new live skill acceptance or complete native/se
   The player's hits chill, freeze and shock monsters: threshold maximum life, strongest effect with its own duration,
   shock as increased damage taken (hits and Righteous Fire), chill and freeze in the monster AI and walk, the monster
   mods' ailment stats (of the Ice, of the Tempest, Unstoppable, Mirrored) and the chilled/frozen/shocked buffs.
+  Elemental Focus and the never-ailment stats stop those ailments ([20](../docs/protocol/20-damage.md) §3).
   Chill can raise damage taken and lessen the monster's swings (Glacial Wave), a freeze can have a minimum duration
   and a monster that hits the player can be frozen (Brine Bound).
+  "As though dealing more damage" raises the chill, shock or freeze it inflicts ([20](../docs/protocol/20-damage.md)).
   A corpse keeps its killing hit's ailments and a kill can shock it, unless the hit killed it frozen and it shatters.
   Each shock spreads to living enemies within its own `virtual_shock_proliferation_radius` of the shocked monster or
   corpse, like an aura.
@@ -1413,10 +1416,12 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Alternative ailments and hostile spell adapters remain unimplemented; monster mortar shots land through the same
   contact pipeline ("Monster projectiles" below).
   See [Gambler](../docs/game/gambler.md) for the exact bounded scope.
+  Double damage chances double hits, and triple damage overrides them ([20](../docs/protocol/20-damage.md) §2).
   `unaffected_by_shock` keeps the shock and `is_shocked` without the damage-taken increase; `unaffected_by_ignite`
   keeps the ignite and `is_ignited` without its damage.
   "While moving" evasion and regeneration follow the server's walk, and more maximum attack damage scales every attack
   hit's maxima next to Rage; Gateway coverage only ([Polytheist](../docs/game/polytheist.md)).
+  Impact, Close Combat and Shield Crush scale melee hits by proximity ([20](../docs/protocol/20-damage.md) §2j).
   Unconditional penetration works on the player's outgoing hits (general per-element and elemental stats, the
   attack-only variants, the cannot-penetrate flag; DoT and physical take none).
   Player and skill contributions to the same raw penetration stat add without overwriting either source.

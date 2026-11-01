@@ -61,6 +61,16 @@ penetration. Righteous Fire's monster burn (its per-tick percentage-of-life mode
 monster's capped resistance of their type, its base and its mods' as for hits, and its damage taken (`MonsterDotTaken`;
 before the ignites, the burn took only the mods' resistance).
 
+Before the per-type roll, `GamblerModifiers.RollOutgoingHit` rolls one damage multiplier per hit: triple damage
+(`base_chance_to_deal_triple_damage_%`), and only when that misses, double damage. PoB CalcOffence does the same
+("Triple Damage overrides Double Damage"), so a hit with both chances is tripled at the triple chance and doubled at
+(1 - triple) × double.
+The double chance is the player's `chance_to_deal_double_damage_%` (influence, Synthesis and weapon mods, Kinetic
+Impacts, Force Multiplier) on every hit that rolls, plus, through `ForSkill`, the skill's own
+`chance_to_deal_double_damage_%` (Heavy Strike's 20-39%) and, for a spell, `spell_chance_to_deal_double_damage_%`.
+The area, projectile and passive-granted spell paths pass their skill; the default attack has no such stat and keeps the
+player's chance. Paths that skip the roll (minions, Rampage, warcries) get neither double nor triple damage.
+
 Penetration lowers the target's resistance before the damage is reduced. The server caps the monster's base
 resistance first (the 75 default, the 90 absolute maximum, the −200 floor) and subtracts the hit's penetration from
 that capped value with no second clamp, as Path of Building's `calcResistForType` and hit branch do (16de4b8, lines
@@ -597,6 +607,21 @@ The client multiplies its three sources (volatility support, ascendancy, graft) 
 `combined_maximum_attack_damage_+%_final` (`FUN_1425d25b0`); only the ascendancy one exists on the server.
 See [Polytheist](../game/polytheist.md).
 
+## 2j. Melee damage by proximity
+
+"Deal up to X% more Melee Damage to Enemies, based on proximity" comes from three stats, each its own more multiplier
+(`MeleeProximity.cs`): Slayer's Impact (`slayer_damage_+%_final_from_distance`, 15), Close Combat
+(`support_slashing_damage_+%_final_from_distance`, 25 at level 1 and 39 at 20) and Shield Crush (`shield_crush_damage_+%_final_from_distance`).
+The ramp is PoB `ModStore`'s `MeleeProximity` with `{1,0}`: the whole multiplier up to 15 units, falling linearly to
+none at 40. The distance is the centre-to-centre one at the hit, as for close range ([11](11-skills.md),
+`TargetAccuracy`), so a large monster at melee range gets less than a small one. Whether the game subtracts the
+actors' sizes is not verified. The client dump has no ramp: the keys of the three stats (0x26e1, 0x250b, 0x4d70) do
+not appear in it, and `damage_+%_final_from_distance` (0x313) is only tested for being non-zero (`FUN_1428510b0`,
+`FUN_142886820`).
+The default melee attack and melee attack gems scale each target's hit before its roll; a melee attack's
+projectiles, minions and the damaging ailments do not take it. Close Combat's increased damage at close range (its
+quality) and its Combat Rush for travel skills, and `melee_damage_+%_at_close_range`, are not read.
+
 ## 3. Damage over time and ailments
 
 DoT is one damage type, has no hit, cannot critically strike and uses that type's resistance. `DamageOverTime` carries
@@ -622,7 +647,7 @@ Fire still uses its existing per-tick percentage-of-life burn; it is a fire DoT 
 
 **The player's ignites on monsters** (`MonsterIgnites.cs`, the wiki's Ignite): `IgniteFromHit` decides a landed hit's
 ignite. A critical strike always ignites; otherwise `base_chance_to_ignite_%`, `chance_to_ignite_%` and
-`chance_to_freeze_shock_ignite_%` give the chance, and `never_ignite` stops it. The base is the hit's flat fire damage
+`chance_to_freeze_shock_ignite_%` give the chance, and the ignite prohibitions (`CannotInflict`, below) stop it. The base is the hit's flat fire damage
 (base and added, after conversion, before increases), 90% per second (`Ailments.Ignite`) × (1 + the ignite increases:
 `damage_+%`, `damage_over_time_+%`, `elemental_damage_+%`, `fire_damage_+%`, `fire_damage_over_time_+%`,
 `burn_damage_+%`, `ignite_damage_+%`, `base_ailment_damage_+%`) × the Frenzy charges' more damage × (1 + the damage
@@ -658,8 +683,8 @@ more", support more multipliers, the moving bleed bonus, and the rows' native fo
 shot captures its ignite at release: chance `base_chance_to_ignite_%` + `chance_to_freeze_shock_ignite_%` from the caster
 and the skill (Burning Arrow's own 25%), the context's ignite rows above (main hand for attacks, spell for spells) as the
 damage-per-second range, and 4 s × (1 + `ignite_duration_+%` + `base_all_ailment_duration_+%`), with the "deal damage
-faster" factor above on both and the target's `base_self_ignite_duration_-%` on the duration. `never_ignite` and
-`never_damaging_ailments` stop it. An accepted hit that dealt fire damage and left the target alive ignites on a critical
+faster" factor above on both and the target's `base_self_ignite_duration_-%` on the duration. The ignite
+prohibitions and `never_damaging_ailments` stop it. An accepted hit that dealt fire damage and left the target alive ignites on a critical
 strike or a successful chance roll, then the monster's `avoid_ignite_%`; `immune_to_ignite` / `cannot_be_ignited` refuse
 it. The ignite's damage is an independent roll in the non-critical or critical range (the critical rows already carry
 the ailment critical multiplier). Several ignites can be on one monster; only the strongest deals damage, and a weaker,
@@ -1310,7 +1335,11 @@ player's jewels) added together, × (1 + (attacker − target) / 100), as PoB `C
 and the enemy's `Self…Duration` INC: 50% increased against 50% reduced on itself leaves the base duration. Of the
 Ice carries −80 of the freeze one in 3.29.3b Mods.dat; the wiki's text for it (Modifier:MonsterModResistantToCold) is
 "80% increased Freeze Duration on you", which is that sign. `immune_to_*`, `cannot_be_*` and `base_cannot_be_*` on the
-monster's stats block each kind. The strongest of a kind applies, and each keeps its own duration (wiki); a weaker one
+monster's stats block each kind. On the attacker's side `MonsterElementalAilments.CannotInflict` stops them:
+Elemental Focus's `cannot_inflict_status_ailments` (poedb: "Supported Skills cannot inflict Elemental Ailments") and
+`never_ignite_chill_freeze_shock` stop all four, `never_freeze_or_chill` both cold ones, and `never_ignite`,
+`never_chill`, `never_freeze` and `never_shock` their own. The freeze and shock chances still roll first, so a
+prohibition leaves the random sequence of later hits unchanged. The strongest of a kind applies, and each keeps its own duration (wiki); a weaker one
 that also ends sooner is dropped. A monster that dies keeps them, the killing hit's included (wiki Ailment: a killing
 hit that inflicts an elemental ailment counts as killing an affected enemy); it no longer acts.
 
@@ -1324,6 +1353,15 @@ hit that inflicts an elemental ailment counts as killing an affected enemy); it 
 - **Stormy Seas.** `cold_damage_can_shock` lets the cold damage count for the shock's magnitude; the chance is still
   a critical strike or `chance_to_shock_%`. The client's calculator `0x1426f2660` makes `virtual_cold_damage_can_shock`
   (0x1bc6) from keys 0x451a, 0x1bc9 and 0x1b96, and nothing else in the client reads it.
+- **As though dealing more damage.** "Shock/Chill/Freeze Enemies as though dealing X% more Damage" multiplies the
+  damage the chill's and shock's magnitude and the freeze's duration read by 1 + X/100 per stat (PoB `CalcOffence`:
+  the ailment's damage × `<Ailment>AsThoughDealing` MORE). The stats read: Overcharge's
+  `support_pure_shock_shock_as_though_damage_+%_final`, the skills' `active_skill_shock_as_though_damage_+%_final`,
+  `active_skill_chill_as_though_damage_+%_final`, `freeze_as_though_dealt_damage_+%` and Ice Nova's
+  `ice_nova_freeze_as_though_damage_+%_final`, the Maven helmet mods `helmet_mod_shock/freeze_as_though_damage_+%_final`,
+  the quiver's `unique_quiver_chill_as_though_damage_+%_final` and `non_damaging_ailments_as_though_damage_+%_final`
+  for all three. The hit's damage and the chances do not change. Not read: the weapon-local and per-hand ones,
+  Manabond and Stormbind's, graft skills', Glacial Hammer's third hit and "Freeze Chilled Enemies as though".
 - **Mirrored** (`reflect_non_damaging_ailments_%_chance`, 100): the ailments a hit added to a living monster act on
   the player as well (wiki Reflect: "in addition to its target"), through `PlayerElementalAilments.Inflict` with the
   player's own effect modifiers, caps and floor (`ReflectAilmentsLocked`). The exact reflected magnitude is not

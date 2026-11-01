@@ -41,6 +41,13 @@ Physical more damage is applied before conversion; elemental and chaos modifiers
 Conditional modifiers are not treated as unconditional bonuses.
 Skill panel values and ordinary hit execution use the same supported-skill calculation.
 The Delve socketed attack/spell more-damage effects multiply the matching hit once through this calculation.
+Awakened Increased Area of Effect's `inc_aoe_plus_more_area_damage_+%_final` is one of those unconditional keys.
+Three supports' more damage depends on the hit's target or the player, so `WithConditionalSupportDamageLocked`
+scales each target's roll after the outgoing-damage hooks, on the area and projectile hit paths:
+Hypothermia against a chilled enemy, Behead against an enemy at half its maximum Life or less (PoB
+`LowPoolThreshold`), and Damage on Full Life for an attack while the player's Life is full.
+The ailment share of "Hits and Ailments" follows the hit for chill, freeze and shock; ignite still takes its damage
+from the skill's ailment rows, without these multipliers.
 Channelled attacks pay the supported cost on subsequent channel hits.
 
 Culling Strike is the server's alone: the client's hit logic never reads the culling stats.
@@ -67,6 +74,14 @@ Its character panel and tooltip included the supported critical values; the Gate
 40% Delve attack multiplier.
 This verifies the native display path, not every support's special execution or a live before/after quality control.
 
+Ruthless makes every `support_ruthless_big_hit_max_count`-th use (3) of each supported skill a Ruthless Blow: that
+use's melee hits, spirit strikes included, take `support_ruthless_big_hit_damage_+%_final` as more damage (70% at
+level 1, 98% at 20; poedb). Each skill keeps its own count, counted as the use starts, so a use that misses still
+counts (the wiki: the count advances whether or not the hit lands); that a use cancelled before its contact counts
+too is not verified. The count is server state only;
+the client's invisible `ruthless_big_hit_counter` buff is not sent. Not built: the blow's 0.8 s stun duration, its
+more damage with bleeding, poison and ignite, and the count across Multistrike repeats.
+
 ## Remaining execution gaps
 
 A native compatibility match and a displayed support letter do not prove that its special mechanic is implemented.
@@ -74,6 +89,7 @@ Spell Echo's repeats are modelled ([11](11-skills.md) "Spell repeats"), except I
 Triggers, totems, mines, minion behaviour, attack repeats, projectile branching, leech and many conditional effects
 still require their own execution paths.
 Persistent damage effects, including Righteous Fire, do not yet refresh every derived parameter on link changes.
-Only the unconditional damage keys explicitly listed by GemSupportDamage receive multiplicative processing.
+Only the unconditional damage keys listed by GemSupportDamage and the three target conditions above receive
+multiplicative processing.
 The native catalogue includes historical and placeholder variants; their presence does not make them obtainable.
 Do not describe the entire support catalogue as mechanically complete.
