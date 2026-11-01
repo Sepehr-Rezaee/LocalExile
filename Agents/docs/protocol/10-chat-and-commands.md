@@ -120,6 +120,12 @@ u16 0x1b3, u32 object id, u32 0, u16 0,
 compact uint n, n × (compact uint stat key, compact int value)
 ```
 
+The zeros above are the current server's header values, not reader-enforced constants.
+Shared reader `0x141f92000` stores them as network-order u32/u16 at decoded message `+0x14/+0x18`.
+The selected Stats pair loop uses component `+0x40` and does not read those two fields or explicitly replace
+the separate entropy/timer/reset creation trailer; see [local hit prediction](../re/projectiles/local-hit-prediction.md#31-property-updates-are-not-an-explicit-entropy-state-payload).
+Other header consumers and indirect notification effects are separate questions.
+
 - Unsigned compact (`0x14089cad0`): < 0x80 is 1 byte; then 0x80 + 14 bits, 0xc0 + 21 bits, 0xe0 + 28 bits; else 0xf0 +
   u32. Signed compact is `0x141fa3d60` (`InstanceProtocol.CompactInt`).
 - The stat key is the client's own stat id: the int its getter `0x1424cfa40(stats, key)` binary-searches in the sorted
