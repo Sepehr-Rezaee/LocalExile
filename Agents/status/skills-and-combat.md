@@ -1442,6 +1442,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Their increased damage taken (taunted 20% from Bring the Battle, elemental 25%) adds to the monster's own in every
   player hit and in Righteous Fire's burn; `warcries_have_infinite_power` gives Enduring Cry the maximum charges.
   Hits Intimidate and Unnerve: 10% increased hit damage taken for 4 s ([11](../docs/protocol/11-skills.md) §12).
+  Hits Wither: 6% increased chaos damage taken per stack, up to 15 stacks ([11](../docs/protocol/11-skills.md) §12).
   The other warcries' own buffs, exerts and summons, taunt immunity and other passive enemy auras are not done.
   Automated coverage only; not checked with the real client.
   See [11](../docs/protocol/11-skills.md) §12 and [Paladin](../docs/game/paladin.md).

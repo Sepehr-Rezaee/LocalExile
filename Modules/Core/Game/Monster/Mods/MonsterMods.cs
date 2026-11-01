@@ -99,13 +99,16 @@ static partial class Game
         double physicalTaken = physical * Math.Max(0, 1 - e.PhysicalReduction / 100.0);
         double total = mitigated.MinTotal - physical + physicalTaken;
         // The player's debuffs on it add to its own increased damage taken (MonsterDamageTaken): his enemy auras' elemental
-        // increase on fire, cold and lightning only, and Pride's more Physical Damage on the physical part.
+        // increase on fire, cold and lightning only, his Withered on chaos only, and Pride's more Physical Damage on the
+        // physical part.
         double factor = MonsterDamageTaken(m, spell, now, hit: true);
+        double withered = m.Withered.Count == 0 ? 0
+            : mitigated[DamageType.Chaos].Min * (MonsterDamageTaken(m, spell, now, hit: true, chaos: true) - factor);
         double elementalDamage = mitigated[DamageType.Fire].Min + mitigated[DamageType.Cold].Min + mitigated[DamageType.Lightning].Min;
         double elementalFactor = m.TakenFromPlayer.Elemental == 0 ? factor
             : MonsterDamageTaken(m, spell, now, elemental: true, hit: true);
         double physicalFactor = 1 + Math.Max(0, m.PridePhysicalMore) / 100.0;
-        return (int)Math.Round((total - elementalDamage) * factor + elementalDamage * elementalFactor
+        return (int)Math.Round((total - elementalDamage) * factor + elementalDamage * elementalFactor + withered
             + physicalTaken * factor * (physicalFactor - 1));
     }
 
@@ -150,7 +153,8 @@ static partial class Game
     {
         var resistance = MonsterHitResistance(m, type, default, now);
         double factor = (100 - DamageModel.Capped(resistance.Value, resistance.Maximum)) / 100.0
-            * MonsterDamageTaken(m, spell: false, now, DamageTypes.IsElemental(type));
+            * MonsterDamageTaken(m, spell: false, now, DamageTypes.IsElemental(type),
+                chaos: type == DamageType.Chaos);
         if (type == DamageType.Physical) factor *= 1 + Math.Max(0, m.PridePhysicalMore) / 100.0;
         return factor;
     }

@@ -2748,6 +2748,17 @@ failed I/O, allocation limits, actual official values and every skill's successf
   it, so it has the aura's effects above. Not read: `blind_effect_+%`, the weapon-local chance
   (`local_chance_to_blind_on_hit_%`, on the panel only), `cannot_be_blinded` and `avoid_blind_%` on monsters (no
   Blind source checks them), the conditional chances and minions' chances.
+- **Withered on hit** (`HitDebuffs.WitherRoll`). The same hit makes one roll for `withered_on_hit_for_2_seconds_%_chance`
+  (items, the weapon tree) plus Withering Touch's `withered_on_hit_chance_%`. A stack lasts the support's
+  `support_withered_base_duration_ms` or else 2 s, divided by (1 + `wither_expire_speed_+%`/100) for the Eldritch gloves'
+  "expires slower". Each gives 6% increased chaos damage taken × (1 + `withered_effect_+%`/100), up to 15 stacks with
+  their own ends; a 16th replaces the one ending first (poedb Withered: 6%, "stacking up to 15 times"; the replacement is
+  not checked). It adds to the monster's increased damage taken on the chaos part of a hit in `MonsterTakesMitigated`
+  and on chaos damage over time in `MonsterDotTaken`. `EnemyDebuffsTick` shows the `withered` buff (506, IsRecovery:
+  `chaos_damage_taken_+%` and `is_withered`, sent as one stack's value and 1) once, with the stack count and the time
+  the last stack has left, again when either changes. Whether the client wants one instance per stack instead is not
+  checked. A monster with `immune_to_wither` takes none. Not read: the weapon-local chance, the target's
+  `withered_effect_on_self_+%`, Wither the skill, the auras and the conditional sources.
 - **Where it runs.** The player tick (`RunPlayerTick`, 250 ms, not while paused) calls `TickPassiveAuras`, which
   does `EnemyDebuffsTick`; the step works at the send gate, so a removed monster gets no buff. The auras come from
   the allocated nodes at each step, `taunted_enemies_damage_taken_+%` from the stats last sent
