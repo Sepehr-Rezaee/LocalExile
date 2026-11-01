@@ -43,6 +43,19 @@ Skill panel values and ordinary hit execution use the same supported-skill calcu
 The Delve socketed attack/spell more-damage effects multiply the matching hit once through this calculation.
 Channelled attacks pay the supported cost on subsequent channel hits.
 
+Culling Strike is the server's alone: the client's hit logic never reads the culling stats.
+After a player's melee, area or projectile hit deals its damage, a surviving enemy at or below the threshold share of
+its maximum Life dies (`TakeOwnerHitLocked`, `CullingStrike.cs`), and its death goes out like any other.
+`kill_enemy_on_hit_if_under_20%_life`, `_15%_` and `_10%_` (the support's implicit stat) set 20, 15 and 10;
+`crits_have_culling_strike` on a critical hit and `spells_have_culling_strike` on a spell hit set 10.
+A boss stage that the hit starts, or one still running, keeps the boss alive, and `immune_to_culling_strike` (the
+Executioner archnemesis mod) stops the cull.
+The support's quality stat `recover_%_maximum_life_on_cull` (0.1 per 1% quality) recovers that share of maximum Life
+on a cull, applied at once and sent with the next vitals update like instant leech.
+Hits from minions, warcries, passive-granted skills and Rampage do not cull yet, nor do the conditional sources
+(against bleeding, burning, frozen, cursed or marked enemies, bow attacks, weapon-local critical strikes, flasks), the
+flat Life and Mana gained on cull, or the "Culled Recently" stats.
+
 In the live Cyclone example, the level-one support adds 30% increased area to the character's 136%.
 A base radius of 16 becomes 26 cells after area-to-radius conversion and integer rounding.
 Tests cover link isolation, duplicate families, multiple supports, compatibility expressions, costs,
