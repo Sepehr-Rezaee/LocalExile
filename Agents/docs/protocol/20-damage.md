@@ -858,6 +858,15 @@ recovery prohibition (`no_energy_shield_recharge_or_regeneration`, `cannot_recov
 `no_energy_shield_recovery`) drops the converted part rather than returning it to Life. Conditional flask/item sources
 and other regeneration conversions remain separate work.
 
+Life Recoup joins the same loop. Each monster hit the player takes (after block, mitigation and Fortification, before
+ward, energy shield and life absorb it; dev hits too) starts its own recovery in `RecoupRecovery`: the hit's damage ×
+`damage_taken_goes_to_life_over_4_seconds_%`, plus each type's damage × its own stat
+(`physical_damage_taken_recouped_as_life_%`, `{fire,cold,lightning,chaos}_damage_taken_goes_to_life_over_4_seconds_%`),
+× (1 + `life_recovery_rate_+%`), paid evenly over 4 s (3 s with Nine Lives' `recoup_effects_apply_over_3_seconds_instead`
+or `recoup_life_effects_apply_over_3_seconds_instead`). poedb's Recoup page gives the rule ("Only Damage from Hits can be
+Recouped, over 4 seconds following the Hit") and PoB CalcDefence the recovery-rate scaling and the damage it counts.
+`cannot_recover_life` stops it, and death and area loading drop what is left. Damage over time is not recouped.
+
 Ten native controls verified flat sources, independent increase buckets, prohibition, source clearing and relog.
 The 600/minute Life control became 1080 with 50% regeneration and 20% recovery, matching actual 18 Life/second.
 A 750-Mana character with 1200 flat/minute, 40% regeneration and 20% recovery received 3339/minute,
@@ -1086,8 +1095,8 @@ mitigation are composed as described in the [projectile module](../game/projecti
   suppresses; bleed movement bonus; poison stacking.
   Supported incoming elemental ailments are bounded by [Gambler](../game/gambler.md#incoming-elemental-ailments).
 - Per-monster damage conversion and monster-specific mitigation.
-- Damage reflection, specialized leech conversions/conditions, conditional gain on hit, and recoup. Ordinary leech and
-  gain on hit are in §5b.
+- Damage reflection, specialized leech conversions/conditions, conditional gain on hit, and Mana and Energy Shield
+  recoup. Ordinary leech and gain on hit are in §5b, Life Recoup in §5.
 - Party/minion damage and the full support-gem effect set.
 
 The next support-gem work (#64) can add its effects as packet operations: `Add` for added damage, `Scale` for
