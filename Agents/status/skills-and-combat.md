@@ -1308,6 +1308,11 @@ and can require explicit recipes.
   Ascendancy allocation remains in its separate lifecycle change.
   Code: `HitResistances.cs`, `HitMitigation.cs`, Gateway (`MonsterDamage`).
   Docs: [20](../docs/protocol/20-damage.md) §4.
+- **Client Buff descriptor research (#370, offline only).** Original bytes bind the prepared structure to item
+  Mods `+0x38` and entity ObjectMagicProperties `+0xc8`, with a structural item-assignment path.
+  A separate `+0x1d8` cache is excluded from the descriptor path by pointer provenance and record stride.
+  This does not establish a meaningful descriptor consumer, actual target DoT publication or live behavior.
+  N1 is partial and N2 remains open; see the [workbench](../docs/re/client-buff-descriptor-consumers.md).
 - **Damage model (foundation, with armour/evasion).** A hit is a per-type `DamagePacket`;
   `DamageConversion` handles the game's physical, lightning, cold, fire, chaos order, chained conversion, skill/global
   precedence, the 100% cap and gain-as-extra.

@@ -55,7 +55,7 @@ How to regenerate them: [re/tooling.md](re/tooling.md) §7.
 |---|---|
 | [../GettingStarted.md](../GettingStarted.md) | setup from a fresh clone, third-party tools, troubleshooting |
 | [re/tooling.md](re/tooling.md) | Ghidra headless scripts, Python helpers, GGPK dump tool, Frida through REA, recipes |
-| [re/client-buff-descriptor-consumers.md](re/client-buff-descriptor-consumers.md) | bounded research workbench: one Mod-derived Buff descriptor's actual reader and output; N0 scoped, N1–N3 pending |
+| [re/client-buff-descriptor-consumers.md](re/client-buff-descriptor-consumers.md) | bounded Mod-derived Buff descriptor research: owner/transfer byte evidence; meaningful reader/output unresolved |
 | [re/011-level-generation.md](re/011-level-generation.md) | the client's level generator: stages, RNG, topology pick, tile hash, generation traces; the server port in progress |
 | [dev/releases.md](dev/releases.md) | making a release, versions and commit subjects, what a package holds, `LocalExile.exe` and its `--json` events |
 | [dev/debugging.md](dev/debugging.md) | log timestamps and archives, error stack traces, the packet history and dumps, `Game_TRACE`, client crashes, `bugreport.ps1` |

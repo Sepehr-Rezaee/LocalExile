@@ -306,7 +306,9 @@ remaining native checks are recorded in [the port record](../docs/dev/issue75-po
 
 - **Client Buff descriptor consumer research (#370):** follow one prepared Mod-derived descriptor
   from `ChaosDegenerationAuraPlayersUniqueBodyStr3` to an actual reader and explain its output.
-  [Workbench](../docs/re/client-buff-descriptor-consumers.md) fixes N0 and the pending N1–N3 gates.
+  [Workbench](../docs/re/client-buff-descriptor-consumers.md) fixes N0 and records partial N1 owner/transfer evidence.
+  Mods `+0x38` and entity ObjectMagicProperties `+0xc8` embed the prepared structure separately.
+  Bind a purpose-bearing reader next; copy/cleanup and a separate `+0x1d8` cache do not complete N1/N2.
   Reuse PR #371's fixed evidence without importing its full branch; no gameplay consumer is established yet.
   A positive configuration/presentation classification is distinct from numerical DoT publication.
   Keep the slice bounded and stop after its independent research PR becomes Ready.
