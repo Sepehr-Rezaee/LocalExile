@@ -37,6 +37,7 @@ static partial class Game
             LeechOf(conn).Configure(ProjectileWorldTime(conn),
                 LeechLimits.Resolve(get, conn.Pools.Life, conn.Pools.Mana, conn.Pools.EnergyShield, Replacement, onLowLife),
                 get, Replacement, claws);
+            LeechOf(conn).OnKill = KillRecovery.From(get, conn.Pools.Level);
             TrimLeechLocked(conn);
         }
     }

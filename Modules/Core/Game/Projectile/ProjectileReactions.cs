@@ -95,6 +95,7 @@ static partial class Game
         {
             session.Enqueue(() => Program.ServerHooks.MonsterKilled(new(killer, modMonster)));
             ChargesOnKill(conn, monster);
+            RecoverOnKill(conn);
         }
         if (CommitQuestFlags(conn, QuestsOf(conn).OnMonsterKilled(conn.Layout.Id, variety.Id)) is { } quest)
             session.Enqueue(() => PublishQuestFlags(session.remote, session.stream, session.ciphers, conn, quest));
