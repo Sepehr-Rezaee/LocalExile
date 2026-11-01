@@ -354,6 +354,7 @@ Part of [Status](../Status.md); what to build next in this area is in
   See [13](../docs/protocol/13-items.md), "Armourer's Scrap".
 - **Blacksmith's Whetstone (verified live, 2026-10-21):** +1% quality on weapons, up to 20%; Scouring resets it.
   See [13](../docs/protocol/13-items.md), "Blacksmith's Whetstone".
+- **Gemcutter's Prism (no test, not checked live):** +1% gem quality, up to 20% ([13](../docs/protocol/13-items.md)).
 - **Ancient Orb:** reforges an uncorrupted unique piece of equipment as another of its item class, by the uniques' drop
   weights, keeping item level, quality, sockets and links. Only uniques of the same inventory size; no corrupted or Replica
   results (`UniqueCatalog.Reforge`). Not checked in game yet.
