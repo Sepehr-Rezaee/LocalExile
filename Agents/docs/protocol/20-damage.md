@@ -622,7 +622,7 @@ Fire still uses its existing per-tick percentage-of-life burn; it is a fire DoT 
 
 **The player's ignites on monsters** (`MonsterIgnites.cs`, the wiki's Ignite): `IgniteFromHit` decides a landed hit's
 ignite. A critical strike always ignites; otherwise `base_chance_to_ignite_%`, `chance_to_ignite_%` and
-`chance_to_freeze_shock_ignite_%` give the chance, and `never_ignite` stops it. The base is the hit's flat fire damage
+`chance_to_freeze_shock_ignite_%` give the chance, and the ignite prohibitions (`CannotInflict`, below) stop it. The base is the hit's flat fire damage
 (base and added, after conversion, before increases), 90% per second (`Ailments.Ignite`) × (1 + the ignite increases:
 `damage_+%`, `damage_over_time_+%`, `elemental_damage_+%`, `fire_damage_+%`, `fire_damage_over_time_+%`,
 `burn_damage_+%`, `ignite_damage_+%`, `base_ailment_damage_+%`) × the Frenzy charges' more damage × (1 + the damage
@@ -658,8 +658,8 @@ more", support more multipliers, the moving bleed bonus, and the rows' native fo
 shot captures its ignite at release: chance `base_chance_to_ignite_%` + `chance_to_freeze_shock_ignite_%` from the caster
 and the skill (Burning Arrow's own 25%), the context's ignite rows above (main hand for attacks, spell for spells) as the
 damage-per-second range, and 4 s × (1 + `ignite_duration_+%` + `base_all_ailment_duration_+%`), with the "deal damage
-faster" factor above on both and the target's `base_self_ignite_duration_-%` on the duration. `never_ignite` and
-`never_damaging_ailments` stop it. An accepted hit that dealt fire damage and left the target alive ignites on a critical
+faster" factor above on both and the target's `base_self_ignite_duration_-%` on the duration. The ignite
+prohibitions and `never_damaging_ailments` stop it. An accepted hit that dealt fire damage and left the target alive ignites on a critical
 strike or a successful chance roll, then the monster's `avoid_ignite_%`; `immune_to_ignite` / `cannot_be_ignited` refuse
 it. The ignite's damage is an independent roll in the non-critical or critical range (the critical rows already carry
 the ailment critical multiplier). Several ignites can be on one monster; only the strongest deals damage, and a weaker,
@@ -1273,7 +1273,11 @@ player's jewels) added together, × (1 + (attacker − target) / 100), as PoB `C
 and the enemy's `Self…Duration` INC: 50% increased against 50% reduced on itself leaves the base duration. Of the
 Ice carries −80 of the freeze one in 3.29.3b Mods.dat; the wiki's text for it (Modifier:MonsterModResistantToCold) is
 "80% increased Freeze Duration on you", which is that sign. `immune_to_*`, `cannot_be_*` and `base_cannot_be_*` on the
-monster's stats block each kind. The strongest of a kind applies, and each keeps its own duration (wiki); a weaker one
+monster's stats block each kind. On the attacker's side `MonsterElementalAilments.CannotInflict` stops them:
+Elemental Focus's `cannot_inflict_status_ailments` (poedb: "Supported Skills cannot inflict Elemental Ailments") and
+`never_ignite_chill_freeze_shock` stop all four, `never_freeze_or_chill` both cold ones, and `never_ignite`,
+`never_chill`, `never_freeze` and `never_shock` their own. The freeze and shock chances still roll first, so a
+prohibition leaves the random sequence of later hits unchanged. The strongest of a kind applies, and each keeps its own duration (wiki); a weaker one
 that also ends sooner is dropped. A monster that dies keeps them, the killing hit's included (wiki Ailment: a killing
 hit that inflicts an elemental ailment counts as killing an affected enemy); it no longer acts.
 
