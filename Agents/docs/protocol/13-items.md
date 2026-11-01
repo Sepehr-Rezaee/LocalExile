@@ -1442,6 +1442,15 @@ player stands (radii in cells):
 - A stationary player with `consecrated_ground_while_stationary_radius` (or its Strength or Crusader variant, the
   largest as the client's 0x1428d43a0) has one consecrated ground of that radius where he stands: made when his walk
   ends, removed (0x2bb) when he walks, dies or is in a town. `RunPlayerTick` starts the ticker while the radius is set.
+  Rational Doctrine's `consecrated_ground_while_stationary_radius_if_highest_attribute_is_strength` is that Strength
+  variant; `your_consecrated_ground_effect_lingers_for_ms_after_leaving_the_area` keeps its effect on the player for
+  the listed time after he leaves the ground.
+- Rational Doctrine's `profane_ground_on_crit_chance_%_if_highest_attribute_is_intelligence` (25%) creates profane
+  ground where the critically struck monster stands, when Intelligence is the highest attribute (ties count). The ground
+  lasts 4 s, and `your_profane_ground_effect_lingers_for_ms_after_leaving_the_area` keeps its effect on monsters for
+  the listed time after they leave it. Monsters on it get the `ground_profane_enemy` buff (1569): hits against them
+  have 100% increased critical strike chance (`ProfaneCritIncrease`) and curses have 10% increased effect on them.
+  The ground's art is GroundEffects' `Profane` row; `RunFlaskGrounds` adds and removes the buff with the same ticker.
 - Basalt (`local_flask_taunt_enemies_on_use_radius` 30): taunts the hostile monsters around for 3 s (the reminder
   text), through the player's shared taunt (`TauntLocked`, [11](11-skills.md) §12), which shows `taunted` (408).
   Row 408 is IsRecovery, so its 0x1c1 carries `taunt_target_id` and `is_taunted`; the flask used to send it without
@@ -1451,8 +1460,9 @@ player stands (radii in cells):
   their slower walks and attacks to match on the client, which is not done. The ground shows the GroundEffects art
   (`ground_effects_v2/consecrated/consecrated_01.ao`, `smoke_blind/smoke_blind.ao`) as an effect object (`EffectObject`)
   scaled from GroundEffects __col4 (taken as the art's radius in world units) to the radius; live, the consecrated
-  ground's ring and light show, the smoke cloud's art does not show. The grounds last as long as the flask's effect: the
-  tables give no duration for them. `RunFlaskGrounds` looks every 100 ms of game time.
+  ground's ring and light show, the smoke cloud's art does not show. Flask grounds last as long as the flask's effect
+  (the tables give no duration for them); Rational Doctrine's profane ground lasts 4 s. `RunFlaskGrounds` looks every
+  100 ms of game time.
 
 **Quartz Flask's phasing.** The client's Pathfinding keeps "Phase Through Objects" (+0x52e) from the player's
 `virtual_phase_through_objects` (`0x141e9cd68`) and picks its blocker filter with it (`0x141e7b77c`). The Gateway sends

@@ -280,7 +280,7 @@ static partial class Game
                 var gambler = GamblerFor(player);
                 var ownRolled = GameEvents.WithOutgoingDamage(conn, player, m, (gambler with { DamageMorePct = 0 }).RollOutgoingHit(hit, Random.Shared));
                 critical = RollCriticalStrike(conn, CriticalChanceOn(conn, targetId, conn.Pools.AttackCriticalStrikeChance,
-                        AttackCriticalChanceVsBlinded(conn, player)), ownPenetration, skillRoll: criticalRoll)
+                        AttackCriticalChanceVsBlinded(conn, player), AttackCriticalChanceVsProfane(conn, player)), ownPenetration, skillRoll: criticalRoll)
                     && GameServer.Core.World.EvasionEntropy.ConfirmsCritical(hitChance, conn.AttackAccuracyRandom);
                 int sourceCriticalMultiplier = AttackCriticalMultiplier(conn, player);
                 int criticalMultiplier = CriticalMultiplierOn(m, sourceCriticalMultiplier);
@@ -313,6 +313,7 @@ static partial class Game
             }
             ChargesOnHit(conn, m, critical, spell: false);
             if (critical) _ = GainFlaskChargesOnCrit(remote, stream, ciphers, conn);   // the hit landed
+            if (critical) await MaybeCreateProfaneGround(remote, stream, ciphers, conn, target);
             // At 0 the client's Life tick (0x141e6a190) stops notifying its listeners, so the mini life bar would keep the last
             // value: hide it with the stat its listener watches (hide_mini_life_bar).
             if (life == 0)
@@ -1011,7 +1012,8 @@ static partial class Game
                 var rolled = GameEvents.WithOutgoingDamage(conn, player, m, (gambler with { DamageMorePct = 0 }).RollOutgoingHit(contactHit, Random.Shared));
                 // The shared roll meets each target's current chance: a source can change between targets.
                 int criticalChance = CriticalChanceOn(conn, id, SupportedCriticalChance(conn, skillId),
-                    SupportedCriticalChanceVsBlinded(conn, skillId, release: false));
+                    SupportedCriticalChanceVsBlinded(conn, skillId, release: false),
+                    SupportedCriticalChanceVsProfane(conn, skillId, release: false));
                 critical = RollCriticalStrike(conn, criticalChance, skillStats,
                         attack: !spell, skillRoll: criticalRoll)
                     && (spell || GameServer.Core.World.EvasionEntropy.ConfirmsCritical(hitChance, conn.AttackAccuracyRandom));
@@ -1054,6 +1056,7 @@ static partial class Game
             }
             if (applied is not { } hit) continue;
             if (critical) _ = GainFlaskChargesOnCrit(remote, stream, ciphers, conn);
+            if (critical) await MaybeCreateProfaneGround(remote, stream, ciphers, conn, m.Walk.Position(ProjectileWorldTime(conn)));
             await NotifyMonsterHit(remote, stream, ciphers, conn, id, m, hit, damage,
                 $"{gem.Name}{(critical ? " (critical)" : "")}{(resistance is null ? "" : $", {resistance}")}",
                 melee: melee ?? !spell, sequence: sequence, deaths: deaths);

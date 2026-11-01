@@ -61,7 +61,8 @@ static partial class Game
         }
         // The ground around a stationary player follows the stats the client was told (RunPlayerTick starts its ticker).
         int Sent(string name) => Stats.Key(name) is uint key ? stats.FirstOrDefault(s => s.Item1 == key).Item2 : 0;
-        conn.FlaskGrounds.Configure(FlaskGrounds.StationaryRadius(Sent), Sent(FlaskGrounds.LingerStat));
+        conn.FlaskGrounds.Configure(FlaskGrounds.StationaryRadius(Sent), Sent(FlaskGrounds.LingerStat),
+            Sent(FlaskGrounds.ProfaneLingerStat));
         // So do the player's debuffs on monsters (EnemyDebuffsTick): his passives' enemy auras and his taunt's increase.
         ushort[] nodes;
         lock (conn.Monsters) nodes = [.. conn.Passives, .. conn.MainAscendancy.Allocated];
