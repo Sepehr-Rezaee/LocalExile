@@ -97,6 +97,22 @@ reader, or independently retained typed evidence identifying an indirect reader.
 Then follow that one reader to its actual output. Do not infer no consumer,
 server ownership or presentation-only behavior from unsuccessful searches.
 
+Two bounded getter-provenance investigations did not bind a descriptor escape;
+that route is closed until new typed evidence appears. One getter's inspected
+bindings use a separately initialized state pointer. The other returns an
+unresolved resource-owned row; its identity is insufficient to classify it as
+this prepared object. Neither result establishes a meaningful descriptor consumer.
+
+A final coverage repair checked previously omitted `rbp` operands within the
+same 161 retained ensure-call owners. Six candidate functions contained 29
+matching operands. Their prologues establish `rbp` as a stack-frame base, with
+no subsequent business-object reassignment in the decoded functions. Those
+operand matches therefore do not establish prepared-object fields. This does
+not exclude descriptor-related stack temporaries or other consumers. Stop this
+finite query as well; do not replace the missing typed escape with another
+global offset, stride or getter inventory. **N1/N2 remain evidence-blocked and
+the PR remains Draft.**
+
 ## Claim audit at this boundary
 
 | Claim | State |
