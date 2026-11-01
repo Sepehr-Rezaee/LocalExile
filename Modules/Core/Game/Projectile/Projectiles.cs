@@ -187,7 +187,7 @@ static partial class Game
                 if (monster.Dead || monster.Life == 0) continue;
                 var walk = monster.Walk;
                 result.Add(new(Key(id, monster), monster.Hostile ? 2 : 1,
-                    t => Vector(walk.Position(t / (double)ProjectileRuntime.QuantaPerSecond)), 0));
+                    t => Vector(walk.Position(t / (double)ProjectileRuntime.QuantaPerSecond)), 0) { Size = LivingCollision.Size(monster) });
             }
             if (Conn.PlayerLife > 0)
                 result.Add(new(new(PlayerId, epoch), 1,
