@@ -1093,9 +1093,16 @@ This is a research baseline, not new live skill acceptance or complete native/se
   the spell record's `cast_speed_+%`.
   That record value now also includes a support's own cast speed (Faster Casting), as the server wait already did.
   Neither change is checked with the real client; only the Gateway tests cover them.
+  Area spells without a projectile (Ice Nova) release at their `spell_aoe` clip's contact (Witch 266/766 of the cast,
+  `AnimationContacts.SpellAreaRelease`; the clip choice read from the IceNova action's code), no longer at the end of the
+  cast (about 450 ms late for a 700 ms Ice Nova).
+  Ice Nova's victims are hit as its ring reaches them, over 0.2 s (`IceNovaRing`), and a released ring still lands when
+  the player moves or casts again.
+  Not checked frame by frame with the real client yet.
   Instant casts remain instant; channel damage cadence and conditional action-speed mechanics are unchanged.
   Numeric server durations below 1 ms are floored, and invalid factors/unrepresentable waits produce no spell effect.
-  Code: `SpellCastTiming.cs`, Gateway (`GemSkills`, `CastMs`, `CastGemSkill`, `LaunchProjectile`, `AreaSkillHit`).
+  Code: `SpellCastTiming.cs`, `AnimationContacts.cs`, Gateway (`GemSkills`, `CastMs`, `CastGemSkill`, `LaunchProjectile`,
+  `AreaSkillHit`).
   Docs: [11](../docs/protocol/11-skills.md) section 9.
 - **Selected spell hit damage panel (#188).** Spell total/per-type ranges and historical pre-crit average damage/DPS
   now use the same converted packet as projectile and area combat.
