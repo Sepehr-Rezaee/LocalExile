@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using GameServer.Core.Protocol.Instance;
 using GameServer.Core.Protocol.Login;
+using GameServer.Core.Diagnostics;
 
 static partial class QuestobjectsRules
 {
@@ -13,7 +14,11 @@ static partial class QuestobjectsRules
     {
         if (LabyrinthTrials.For(conn.Layout.Id) is not { } trial) return;
         var notes = new List<string>();
-        var objects = AreaPopulation.LoadObjects(conn.Layout.Id, conn.Seed, notes).Where(o => LabyrinthTrials.Handles(o.Type)).ToList();
+        var all = AreaPopulation.LoadObjects(conn.Layout.Id, conn.Seed, notes);
+        await SpawnTrialTraps(remote, stream, ciphers, conn, [.. all.Where(o => o.Type == LabyrinthTrials.SpikeTrap)],
+            [.. all.Where(o => o.Type == LabyrinthTrials.Lever).Select(o => (o.X, o.Y))],
+            [.. all.Where(o => o.Type is LabyrinthTrials.Door or LabyrinthTrials.IntroDoor).Select(o => (o.X, o.Y))]);
+        var objects = all.Where(o => LabyrinthTrials.Handles(o.Type)).ToList();
         if (objects.Count == 0)
         {
             Console.WriteLine($"[gateway] {remote} trial {trial.Flag}: no trial objects in {conn.Layout.Id} seed {conn.Seed} ({string.Join("; ", notes)})");
@@ -140,6 +145,231 @@ static partial class QuestobjectsRules
 
     // How long a Locked Door's opening plays before it goes (our own number: the animation's length is not read).
     const double DoorOpeningSeconds = 1.5;
+
+    // A trial's spike traps (LabyrinthTrials.SpikeTrap): created at rest, then fired in waves for as long as the player
+    // is in the area (RunSpikeTraps).
+    static async Task SpawnTrialTraps(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn,
+        List<AreaPopulation.RoomObject> traps, List<(int X, int Y)> levers, List<(int X, int Y)> doors)
+    {
+        if (traps.Count == 0) return;
+        var chains = LabyrinthTrials.SpikeChains([.. traps.Select(t => (t.X, t.Y))], levers, doors);
+        var placed = new List<SpikeTrap>();
+        for (int i = 0; i < traps.Count; i++)
+        {
+            uint id = conn.NextObjectId++;
+            await Send(remote, stream, ciphers, InstanceEntities.CreateObject(id, InstanceEntities.ObjectTypeHash(traps[i].Type),
+                LabyrinthTrials.SpikeTrapBlob(traps[i].X, traps[i].Y)), null);
+            await Send(remote, stream, ciphers, InstanceProtocol.EnterWakeZone(id), null);
+            placed.Add(new(id, traps[i], chains[i].Chain, chains[i].Order, chains[i].Checker));
+        }
+        Console.WriteLine($"[gateway] {remote} trial spike traps: {placed.Count} placed in {chains.Max(c => c.Chain) + 1} chain(s)");
+        _ = RunSpikeTraps(remote, stream, ciphers, conn, placed);
+    }
+
+    sealed record SpikeTrap(uint Id, AreaPopulation.RoomObject Trap, int Chain, int Order, bool Checker)
+    {
+        // When its last clip started (Clock seconds), and whether that clip has hit.
+        public double Fired = double.NegativeInfinity;
+        public bool HasHit;
+        public bool Up(double now) => now >= Fired + LabyrinthTrials.SpikeHitWindow.From && now < Fired + LabyrinthTrials.SpikeHitWindow.To;
+        public bool Holds((int X, int Y) at) =>
+            Math.Abs(at.X - Trap.X) <= LabyrinthTrials.SpikeHalf && Math.Abs(at.Y - Trap.Y) <= LabyrinthTrials.SpikeHalf;
+        public bool Near((int X, int Y) at) =>
+            Math.Abs(at.X - Trap.X) <= LabyrinthTrials.SpikeHalf * 5 && Math.Abs(at.Y - Trap.Y) <= LabyrinthTrials.SpikeHalf * 5;
+    }
+
+    // Each chain fires as a wave, over and over (LabyrinthTrials.SpikeWaveSeconds); the cascade traps do not answer a step
+    // (the ones that do are another trap). A stretched Emerge animation (0x1d1) plays the spikes; while they are up
+    // (LabyrinthTrials.SpikeHitWindow) a player in the square is hit once (SpikeTrapHit); the square is a wall until they
+    // are down (LabyrinthTrials.SpikeWallWindow).
+    static async Task RunSpikeTraps(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn,
+        List<SpikeTrap> traps)
+    {
+        const int Wave = 0, Block = 1, Unblock = 2, Fired = 3;
+        // A chain's wave takes its step when it starts (so /trial_spike_step applies to whole waves).
+        var due = new PriorityQueue<(SpikeTrap Trap, int Stage), double>();
+        var chains = traps.GroupBy(t => t.Chain).ToDictionary(g => g.Key, g => g.ToList());
+        double start = conn.Clock.Elapsed.TotalSeconds + 1;
+        foreach (var chain in chains.Values) due.Enqueue((chain[0], Wave), start);
+        async Task Fire(SpikeTrap t, double at)
+        {
+            (t.Fired, t.HasHit) = (at, false);
+            (int X, int Y) player;
+            lock (conn.Monsters) player = conn.Walk.Position(at);
+            // Logged only near the player (about two tiles), to line a hit up with the spikes the client shows.
+            string? log = !t.Near(player) ? null : $"trial spike trap 0x{t.Id:x} at ({t.Trap.X}, {t.Trap.Y}) fires (chain {t.Chain} #{t.Order}), player at ({player.X}, {player.Y})";
+            await Send(remote, stream, ciphers, InstanceProtocol.ActorAnimation(t.Id, (float)LabyrinthTrials.SpikeAnimationSeconds, LabyrinthTrials.EmergeAnimation),
+                log is null ? null : "0x01d1 " + log);
+            var (from, to) = LabyrinthTrials.SpikeWallWindow;
+            due.Enqueue((t, Block), at + from);
+            due.Enqueue((t, Unblock), at + to);
+        }
+        try
+        {
+            while (!conn.Closed)
+            {
+                double now = conn.Clock.Elapsed.TotalSeconds;
+                while (due.TryPeek(out var next, out double at) && at <= now)
+                {
+                    due.Dequeue();
+                    var t = next.Trap;
+                    switch (next.Stage)
+                    {
+                        // A chain's wave: each trap at its place in it, and the next wave once it has gone round.
+                        case Wave:
+                            var chain = chains[t.Chain];
+                            double step = LabyrinthTrials.SpikeStep(t.Checker);
+                            foreach (var c in chain) due.Enqueue((c, Fired), at + c.Order * step);
+                            due.Enqueue((t, Wave), at + LabyrinthTrials.SpikeWaveSeconds(chain.Max(c => c.Order) + 1, step));
+                            break;
+                        case Fired: await Fire(t, at); break;
+                        case Block: await BlockSpikeTrap(remote, stream, ciphers, conn, t, true); break;
+                        case Unblock: await BlockSpikeTrap(remote, stream, ciphers, conn, t, false); break;
+                    }
+                }
+                (int X, int Y) here;
+                lock (conn.Monsters) here = conn.Walk.Position(now);
+                foreach (var t in traps)
+                    if (!t.HasHit && t.Up(now) && t.Holds(here))
+                    {
+                        t.HasHit = true;
+                        await SpikeTrapHit(remote, stream, ciphers, conn, t);
+                    }
+                await Task.Delay(SpikeTickMilliseconds);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException)
+        { if (!conn.Closed) Console.WriteLine($"[gateway] {remote} trial spike traps stopped: {ServerLog.Describe(ex)}"); }
+    }
+
+    // Risen spikes are impassable (wiki: "Spike traps are impassable and block movement while they are out"): the trap's
+    // TriggerableBlockage (0x1c6) for the client, and its square's walkable cells on the server's walk estimate.
+    static async Task BlockSpikeTrap(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn, SpikeTrap t,
+        bool blocked)
+    {
+        lock (conn.Monsters)
+        {
+            if (!blocked) conn.DoorBarriers.Remove(t.Id);
+            // A player already on the tile when the spikes rise stays there: closing its cells under them made the
+            // collision escape throw them off the tile (live 2026-10-31); the wall only keeps others out.
+            else if (t.Holds(conn.Walk.Position(conn.Clock.Elapsed.TotalSeconds))) { }
+            else if (conn.Layout.Walkable is { } walkable)
+            {
+                var cells = new HashSet<(int X, int Y)>();
+                for (int y = t.Trap.Y - LabyrinthTrials.SpikeHalf; y <= t.Trap.Y + LabyrinthTrials.SpikeHalf; y++)
+                    for (int x = t.Trap.X - LabyrinthTrials.SpikeHalf; x <= t.Trap.X + LabyrinthTrials.SpikeHalf; x++)
+                        if (walkable(x, y)) cells.Add((x, y));
+                conn.DoorBarriers[t.Id] = cells;
+            }
+            conn.UpdateBarrier();
+        }
+        await Send(remote, stream, ciphers, InstanceEntities.BlockageUpdate(t.Id, blocked), null);
+    }
+
+    // How often the spike traps' timers and the player's steps are looked at (our own number).
+    const int SpikeTickMilliseconds = 50;
+
+    // A player in a spike trap's square while its spikes are up takes the trap's share of life and energy shield
+    // (LabyrinthTrials.SpikeDamage) as physical damage, energy shield first, and may die of it.
+    static async Task SpikeTrapHit(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn, SpikeTrap spike)
+    {
+        var (id, trap) = (spike.Id, spike.Trap);
+        uint life;
+        int damage;
+        lock (conn.Monsters)
+        {
+            if (conn.PlayerLife == 0 || HardcoreProgressBlocked(conn)) return;
+            double now = conn.Clock.Elapsed.TotalSeconds;
+            if (!spike.Holds(conn.Walk.Position(now))
+                || LabyrinthTrials.SpikeDamage(conn.PlayerMaxLife, conn.EnergyShield.Maximum) is not int dealt) return;
+            damage = dealt;
+            long before = conn.PlayerLife, lifeDamage = DamagePlayerHit(conn, damage, 0, now, CharacterPlayerStats(conn));
+            conn.PlayerLife = (uint)Math.Max(0, before - lifeDamage);
+            if (conn.PlayerLife == 0) { conn.InvalidateIncomingHits(); ClearAntiquarianOnDeath(conn); }
+            RecordHardcoreDeath(conn);
+            life = conn.PlayerLife;
+        }
+        var taken = GameServer.Core.World.DamagePacket.Empty.Add(GameServer.Core.World.DamageType.Physical, new(damage, damage));
+        await Send(remote, stream, ciphers, InstanceProtocol.ActionHit(id, 0xffff, PlayerId, flags: MonsterHitFlags(false, false),
+            kind: 0x03, code: HitCode(taken)), null);
+        await SendPlayerEnergyShield(remote, stream, ciphers, conn);
+        if (life == 0)
+            await Send(remote, stream, ciphers, InstanceEntities.StatsUpdate(PlayerId, [(StatKeys.HideMiniLifeBar, 1)]),
+                "0x01b3 player hide_mini_life_bar = 1");
+        await Send(remote, stream, ciphers, InstanceProtocol.LifeUpdate(PlayerId, life),
+            $"0x01b1 player hit by trial spike trap 0x{id:x} at ({trap.X}, {trap.Y}) for {damage}, life {life}/{conn.PlayerMaxLife}{(life == 0 ? " (dies)" : "")}");
+        if (life == 0) await PlayerDied(remote, stream, ciphers, conn, $"0x0055 death screen ({conn.League ?? "?"} league)");
+        else await SpikeBleed(remote, stream, ciphers, conn, damage);
+    }
+
+    // The bleed a spike hit leaves on a connection: its damage a second while standing, and until when (Clock seconds).
+    sealed class Bleed { public double PerSecond, Until; public ushort Buff; }
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ClientState, Bleed> Bleeds = new();
+
+    // A spike hit bleeds (LabyrinthTrials.SpikeBleedPerSecond of its damage a second, three times that while the player
+    // moves, for SpikeBleedSeconds); only the strongest bleed runs, so a weaker one while another lasts is dropped. Its
+    // damage goes to energy shield first, then life, in SpikeBleedTickSeconds ticks, off the traps' loop.
+    static async Task SpikeBleed(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn, int hit)
+    {
+        var bleed = Bleeds.GetValue(conn, _ => new());
+        double perSecond = hit * LabyrinthTrials.SpikeBleedPerSecond, until;
+        ushort buff;
+        lock (conn.Monsters)
+        {
+            double now = conn.Clock.Elapsed.TotalSeconds;
+            if (now < bleed.Until && bleed.PerSecond > perSecond) return;
+            bool running = now < bleed.Until;
+            (bleed.PerSecond, bleed.Until) = (perSecond, until = now + LabyrinthTrials.SpikeBleedSeconds);
+            buff = bleed.Buff = conn.NextBuff++;
+            if (running) return;   // the running ticks take the new bleed on
+        }
+        if (LabyrinthTrials.BleedingBuffRow is ushort row)
+            await Send(remote, stream, ciphers, InstanceEntities.AddBuff(PlayerId, buff, row,
+                u68: BitConverter.SingleToUInt32Bits((float)LabyrinthTrials.SpikeBleedSeconds)), null);
+        _ = Task.Run(async () =>
+        {
+            ushort shown = buff;
+            while (!conn.Closed)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(SpikeBleedTickSeconds));
+                uint life;
+                int dealt;
+                bool over;
+                lock (conn.Monsters)
+                {
+                    double now = conn.Clock.Elapsed.TotalSeconds;
+                    if (conn.PlayerLife == 0 || HardcoreProgressBlocked(conn)) return;
+                    double factor = now < conn.Walk.ArrivesAt ? LabyrinthTrials.SpikeBleedMovingFactor : 1;
+                    dealt = (int)Math.Round(bleed.PerSecond * factor * SpikeBleedTickSeconds);
+                    long lifeDamage = conn.EnergyShield.Damage(dealt, false, now);
+                    conn.PlayerLife = (uint)Math.Max(0, conn.PlayerLife - lifeDamage);
+                    if (conn.PlayerLife == 0) { conn.InvalidateIncomingHits(); ClearAntiquarianOnDeath(conn); }
+                    RecordHardcoreDeath(conn);
+                    life = conn.PlayerLife;
+                    over = now + SpikeBleedTickSeconds / 2 >= bleed.Until;
+                    if (over) bleed.Until = double.NegativeInfinity;   // a later hit starts a bleed of its own
+                    if (bleed.Buff != shown && LabyrinthTrials.BleedingBuffRow is not null)
+                    {
+                        // A stronger bleed took over: its buff instance replaces the shown one.
+                        (ushort old, shown) = (shown, bleed.Buff);
+                        _ = Send(remote, stream, ciphers, InstanceEntities.RemoveBuff(PlayerId, old), null);
+                        _ = Send(remote, stream, ciphers, InstanceEntities.AddBuff(PlayerId, shown, LabyrinthTrials.BleedingBuffRow.Value,
+                            u68: BitConverter.SingleToUInt32Bits((float)(bleed.Until - now))), null);
+                    }
+                }
+                await SendPlayerEnergyShield(remote, stream, ciphers, conn);
+                await Send(remote, stream, ciphers, InstanceProtocol.LifeUpdate(PlayerId, life),
+                    life == 0 ? $"0x01b1 player bleeds {dealt} from a trial spike trap and dies" : null);
+                if (life == 0) { await PlayerDied(remote, stream, ciphers, conn, $"0x0055 death screen ({conn.League ?? "?"} league)"); return; }
+                if (over) break;
+            }
+            if (!conn.Closed && LabyrinthTrials.BleedingBuffRow is not null)
+                await Send(remote, stream, ciphers, InstanceEntities.RemoveBuff(PlayerId, shown), null);
+        });
+    }
+
+    // How often a spike trap's bleed deals its damage (our own number).
+    const double SpikeBleedTickSeconds = 0.2;
 
     // Whether the plaque is lit: the character has the trial's flag, or this instance's plaque was used.
     static bool TrialLit(ClientState conn, LabyrinthTrials.Trial trial)

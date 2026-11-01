@@ -4,7 +4,8 @@ The trials in the acts that open each Labyrinth tier (#450, roadmap "The Labyrin
 [roadmap/world.md](../../roadmap/world.md)).
 The Lower Prison's Normal trial is verified with the real client: its door, lever, Locked Door, plaque and the
 Trial Plaque window work.
-Traps, the trials' monsters and the other trials' puzzles are not built yet.
+Its spike traps (the cascade ring and the plaque room's checkerboard) are matched against the original game by eye.
+The other traps, the trials' monsters and the other trials' puzzles are not built yet.
 
 ## Where a trial is
 
@@ -78,12 +79,54 @@ Locked Door in the first group is not found.
 So the Gateway removes an opened Locked Door (0x2bb) 1.5 s after its opening, when the bars have lifted, and does not
 create it again in that instance.
 
+## Spike traps
+
+`Metadata/Terrain/Labyrinth/Traps/LabyrinthCascadeSpikeTrap` (The Lower Prison: a ring of 16 in the first room, 10 in
+the plaque room) is a monster-like object.
+Its blob reads Positioned (the `.ot`'s team 14), Animated (the `.ot`'s `spiketrap_prison.ao`), Pathfinding,
+TriggerableBlockage, Transitionable, Stats, Buffs, Life and Actor, written as a monster writes them, with no skills.
+Its Hull (±11.27) is one tile: the traps stand 23 cells apart, so each trap's square is its whole tile.
+
+**How it fires.** Its actor (`LabyrinthSpikeTrap.act`, like every spike trap `.act`) names one clip, `spike_fast`
+(`Spikes02/rig.amd`: 1000 ms, a "contact" at 500 ms; `spiketrap_prison.ao` plays `Up` at 0 ms and `MechDown_Fast` at
+500 ms); `spike_medium` and `spike_slow` exist in the rig but no `.act` names them.
+The Emerge action (0x1ab, basic action 0x0101) played the plain clip, and the spikes showed about a second after it.
+**S→C 0x1d1** with Animation.dat `Emerge` (row 43) stretched over 2000 ms matches the original: four traps of the
+cascade stand up at once and lower slowly.
+The spikes are up from about 100 ms to 1000 ms (the stretched clip's half), and lowering until 2000 ms.
+
+**The pattern.** The real timers are the rooms' `Trigger_PulsePrisonWG`, `Trigger_Delay_4_0WG` and
+`Trigger_Delay_4_2WG` lines: server objects with no `.ot` or model, absent from `room-points.json`.
+So the pattern is fitted by eye against the original (live 2026-10-31):
+- a ring (every trap side by side with two others) cascades from its trap nearest the trial's lever, straight towards
+  its trap nearest the trial's doors and on round, 450 ms a trap, starting again at once;
+- any other chain fires as a checkerboard: the tiles of the start's colour, then the others 2 s later, every 4 s.
+
+**What it does.** The cascade traps do not answer a step (the spikes that do are another trap, in Izaro's rooms).
+- A player on the tile while the spikes are up is hit once: `LbRetractableTrap`'s stat set (GrantedEffectStatSets
+  5413) deals 25% of maximum life plus 15% of maximum energy shield, 16% more against players
+  (`damage_+%_vs_players`), always hitting; armour and resistances are not applied.
+  The hit packet (0x1af) carries the blood and particle flags.
+- The hit bleeds (the `.ot`: 100% chance, 80% less duration): the wiki's bleed from a monster, 10% of the hit a second,
+  three times that while the player moves, for 1 s, not reduced by armour, only the strongest running.
+  BuffDefinitions `bleeding` shows it; `labyrinth_trap_bleed` and `trap_pinned` ("Spike Pinned") carry shares of the
+  pools whose values the client data lacks.
+- Risen and lowering spikes are a wall: the trap's TriggerableBlockage (0x1c6) and its tile's cells on the server's walk
+  estimate, from the rise until the clip ends. A player already on the tile is not walled in: closing the cells under
+  them made the collision escape throw them off the tile.
+- No stun or pin: the original shows no buff, and neither BuffDefinitions `pinned` (`no_movement_speed`, not read by
+  the client's walk speed, `0x141e7c0b0`) nor native TakeHit recovery was right.
+
+The timings are dev-tunable for a live check: `/trial_spike_hit <from> <to>` (the hit window, ms after firing),
+`/trial_spike_step <ms>` (the ring's step) and `/trial_spike_anim <ms>` (the stretched clip).
+Firings within about two tiles of the player are logged with the player's position.
+
 ## A completed trial
 
 The client counts a trial done (`0x141f69230`, for each of a Labyrinths row's `RequiredTrials`) when the player has
 **the row's quest flag** (column 7, a QuestFlags row: `NormalLabyrinthCompletedPrison` …
-`MapLabyrinthCompletedCatacombs`, rows 2564–2581, tested by `0x1400f42b0`) or **the league quest flag** of column 1 (263–286; Player +0x1d0, bit id − 1,
-`0x14012aae0`).
+`MapLabyrinthCompletedCatacombs`, rows 2564–2581, tested by `0x1400f42b0`) or **the league quest flag** of column 1
+(263–286; Player +0x1d0, bit id − 1, `0x14012aae0`).
 The real game shares trials across a league's characters; the league flags are how, but the Gateway does not save
 league quest flags yet, so a trial is the character's own quest flag.
 Columns 2 and 3 are not read.
@@ -97,7 +140,7 @@ Kind 0x66 (HUD virtual +0x1028) shows the live HUD's +0xa30, Mirage's Wishes win
 
 ## Not built yet
 
-- Traps (`LabyrinthCascadeSpikeTrap`, spinners, sawblades, roombas, lava, darts) and their triggers.
+- The other traps (spinners, sawblades, roombas, lava, darts) and the step-triggered spikes of Izaro's rooms.
 - The other puzzle parts: `Switch` and `Door_Open` (toggling), `Switch_Multi`, `TimerGears` (timed levers).
 - The trials' monster spawners (`PrisonPoacherSpawner`, `CryptFrostPriestSpawner`, `CremPyroSpawner`).
 - The glyph (`LabyrinthTrialGlyphPrison`, an NPC with no `.ot` of its own).

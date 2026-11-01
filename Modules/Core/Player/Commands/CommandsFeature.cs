@@ -1317,6 +1317,25 @@ static class CommandsFeature
             await SetQuestFlags(remote, stream, ciphers, conn, [args[0]], on: !off);
             await conn.Commands!.Reply($"{args[0]} {(off ? "cleared" : "set")}");
         }, "quest_flag")
+        .Add("trial_spike_hit", "/trial_spike_hit [<from ms> <to ms>] (dev: how long after firing the Trials of Ascendancy spike traps hit, up to 3000 ms, e.g. /trial_spike_hit 1000 1250)", async args =>
+        {
+            if (args.Length >= 2 && int.TryParse(args[0], out int from) && int.TryParse(args[1], out int to) && from >= 0 && to > from && to <= 3000)
+                LabyrinthTrials.SpikeHitWindow = (from / 1000.0, to / 1000.0);
+            var (f, t) = LabyrinthTrials.SpikeHitWindow;
+            await conn.Commands!.Reply($"Trial spike traps hit from {f * 1000:0} to {t * 1000:0} ms after firing.");
+        })
+        .Add("trial_spike_step", "/trial_spike_step [<ms>] (dev: the time between two spike traps of a Trials of Ascendancy ring's wave, from its next wave, e.g. /trial_spike_step 250)", async args =>
+        {
+            if (args.Length >= 1 && int.TryParse(args[0], out int ms) && ms is >= 50 and <= 3000)
+                LabyrinthTrials.SpikeStepSeconds = ms / 1000.0;
+            await conn.Commands!.Reply($"Trial spike rings step {LabyrinthTrials.SpikeStepSeconds * 1000:0} ms a trap.");
+        })
+        .Add("trial_spike_anim", "/trial_spike_anim [<ms>] (dev: how long a Trials of Ascendancy spike trap's Emerge animation (0x1d1) is stretched over, e.g. /trial_spike_anim 2000)", async args =>
+        {
+            if (args.Length >= 1 && int.TryParse(args[0], out int ms) && ms is >= 100 and <= 6000)
+                LabyrinthTrials.SpikeAnimationSeconds = ms / 1000.0;
+            await conn.Commands!.Reply($"Trial spike traps rise over a {LabyrinthTrials.SpikeAnimationSeconds * 1000:0} ms Emerge animation.");
+        })
         .Add("atlas", "/atlas [layout] (dev: show or choose the fallback layout generic maps open)", async args =>
         {
             var atlas = MapDevices.Value.Atlas;
