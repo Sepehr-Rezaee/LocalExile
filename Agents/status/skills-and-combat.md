@@ -549,7 +549,7 @@ Part of [Status](../Status.md); what to build next in this area is in
   Claw mastery instant leech counts active usable claws, Weapon Master applies its claw condition once, and
   Gore Dancer's Life instant source survives Ghost Reaver conversion. Real-source contacts and split/override
   controls pass; exact native mixed Life/ES instant composition remains unverified (damage §5b records the policy).
-  Kills recover Life, Mana and ES on kill; not checked live ([20](../docs/protocol/20-damage.md) §5b).
+  Kills recover Life, Mana and ES on kill, also by ailment; not checked live ([20](../docs/protocol/20-damage.md) §5b).
   Highwayman's real modifier now doubles total Life-leech recovery once, independently of the explicit Life
   maximum-rate doubling flag. Source/removal, duplicate flags, caps, duration, instant and conversion controls pass;
   current Vaal Pact acquisition and native stacking/recovery parity are not implied by raw-flag support.

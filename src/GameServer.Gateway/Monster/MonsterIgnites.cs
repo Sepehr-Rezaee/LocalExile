@@ -106,5 +106,10 @@ sealed class MonsterIgnites
         return whole;
     }
 
-    public void Clear() { active.Clear(); carry = 0; }
+    /// <summary>Ends a dead monster's ignites. <paramref name="burnt"/>: its ignite killed it, so it died ignited even if
+    /// that ignite ran out in the same advance.</summary>
+    public void Clear(bool burnt = false) { DiedBurning |= burnt || Burning; active.Clear(); carry = 0; }
+
+    /// <summary>It was ignited when it died (its ignites were cleared): the kill was of an ignited enemy.</summary>
+    public bool DiedBurning { get; private set; }
 }

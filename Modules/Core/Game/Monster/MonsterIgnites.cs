@@ -110,7 +110,7 @@ static partial class Game
                 {
                     m.Dead = true;
                     CollectVaalSoulAtDeathLocked(conn, m);
-                    m.Ignites.Clear();
+                    m.Ignites.Clear(burnt: true);
                     if (m.Ignites.Buff is ushort buff) { ended.Add((id, buff)); m.Ignites.Buff = null; }
                 }
                 hits.Add((id, m, m.Life, damage));
