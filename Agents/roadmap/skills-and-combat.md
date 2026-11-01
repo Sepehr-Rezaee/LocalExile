@@ -27,12 +27,11 @@ The suspend/restore lifecycle is explicit LocalExile policy; see protocol/11-ski
   the live source-only regression is addressed with a separate received buff for the top-left icon, awaiting
   confirmation.
   Radius-scaled aura rings, if added, still need their actual radius.
-- **Spark hit timing:** the client draws its own wandering sparks, while the server flies each spark straight
-  (`ProjectileRuntime`), so a spark the player sees touch a monster often deals its damage later, from another spark,
-  or not at all. Release time (cast × `spell_projectile` contact) and speed (Projectiles.dat 420 → 38.64 cells/s) match.
-  Start: find the client's spark direction-change rule and seed in the projectile action (`0x141bb13a0`, Spark's
-  ActionTypes row 57) and run the same path on the server. Done when: one Spark cast's hits land as its visible sparks
-  touch the monsters.
+- **Spark start cell:** the server flies each spark on the client's wander (Status), but from the server's walk
+  position, often a few cells from where the client starts it, so a drawn spark can still hit with no damage.
+  Start: trace the client's start cell and each leg's start time per frame (`scripts/re/frida/trace-spark-legs.js`)
+  next to the server's `spark seq=` lines, then start the server's legs from the same cell and frame.
+  Done when: every drawn spark hit deals damage once, and no damage lands without one.
 - **Completed area fix:** Cyclone's `/set_aoe` final radius is now sent to the client and shared with hit selection;
   see Status and protocol/11-skills.md (live check pending).
 

@@ -298,18 +298,33 @@ Part of [Status](../Status.md); what to build next in this area is in
   Fireball's impact explodes: an area hit of its radius (`active_skill_base_area_of_effect_radius`) on an enemy or a
   wall, excluding the projectile's own target; the explosion art is a standalone effect object and the projectile is
   removed at the impact.
+  Spell projectiles the client draws itself (Fireball, Spark) hit by the client's contact rule: Chebyshev cells within
+  the row's max(CollisionRadius, CollisionCandidateRadius) plus the monster's `ObjectSize − 1`
+  ([11](../docs/protocol/11-skills.md), "The client's object contact"); automated only, not live-checked.
   Ordinary bow ground/object attacks now share contact-time release and damage at the actual flight collision
   (#203, automated and native collision/release/pause checks pass).
   Object uses no longer also deal a melee contact hit.
   The client spawns the primary projectiles of its own spell gem use itself, every one of a volley, from where it
   stands; the server simulates them but sends no object for them (one fireball was two, 2026-10-29). Their
   continuation children still get server objects.
+  The server aims them with the client's own volley: its fan, fixed spread and nova
+  ([11-skills](../docs/protocol/11-skills.md) "The client's volley"; static RE, the fan fitted to live Spark volleys)
+  and its seeded random directions (static RE, checked live 2026-10-31: damage only where a projectile was drawn).
+  Parallel volleys still use the server's own fan.
   An attack gem's projectiles are not predicted: they get a server object like the default attack's arrow (Burning
   Arrow showed no arrow before; live 2026-10-31, the arrows fly and ignite).
   Spark's action fires through the same client method, so its sparks are the client's too; they live the skill's
   `skill_effect_duration`, which gem skills now carry (without it no spark was drawn; static RE 2026-10-30, not yet
-  checked live). The server's Spark flight is still straight, not the client's wander, so its hits can land where no
-  spark is drawn.
+  checked live).
+  The server flies each spark on the client's own seeded wander ([11-skills](../docs/protocol/11-skills.md) "Spark's
+  wander"; from the same start the server's legs are the client's cell for cell for three traced live sparks, and the
+  live fan agrees within a few degrees).
+  Each cast's set of sparks forgets the enemies it hit every 0.66 seconds (wiki Spark), so one cast can hit a target
+  again.
+  Spark's transfigured and Vaal versions fire Spark's own Projectiles.dat row and follow the same rules; before, they
+  had no projectile on the server.
+  Still apart: the start cell is the server's walk position, often a few cells from the client's, so the paths run
+  parallel but offset, and a live check still saw a drawn spark hit with no damage now and then.
   GGG's server sends no object for ordinary bow arrows either, so the live client draws them itself (live capture
   2026-10-29, [port record](../docs/dev/ranged-monster-actions-port.md) "Live reference").
   Tornado Shot fires `Metadata/Projectiles/TornadoShotArrow` (`SkillCatalog.ProjectileFallbacks`; its row is not named
@@ -929,7 +944,10 @@ This is a research baseline, not new live skill acceptance or complete native/se
 - **Projectile modifiers.** Generic profiles consume resolved primary counts, speed, pierce/fork/chain/split/return
   grants and independent prohibitions in the sole staged runtime. Ordinary bows and catalog-known projectile gems
   work without a skill provider. A basic recipe is straight flight, not complete special-skill behavior.
-  Return opens another hit-admission phase and reads the shared returning-damage multiplier. Partial return chance,
+  Return opens another hit-admission phase and reads the shared returning-damage multiplier. A client-drawn spell
+  rolls its partial return chance per projectile with the client's seed (static RE, checked live 2026-10-31: the
+  projectiles that came back were the ones that dealt return damage), and flies the client's 150-cell range out and
+  past the caster on the way back (`projectile_maximum_range_override` replaces it). Return chance,
   return speed, contact budgets, overshoot and terrain behavior are configurable through skill definitions.
   Boolean fork sources grant one generation, and raw bow always-pierce sources bind to the same common profile.
   One movement instance is capped at 150 cells (15 m) through `projectile_maximum_range_cells`; fork, chain and split
