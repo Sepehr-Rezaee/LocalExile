@@ -468,6 +468,15 @@ static partial class Game
             int level = supported.Level;
             var own = supported.Stats;
             var stats = MergeSkillStats(playerStats, own);
+            // A shield attack swings the shield in the off hand, which OffStats leaves out (not a weapon): the client then
+            // read off_hand_total_base_weapon_attack_duration_ms 0, and Shield Charge's end-of-charge attack never finished
+            // (Frida 2026-11-01, 11-skills.md "Shield Charge"). Its base time is the gem's own AttackTime.
+            if (SkillsFor(conn).IsAttack(effect) && SkillsFor(conn).RequiresShield(effect)
+                && ActiveOffHand(conn)?.Type?.Class == "Shield" && SkillsFor(conn).AttackTimeMs(effect, level) is int shieldMs and > 0)
+            {
+                stats[StatKeys.OffHandAttackDurationMs] = shieldMs;
+                stats[StatKeys.OffHandTotalAttackDurationMs] = shieldMs;
+            }
             if (Stats.Key("virtual_extra_critical_rolls") is uint criticalRolls)
                 stats[criticalRolls] = CriticalExtraRollsFor(conn, playerStats, own);
             if (singleSources.Contains(effect) && SingleUseCooldown.ForSkill(SkillsFor(conn), Stats, effect, level, playerStats, own) is { } cooldown
