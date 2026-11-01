@@ -12,6 +12,8 @@ sealed class LeechSession
     public bool ConvertsLifeToEnergyShield => convertLifeToEnergyShield;
     double lifeInstant, manaInstant, shieldInstant, convertedLifeInstant;
     bool recoverLife = true, recoverEnergyShield = true;
+    public bool RecoversLife => recoverLife;
+    public bool RecoversEnergyShield => recoverEnergyShield;
     public bool InstantLifeChanged, InstantManaChanged;
     public double LifeInstantCarry, ManaInstantCarry;
 
