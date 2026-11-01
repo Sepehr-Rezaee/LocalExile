@@ -61,6 +61,16 @@ penetration. Righteous Fire's monster burn (its per-tick percentage-of-life mode
 monster's capped resistance of their type, its base and its mods' as for hits, and its damage taken (`MonsterDotTaken`;
 before the ignites, the burn took only the mods' resistance).
 
+Before the per-type roll, `GamblerModifiers.RollOutgoingHit` rolls one damage multiplier per hit: triple damage
+(`base_chance_to_deal_triple_damage_%`), and only when that misses, double damage. PoB CalcOffence does the same
+("Triple Damage overrides Double Damage"), so a hit with both chances is tripled at the triple chance and doubled at
+(1 - triple) × double.
+The double chance is the player's `chance_to_deal_double_damage_%` (influence, Synthesis and weapon mods, Kinetic
+Impacts, Force Multiplier) on every hit that rolls, plus, through `ForSkill`, the skill's own
+`chance_to_deal_double_damage_%` (Heavy Strike's 20-39%) and, for a spell, `spell_chance_to_deal_double_damage_%`.
+The area, projectile and passive-granted spell paths pass their skill; the default attack has no such stat and keeps the
+player's chance. Paths that skip the roll (minions, Rampage, warcries) get neither double nor triple damage.
+
 Penetration lowers the target's resistance before the damage is reduced. The server caps the monster's base
 resistance first (the 75 default, the 90 absolute maximum, the −200 floor) and subtracts the hit's penetration from
 that capped value with no second clamp, as Path of Building's `calcResistForType` and hit branch do (16de4b8, lines

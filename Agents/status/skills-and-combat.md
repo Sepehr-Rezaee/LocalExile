@@ -1409,6 +1409,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Alternative ailments and hostile spell adapters remain unimplemented; monster mortar shots land through the same
   contact pipeline ("Monster projectiles" below).
   See [Gambler](../docs/game/gambler.md) for the exact bounded scope.
+  Double damage chances double hits, and triple damage overrides them ([20](../docs/protocol/20-damage.md) §2).
   `unaffected_by_shock` keeps the shock and `is_shocked` without the damage-taken increase; `unaffected_by_ignite`
   keeps the ignite and `is_ignited` without its damage.
   "While moving" evasion and regeneration follow the server's walk, and more maximum attack damage scales every attack

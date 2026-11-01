@@ -1036,7 +1036,8 @@ static partial class Game
                 }
                 var gambler = GamblerFor(player);
                 var rolled = WithConditionalSupportDamageLocked(conn, skillStats, !spell, m,
-                    GameEvents.WithOutgoingDamage(conn, player, m, (gambler with { DamageMorePct = 0 }).RollOutgoingHit(contactHit, Random.Shared)),
+                    GameEvents.WithOutgoingDamage(conn, player, m, (gambler with { DamageMorePct = 0 }).ForSkill(Stat, spell)
+                        .RollOutgoingHit(contactHit, Random.Shared)),
                     ProjectileWorldTime(conn));
                 // The shared roll meets each target's current chance: a source can change between targets.
                 int criticalChance = CriticalChanceOn(conn, id, SupportedCriticalChance(conn, skillId),
