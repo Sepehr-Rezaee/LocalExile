@@ -1379,7 +1379,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Righteous Fire's burn uses the DoT tick model.
   A damage-type immunity (`*_immunity`, `elemental_damage_immunity`) zeroes that type on the player's hits, from the
   same sources the panel's Immune rows use (`DamageImmunities.cs`).
-  Monster hits read the player's damage taken stats ([20](../docs/protocol/20-damage.md#damage-taken-from-hits)).
+  Hits taken read damage taken and Mana before Life stats ([20](../docs/protocol/20-damage.md#damage-taken-from-hits)).
   Ordinary player energy shield derives from equipment, intelligence and passives.
   Equipment ES uses the saved variable base roll and native rounding before and after local modifiers and quality.
   It absorbs non-chaos hits before life and recovers through regeneration and delayed, damage-interrupted recharge.
