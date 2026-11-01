@@ -42,6 +42,12 @@ public sealed class QuestObjectsModule : IModule, IDisposable
         });
         On(GameEvents.NpcTalk, async (conn, id, npc) =>
         {
+            if (npc.Npc.Id.StartsWith(LabyrinthTrials.GlyphPrefix, StringComparison.Ordinal))
+            {
+                var (glyphRemote, glyphStream, glyphCiphers) = conn.Wire;
+                await ReadTrialMonograph(glyphRemote, glyphStream, glyphCiphers, conn, id, npc);
+                return true;
+            }
             if (npc.Npc.Id != TutorialObjects.Exile) return false;
             var (remote, stream, ciphers) = conn.Wire;
             await TalkToWoundedExile(remote, stream, ciphers, conn, id, npc);

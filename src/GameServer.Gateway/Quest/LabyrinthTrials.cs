@@ -16,7 +16,13 @@ static class LabyrinthTrials
         Lever = "Metadata/Terrain/Labyrinth/Objects/Puzzle_Parts/Switch_Once",
         Plaque = "Metadata/QuestObjects/Labyrinth/LabyrinthTrialPlaque",
         Portal = "Metadata/Terrain/Labyrinth/Objects/LabyrinthTrialReturnPortal",
-        SpikeTrap = "Metadata/Terrain/Labyrinth/Traps/LabyrinthCascadeSpikeTrap";
+        SpikeTrap = "Metadata/Terrain/Labyrinth/Traps/LabyrinthCascadeSpikeTrap",
+        // The trials' Bronze Monographs (NPCs.dat LabyrinthTrialGlyphPrison, …Sins, …Church, …Crematorium, …Hedge,
+        // …Catacombs), placed as NPCs.
+        GlyphPrefix = "Metadata/NPC/Labyrinth/LabyrinthTrialGlyph";
+
+    /// <summary>A monograph's NPCTalk index (column 1): each has one row, 0 "Read" (NPCTalk 777–782).</summary>
+    public const byte GlyphTalk = 0;
 
     /// <summary>A spike trap's square, where it hits and walls a player: its model's Hull (<c>spiketrap_prison.ao</c>,
     /// ±11.27) is one tile (23 cells), and the traps of a trial stand a tile apart, so the squares meet without a gap (live

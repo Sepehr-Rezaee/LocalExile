@@ -21,7 +21,7 @@ scale, and `AreaPopulation.LoadObjects` places them through the room's placement
 
 | Room | Objects (besides doodads) |
 |---|---|
-| `axiom_intro` (Lower Prison) | `LabyrinthIntroDoor`, `Door_Closed`, `Switch_Once`, 16 `LabyrinthCascadeSpikeTrap`, `Trigger_PulsePrisonWG`, the glyph |
+| `axiom_intro` (Lower Prison) | `LabyrinthIntroDoor`, `Door_Closed`, `Switch_Once`, 16 `LabyrinthCascadeSpikeTrap`, `Trigger_PulsePrisonWG`, the Bronze Monograph |
 | `axiom_intro_end` | `LabyrinthTrialPlaque`, `LabyrinthTrialReturnPortal`, 10 spike traps, two delay triggers, `PrisonPoacherSpawner` |
 | `catacomb_intro` / `_end` | the door, one `Door_Closed` and `Switch_Once`, roombas; the plaque and the portal |
 | `crypt_intro` | the door, `Door_Closed`, `Switch`, `Switch_Multi`, `Switch_Once`, spinners, the plaque, the portal, `CryptFrostPriestSpawner` |
@@ -78,6 +78,17 @@ while their TriggerableBlockage is blocked for the others (type +0x158 → +0x19
 Locked Door in the first group is not found.
 So the Gateway removes an opened Locked Door (0x2bb) 1.5 s after its opening, when the bars have lifted, and does not
 create it again in that instance.
+
+## The Bronze Monograph
+
+Each early trial's door has one (wiki: a "bronze monograph" at the entrance of each early trial).
+Its room line is `Metadata/NPC/Labyrinth/LabyrinthTrialGlyph<Prison|Sins|Church|Crematorium|Hedge|Catacombs>` with
+`Metadata/Terrain/Doodads/Labyrinth/StoryGlyph.ao`: an NPCs.dat row (136–141) with no `.ot` of its own, filed on its
+`Metadata` `.ot`, `StoryGlyphBase` (Positioned, Animated, BaseEvents, InteractionAction, NPC, MinimapIcon).
+The Gateway places it as an NPC (`NpcCatalog`, `SpawnNpc`) with the room line's model.
+Each has one NPCTalk row, index 0 "Read" (777–782, NPCTextAudio 929–934).
+In the original it reads at once on the click, and the voice goes on as the player walks away, so a click sends
+**S→C 0x84 with that index**, which opens the talk on the row instead of the option list (live 2026-10-31).
 
 ## Spike traps
 
@@ -143,6 +154,5 @@ Kind 0x66 (HUD virtual +0x1028) shows the live HUD's +0xa30, Mirage's Wishes win
 - The other traps (spinners, sawblades, roombas, lava, darts) and the step-triggered spikes of Izaro's rooms.
 - The other puzzle parts: `Switch` and `Door_Open` (toggling), `Switch_Multi`, `TimerGears` (timed levers).
 - The trials' monster spawners (`PrisonPoacherSpawner`, `CryptFrostPriestSpawner`, `CremPyroSpawner`).
-- The glyph (`LabyrinthTrialGlyphPrison`, an NPC with no `.ot` of its own).
 - Saving league quest flags, so that trials are shared across a league's characters.
 - The Eternal trials' plaques drop an Offering to the Goddess.

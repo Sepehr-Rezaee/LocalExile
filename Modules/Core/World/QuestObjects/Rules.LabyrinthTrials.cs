@@ -18,6 +18,16 @@ static partial class QuestobjectsRules
         await SpawnTrialTraps(remote, stream, ciphers, conn, [.. all.Where(o => o.Type == LabyrinthTrials.SpikeTrap)],
             [.. all.Where(o => o.Type == LabyrinthTrials.Lever).Select(o => (o.X, o.Y))],
             [.. all.Where(o => o.Type is LabyrinthTrials.Door or LabyrinthTrials.IntroDoor).Select(o => (o.X, o.Y))]);
+        // The Bronze Monograph at the trial's door: an NPCs.dat row on StoryGlyphBase, read like any NPC (its NPCTalk
+        // "Read" row), with the room line's StoryGlyph.ao.
+        var glyphs = all.Where(o => o.Type.StartsWith(LabyrinthTrials.GlyphPrefix, StringComparison.Ordinal)).ToList();
+        Console.WriteLine($"[gateway] {remote} trial {trial.Flag}: {glyphs.Count} monograph(s) in its rooms");
+        foreach (var glyph in glyphs)
+        {
+            if (Npcs.Value.Place(new NpcCatalog.Placement(glyph.Type, glyph.X, glyph.Y, glyph.Angle, glyph.Model)) is { Supported: true } npc)
+                await SpawnNpc(remote, stream, ciphers, conn, npc, glyph.X, glyph.Y, glyph.Angle);
+            else Console.WriteLine($"[gateway] {remote} trial monograph {glyph.Type}: unknown or unsupported NPC");
+        }
         var objects = all.Where(o => LabyrinthTrials.Handles(o.Type)).ToList();
         if (objects.Count == 0)
         {
@@ -370,6 +380,12 @@ static partial class QuestobjectsRules
 
     // How often a spike trap's bleed deals its damage (our own number).
     const double SpikeBleedTickSeconds = 0.2;
+
+    // A Bronze Monograph reads at once (live 2026-10-31, the original: no "Read" option to choose, and the voice goes on
+    // after the player walks away): S→C 0x84 with its only NPCTalk row's index (0, "Read") opens the talk on that row.
+    internal static Task ReadTrialMonograph(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn, uint id,
+        SpawnedNpc npc) =>
+        Send(remote, stream, ciphers, InstanceNpcs.Talk(id, LabyrinthTrials.GlyphTalk), $"0x0084 read trial monograph 0x{id:x} {npc.Npc.Id}");
 
     // Whether the plaque is lit: the character has the trial's flag, or this instance's plaque was used.
     static bool TrialLit(ClientState conn, LabyrinthTrials.Trial trial)
