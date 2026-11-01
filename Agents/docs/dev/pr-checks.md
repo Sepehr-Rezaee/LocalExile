@@ -25,6 +25,8 @@ Gateway and module code is not on the list and still runs on the machine of whoe
 
 ## Merging lists
 
-`.gitattributes` merges the status, roadmap and index files by keeping both sides' lines.
+`.gitattributes` merges the status, roadmap and index files by keeping both sides' lines, in local Git only.
+GitHub's merge API ignores it and reports a conflict, so when a pull request conflicts only in these files, run
+`git merge origin/main` locally and push: no hand edits are needed.
 Two edits of one entry therefore both stay without a conflict: when you see that, remove the old one.
 Everything else in `Agents/` conflicts as normal.

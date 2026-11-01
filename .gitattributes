@@ -1,4 +1,4 @@
-# Merge these lists by keeping both sides' lines, so two pull requests adding entries do not conflict.
+# Merge these lists by keeping both sides' lines, so a local merge of two pull requests' entries does not conflict.
 # Prose docs stay out: a merged mix of two versions could become a false fact. Agents/docs/dev/pr-checks.md
 Agents/status/*.md merge=union
 Agents/roadmap/*.md merge=union
