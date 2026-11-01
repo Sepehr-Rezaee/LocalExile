@@ -50,17 +50,25 @@ static partial class Game
         double delay = attack ? AttackReleaseDelay(AttackContactDelay(conn, SupportedAttackSeconds(conn, skillId), false))
             : cast.Value / 1000d * Animations.SpellRelease(SkillsFor(conn).ClassFor(conn.ClassRow).AnimatedObject);
         int epoch = conn.ProjectileEpoch;
-        session.Schedule(ProjectileRuntime.Time(acceptedAt + delay),
-            // Paid attacks survive Move unless their recipe opts into cancellable windup (e.g. release-time costs).
-            // Spells and cooldown tickets retain action cancellation.
-            // Epoch, death and hit recovery still cancel unreleased attacks.
-            () => conn.ProjectileActive(epoch) && conn.ActionInterruptionGeneration == recoveryGeneration
-                && (ticket?.Current(conn) ?? (cancelOnNewAction
-                ? PlayerActionCurrent(conn, action)
-                : conn.PlayerLife > 0 && conn.ElementalAilments.ActionFactor(conn.Clock.Elapsed.TotalSeconds) > 0 && !conn.HitRecovery.Active(conn.Clock.Elapsed.TotalSeconds)))
-                && GemSkillInstanceDisabled(conn, gem.Effect, skillId) is null,
-            () => ClientDrawnVolley(conn, session, skillId, gem,
-                CaptureGemProjectile(conn, session, skillId, gem, aim, criticalRoll), sequence));
+        // Paid attacks survive Move unless their recipe opts into cancellable windup (e.g. release-time costs).
+        // Spells and cooldown tickets retain action cancellation.
+        // Epoch, death and hit recovery still cancel unreleased attacks.
+        bool Valid() => conn.ProjectileActive(epoch) && conn.ActionInterruptionGeneration == recoveryGeneration
+            && (ticket?.Current(conn) ?? (cancelOnNewAction
+            ? PlayerActionCurrent(conn, action)
+            : conn.PlayerLife > 0 && conn.ElementalAilments.ActionFactor(conn.Clock.Elapsed.TotalSeconds) > 0 && !conn.HitRecovery.Active(conn.Clock.Elapsed.TotalSeconds)))
+            && GemSkillInstanceDisabled(conn, gem.Effect, skillId) is null;
+        // A spell's repeats (SpellRepeats) release again a cast time apart, with the use's critical roll; a new action
+        // cancels the rest, as it ends the client's.
+        // shortcut: a repeat keeps the cast's aim point; check live whether the client re-aims at a moving target.
+        int repeats = attack ? 0 : SpellRepeats(conn, skillId, gem.Effect);
+        for (int repeat = 0; repeat <= repeats; repeat++)
+        {
+            int left = repeats - repeat;
+            session.Schedule(ProjectileRuntime.Time(acceptedAt + repeat * cast.Value / 1000d + delay), Valid,
+                () => ClientDrawnVolley(conn, session, skillId, gem,
+                    CaptureGemProjectile(conn, session, skillId, gem, aim, criticalRoll), sequence, (uint)left));
+        }
         return Task.CompletedTask;
     }
 
@@ -68,7 +76,8 @@ static partial class Game
     // does, and flies Spark's sparks on the client's seeded wander from the caster's cell (SparkLegs), so a hit lands
     // where a projectile is drawn.
     static ProjectileUse ClientDrawnVolley(ClientState conn, ProjectileSession session, ushort skillId,
-        (ushort Id, int Effect, string Name, int Level, int Quality, uint Gem) gem, ProjectileUse use, ushort sequence)
+        (ushort Id, int Effect, string Name, int Level, int Quality, uint Gem) gem, ProjectileUse use, ushort sequence,
+        uint repeatsLeft)
     {
         if (use.Payload is not ProjectileOffense { ClientPredicted: true }) return use;
         var player = CharacterPlayerStats(conn);
@@ -86,14 +95,14 @@ static partial class Game
         // 0x141bb13a0 picks parallel (0x141bb89d0) and random directions (0x141bb9280) before nova and fan.
         // shortcut: parallel keeps the server's fan until it is ported.
         if (use.Profile.ReturnChancePercent is > 0 and < 100)
-            use = use with { Profile = use.Profile with { ReturnRolls = ReturnRolls(sequence, use.Profile.Count, PlayerId) } };
+            use = use with { Profile = use.Profile with { ReturnRolls = ReturnRolls(sequence, use.Profile.Count, PlayerId, repeatsLeft) } };
         if (Get("support_parallel_projectile_number_of_points_per_side") == 0)
             use = use with
             {
                 Profile = use.Profile with
                 {
                     NativeVolley = Get("random_projectile_direction") != 0
-                        ? new() { Angles = RandomVolleyAngles(sequence, use.Profile.Count, PlayerId, use.Aim - use.Origin) }
+                        ? new() { Angles = RandomVolleyAngles(sequence, use.Profile.Count, PlayerId, use.Aim - use.Origin, repeatsLeft) }
                         : new()
                         {
                             Width = Get("total_projectile_spread_angle_override") is > 0 and var width
@@ -116,7 +125,7 @@ static partial class Game
             Origin = ProjectileSession.Vector(at),
             Profile = use.Profile with
             {
-                Legs = i => new SparkLegs(sequence, i, PlayerId, life, randomDuration, speed),
+                Legs = i => new SparkLegs(sequence, i, PlayerId, life, randomDuration, speed, repeatsLeft),
                 // 0x141b36170: a spark ends 150 cells from where it started.
                 LegLeash = 150
             }
@@ -124,18 +133,19 @@ static partial class Game
     }
 
     // random_projectile_direction (static RE 2026-10-31). A volley (0x141bb0f20 → 0x141bb9280) seeds 0x141bba070 from
-    // [sequence, action +0x11c (0), +0x2d0 (0), +0x458 (0), owner, slot 0x540 (0), 0] and turns each projectile's aim
-    // by a 0–2π draw. A single projectile (0x141bb13a0) seeds 0x141a0c9d0 from its detached copy, [sequence, 2, 0, 0,
-    // owner], and flies along (sin a, cos a) whatever the aim.
-    internal static double[] RandomVolleyAngles(ushort sequence, int count, uint owner, ProjectileVector aim)
+    // [sequence, action +0x11c (0), +0x2d0, +0x458 (0), owner, slot 0x540 (0), 0] and turns each projectile's aim
+    // by a 0–2π draw. A single projectile (0x141bb13a0) seeds 0x141a0c9d0 from its detached copy, [sequence, 2, +0x458
+    // (0), +0x2d0, owner], and flies along (sin a, cos a) whatever the aim. +0x2d0 is the cast's repeats left
+    // (SpellRepeats), which the copy (0x1419e2d40) keeps.
+    internal static double[] RandomVolleyAngles(ushort sequence, int count, uint owner, ProjectileVector aim, uint repeatsLeft = 0)
     {
         const float Tau = 6.2831855f;
         if (count == 1)
         {
-            float a = new AnimationVariantSelector.NativeRandom([sequence, 2, 0, 0, owner]).Range(0, Tau);
+            float a = new AnimationVariantSelector.NativeRandom([sequence, 2, 0, repeatsLeft, owner]).Range(0, Tau);
             return [Math.Atan2(MathF.Cos(a), MathF.Sin(a)) - Math.Atan2(aim.Y, aim.X)];
         }
-        var random = new AnimationVariantSelector.NativeRandom([sequence, 0, 0, 0, owner, 0, 0]);
+        var random = new AnimationVariantSelector.NativeRandom([sequence, 0, repeatsLeft, 0, owner, 0, 0]);
         var angles = new double[count];
         for (int i = 0; i < count; i++) angles[i] = random.Range(0, Tau);
         return angles;
@@ -143,13 +153,13 @@ static partial class Game
 
     // projectile_return_%_chance (0x141bb04f0, static RE 2026-10-31): each projectile's own action copy rolls 0–99
     // (0x1404d03d0) from a generator seeded (0x1419c29b0) with [sequence, +0x11c (2 + its index, as Spark's), owner,
-    // +0x2d0 (0), byte +0x2b8, 0, 0, 0] and returns when the roll is under the chance.
+    // +0x2d0 (the repeats left), byte +0x2b8, 0, 0, 0] and returns when the roll is under the chance.
     // shortcut: +0x2b8 is taken as 0 (only its decrement, 0x141ba4620, was found); check it live with a return chance.
-    internal static int[] ReturnRolls(ushort sequence, int count, uint owner)
+    internal static int[] ReturnRolls(ushort sequence, int count, uint owner, uint repeatsLeft = 0)
     {
         var rolls = new int[count];
         for (int i = 0; i < count; i++)
-            rolls[i] = new AnimationVariantSelector.NativeRandom([sequence, (uint)(i + 2), owner, 0, 0, 0, 0, 0]).Uniform(0, 99);
+            rolls[i] = new AnimationVariantSelector.NativeRandom([sequence, (uint)(i + 2), owner, repeatsLeft, 0, 0, 0, 0]).Uniform(0, 99);
         return rolls;
     }
 

@@ -1315,7 +1315,8 @@ Live 2026-10-18 with the Witch's Fireball. Code: `SkillCatalog.EffectStats`, `Ge
   (0.25 s with `skill_art_variation` 3) × `active_skill_area_of_effect_radius` (`0x141c00430`) and hits every target
   within it, so a victim at the edge is hit 0.2 s after one at the centre. `AreaSkillHit` sorts the victims by
   distance and waits for each (`IceNovaRing`); once released, the ring no longer depends on the player's action.
-  Not modelled: `spell_repeat_count` repeats (0.3 s apart in the same update, each with `ice_nova_radius_+%_per_repeat`)
+  Not modelled: `spell_repeat_count` repeats (0.3 s apart in the same update, each with `ice_nova_radius_+%_per_repeat`;
+  the server sends Ice Nova no count, see Spell repeats)
   and Frostbolt casting (`active_skill_area_of_effect_+%_final_when_cast_on_frostbolt`).
 - **Cast speed (#192).** Genuine Spell/non-Attack skills keep the catalog milliseconds in both
   `base_spell_cast_time_ms` and `virtual_base_spell_cast_time_ms`. The native spell action already divides that
@@ -1338,9 +1339,34 @@ Live 2026-10-18 with the Witch's Fireball. Code: `SkillCatalog.EffectStats`, `Ge
   More cast speed: the native `cast_speed_+%` calculator `0x142709610` is
   `round((combined_cast_speed_+% + 100) × combined final − 100)`, at least −99; `0x142708190` multiplies the
   `_final` stats into that combined final. The stat getter `0x1424fc1e0` runs no calculator, so the server sends the
-  result. `FinalCastSpeedPct` applies Screaming Reels' `cast_speed_+%_final_while_holding_fishing_rod` this way (the
-  only `_final` cast speed modelled), and a genuine spell's record carries that total, a support's
-  `base_cast_speed_+%` included, as its `cast_speed_+%`.
+  result. `FinalCastSpeedPct` builds that final as `0x142708190` does, in single precision and its order: each
+  source is max(0, 1 + v / 100), multiplied, then ×100 − 100 rounded half away from zero. The sources are
+  `active_skill_`, `righteous_fire_`, `suppressing_fire_debuff_`, `support_multicast_` (Spell Echo), `echoing_shrine_`
+  and `cast_speed_+%_final`, `essence_support_` and `covered_in_spiders_attack_and_cast_speed_+%_final`, the weapon
+  tree's main- and off-hand finals and `cast_speed_+%_final_for_minion`, unconditionally.
+  The two totem supports' count when `is_totem` is 0, Fanaticism's when `casting_spell` is set and `is_not_hand_cast`
+  is not, Screaming Reels' with `main_hand_weapon_type` 15 (a fishing rod).
+  The Frostbolt factor is min(200, per destroyed × destroyed recently) and the metamorphosis boss's is in permyriad.
+  A genuine spell's record carries the total, a support's `base_cast_speed_+%` included, as its `cast_speed_+%`.
+- **Spell repeats (Spell Echo).** The spell action base `0x1419e2a50` gets `spell_repeat_count` (0x912) from its
+  constructor (`0x1419e7100`; the projectile action's `0x1419ee9a0` passes it to `0x141ba2160`) and stores it at
+  +0x2d4 (total) and +0x2d0 (left), both 0 for a Channel skill (type 0x30). At the animation's end `0x1419e3960`
+  takes one off +0x2d0 and plays the animation again (virtuals 0x458, 0xf8) until none are left, so every repeat
+  releases at the same contact a cast time after the last. `0x1419e3030` applies the final-repeat stats when +0x2d0
+  is 0 and +0x2d4 is not (`support_spell_echo_final_repeat_damage_+%_final` → `damage_+%_final_from_spell_echo_final_repeat`,
+  the `spell_skills_*_on_final_repeat` crits, `support_greater_spell_echo_spell_damage_+%_final_per_repeat` × index).
+  The count is calculator `0x1427e4310`: `base_spell_repeat_count + skill_repeat_count`, plus
+  `skill_repeat_count_if_mined` with `skill_is_mined`, and 0 with `disable_skill_repeats`. Spell Echo (SupportSpellEcho,
+  item `SupportGemMulticast`) has `base_spell_repeat_count` 1, `support_echo_damage_+%_final` 0 and 40% more cast
+  speed at level 1. The copy constructor `0x1419e2d40` keeps +0x2d0, so every projectile's seeds take the repeats left:
+  Spark's [sequence, 2 + index, left, owner], the random volley's third slot, the single random projectile's fourth
+  (`0x141bb13a0`: [sequence, +0x11c, +0x458, +0x2d0, owner]) and the return roll's fourth.
+  `SpellRepeats` sends the count with the skill and the server repeats its releases (`ScheduleGemProjectile`) and
+  area hits (`LaunchProjectile`) a cast time apart, with the use's one cost and critical roll; a new action cancels the
+  rest. Ice Nova's action (`0x141c00180`) also reads 0x912 for rings 0.3 s apart (only while bytes +0x2b8 and +0x2b9
+  are equal), and its slot 0x460 thunks to the base replay; it gets no count until a trace shows how the two combine.
+  Not modelled: the final-repeat and per-repeat stats (Greater and Awakened Spell Echo), and whether a repeat re-aims
+  at a moving target.
   Catalog instant skills retain their instant flag, zero server cast duration and no finite casts-per-second rate.
   A channelled spell's native base is also preserved; this does not implement beam damage or change the existing
   server channel-hit cadence. Attack and non-spell timing paths are unchanged.
