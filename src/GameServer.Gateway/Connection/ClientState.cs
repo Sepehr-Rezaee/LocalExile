@@ -135,12 +135,16 @@ sealed class SpawnedMonster(string label, WalkEstimator walk, int aggroRange, in
     public int ActionGeneration;
     public int? SwingGeneration;
     // The player's debuffs on it (Game.EnemyDebuffsTick, under the Monsters lock): taunted by him until when (Clock
-    // seconds) with the taunted buff shown and the end it shows, his passives' enemy auras (BuffDefinitions row → buff
-    // instance), and the increased damage taken they give (every type; fire, cold and lightning) that its hits read.
+    // seconds) with the taunted buff shown and the end it shows, his passives' and Pride's enemy auras (BuffDefinitions
+    // row → buff instance), and the increased damage taken they give (every type; fire, cold and lightning) that its
+    // hits read.
     public double TauntedUntil = double.NegativeInfinity, TauntShownUntil;
     public ushort TauntBuff;
     public readonly Dictionary<ushort, ushort> PlayerAuras = [];
     public (int All, int Elemental) TakenFromPlayer;
+    // Pride's more Physical Damage taken, ramped by the time this monster has stayed in the aura (EnemyDebuffsTick).
+    public double PrideSince = double.NaN;
+    public double PridePhysicalMore;
     // Fleeing (MonsterFlee): from a hit's roll until its walk to the flee point ends; FleeTo is the point until the AI
     // orders that walk.
     public bool Fleeing;

@@ -2051,7 +2051,8 @@ Static inspection of the pinned 3.29.3b client establishes these virtuals (wire 
 
 Classification follows GrantedEffects.ActiveSkill to ActiveSkills.ActiveSkillTypes and ActiveSkillType.Id.
 Aura type row 38 has FlagStat row 3003, giving wire key 3004.
-All 17 supported ordinary self auras are typed Aura, as are unsupported Pride, Flesh and Stone, Vaal Haste and banners.
+All 17 supported ordinary self auras are typed Aura, as are Pride (the enemy aura) and the unsupported Flesh and Stone,
+Vaal Haste and banners.
 Reservation alone is insufficient: Heralds, Arctic Armour, Tempest Shield, Petrified Blood and Blood and Sand
 are not Aura.
 RF is not Aura even though one of its buffs is named `righteous_fire_aura`.
@@ -2824,9 +2825,17 @@ evidence and limits: [Paladin](../game/paladin.md#link-skills).
   A 40 fire hit changed current ES from 84 to 44 without Life loss, followed by delayed recovery at 2184 per minute.
   Native toggle, quality, gem-host, conversion, shield, town and death controls passed.
   Both fixture characters retained identical inventories and remembered intent across a Gateway restart.
+  Pride is the enemy aura: its buff (BuffDefinitions 1331) goes on every hostile living monster within the aura's
+  radius (base 40 cells plus the gem's `active_skill_base_radius_+`, 50 at level 20, scaled by the player's
+  `base_aura_area_of_effect_+%` and the gem's quality), and the monster takes its
+  `physical_damage_aura_nearby_enemies_physical_damage_taken_+%` (19% at level 20) rising linearly to `_max` (39%)
+  after 4 seconds in the aura. Aura effect scales both ends. The ramp is kept per monster and resets when it leaves
+  or the aura ends; `MonsterTakesMitigated` applies it to the physical part of every hit and `MonsterDotTaken` to
+  physical damage over time. The buff is removed with the aura, the monster's death or the player's death.
+  Live 2026-11-01: a level-20 Pride in a helmet showed `Auras: Pride (0 flat, 50%)`, the Rhoa received `0x01c1` with
+  BuffDefinitions 1331, and `0x01c2` removed it when Pride was toggled off; death cleared both.
 - **Not implemented yet.** Casting one of these logs that its reservation is known but its effect is not implemented and does not
   reserve mana:
-  - **Enemy auras:** Pride still needs a radius- and time-dependent enemy physical-damage-taken debuff.
   - **Heralds:** Ash, Ice and Thunder need on-kill/overkill/shatter/storm effects; Agony and Purity need minions.
   - **Banners:** Defiance, Dread and War need the planted banner, stages and their pulses.
   - **Curse auras:** Blasphemy-style skills need the curse system.
