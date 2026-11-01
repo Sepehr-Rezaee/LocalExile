@@ -29,6 +29,8 @@ static class GameDataFiles
         ("data/tables/DelveDynamite.json", "Delve dynamite prices"),
         ("data/tables/UniqueMaps.json", "unique map shop identities"),
         ("data/tables/LabyrinthTrials.json", "the Trials of Ascendancy (their areas and completion flags)"),
+        ("data/tables/GrantedEffectStatSets.json", "the Labyrinth spike traps' damage (LbRetractableTrap)"),
+        ("data/tables/BuffDefinitions.json", "the Labyrinth spike traps' bleeding buff"),
         ("data/tables/Words.json", "item names"),
         ("data/tables/VillageUniqueDisenchantValues.json", "unique drop weights"),
         ("data/tables/ItemVisualIdentity.json", "unique map artwork"),
