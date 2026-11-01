@@ -511,6 +511,9 @@ static partial class Game
             // A spell's tooltip DPS is its own hit (SpellDamage) × casts per second, not the default attack's values that
             // came with the player's stats.
             int Get(string name) => Stats.Key(name) is uint k ? stats.GetValueOrDefault(k) : 0;
+            // The client's spell action repeats the cast this many times (SpellRepeats); the server repeats its hits as many.
+            if (SpellRepeats(conn, effect, Get) is > 0 and int repeats && Stats.Key("spell_repeat_count") is uint repeatKey)
+                stats[repeatKey] = repeats;
             // Cyclone's client effect reads the final radius, not the increased-area input. Match AreaSkillHit.
             if (SkillArea.IsCyclone(SkillsFor(conn).EffectId(effect)))
             {

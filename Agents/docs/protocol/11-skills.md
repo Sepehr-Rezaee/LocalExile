@@ -1303,6 +1303,21 @@ Live 2026-10-18 with the Witch's Fireball. Code: `SkillCatalog.EffectStats`, `Ge
   time: the Witch's `spell_projectile_wand` in `Art/Models/CHARACTERS/Witch/rig.amd` is 1066 ms long with `contact` at
   599 ms, so Fireball leaves after 56% of the cast. `python -I scripts/re/anim_contacts.py` writes every class's
   contacts to data/animation-contacts.json (`AnimationContacts`); the Gateway waits cast time × that fraction.
+  An area spell plays its action's Animation.dat row: the spell action base `0x1419e6e30` asks virtual +0x4e0 (the
+  base `0x1412402d0` returns 0x16, row 22 `SpellAreaOfEffect`); the IceNova action (ActionTypes 0x2748, constructor
+  `0x141bff6a0`, vtable `0x14353b5b0`) overrides it with `0x141241c10`, `mov eax, 0x21`: row 33
+  `SpellAreaOfEffectCold`. The class ACT maps that to `@SpellAreaOfEffect`, i.e. `spell_aoe_<stance>`
+  (`spellaoe_` in the StrDex/DexInt/StrInt/StrDexInt rigs); the Witch's is 766 ms with contact at 266, so a 700 ms
+  Ice Nova releases after 243 ms (`AnimationContacts.SpellAreaRelease`). `AreaSkillHit` waited the whole cast until
+  2026-10-31, about 450 ms after the client's nova. Other area spells use the same lookup; their own action
+  overrides were not read.
+  **Ice Nova's ring.** The IceNova action's update (`0x141c00180`, vtable slot 0x118) grows the ring by elapsed / 0.2 s
+  (0.25 s with `skill_art_variation` 3) × `active_skill_area_of_effect_radius` (`0x141c00430`) and hits every target
+  within it, so a victim at the edge is hit 0.2 s after one at the centre. `AreaSkillHit` sorts the victims by
+  distance and waits for each (`IceNovaRing`); once released, the ring no longer depends on the player's action.
+  Not modelled: `spell_repeat_count` repeats (0.3 s apart in the same update, each with `ice_nova_radius_+%_per_repeat`;
+  the server sends Ice Nova no count, see Spell repeats)
+  and Frostbolt casting (`active_skill_area_of_effect_+%_final_when_cast_on_frostbolt`).
 - **Cast speed (#192).** Genuine Spell/non-Attack skills keep the catalog milliseconds in both
   `base_spell_cast_time_ms` and `virtual_base_spell_cast_time_ms`. The native spell action already divides that
   virtual base by `1 + cast_speed_+% / 100`; pre-dividing it on the server applied cast speed twice.
@@ -1324,9 +1339,34 @@ Live 2026-10-18 with the Witch's Fireball. Code: `SkillCatalog.EffectStats`, `Ge
   More cast speed: the native `cast_speed_+%` calculator `0x142709610` is
   `round((combined_cast_speed_+% + 100) × combined final − 100)`, at least −99; `0x142708190` multiplies the
   `_final` stats into that combined final. The stat getter `0x1424fc1e0` runs no calculator, so the server sends the
-  result. `FinalCastSpeedPct` applies Screaming Reels' `cast_speed_+%_final_while_holding_fishing_rod` this way (the
-  only `_final` cast speed modelled), and a genuine spell's record carries that total, a support's
-  `base_cast_speed_+%` included, as its `cast_speed_+%`.
+  result. `FinalCastSpeedPct` builds that final as `0x142708190` does, in single precision and its order: each
+  source is max(0, 1 + v / 100), multiplied, then ×100 − 100 rounded half away from zero. The sources are
+  `active_skill_`, `righteous_fire_`, `suppressing_fire_debuff_`, `support_multicast_` (Spell Echo), `echoing_shrine_`
+  and `cast_speed_+%_final`, `essence_support_` and `covered_in_spiders_attack_and_cast_speed_+%_final`, the weapon
+  tree's main- and off-hand finals and `cast_speed_+%_final_for_minion`, unconditionally.
+  The two totem supports' count when `is_totem` is 0, Fanaticism's when `casting_spell` is set and `is_not_hand_cast`
+  is not, Screaming Reels' with `main_hand_weapon_type` 15 (a fishing rod).
+  The Frostbolt factor is min(200, per destroyed × destroyed recently) and the metamorphosis boss's is in permyriad.
+  A genuine spell's record carries the total, a support's `base_cast_speed_+%` included, as its `cast_speed_+%`.
+- **Spell repeats (Spell Echo).** The spell action base `0x1419e2a50` gets `spell_repeat_count` (0x912) from its
+  constructor (`0x1419e7100`; the projectile action's `0x1419ee9a0` passes it to `0x141ba2160`) and stores it at
+  +0x2d4 (total) and +0x2d0 (left), both 0 for a Channel skill (type 0x30). At the animation's end `0x1419e3960`
+  takes one off +0x2d0 and plays the animation again (virtuals 0x458, 0xf8) until none are left, so every repeat
+  releases at the same contact a cast time after the last. `0x1419e3030` applies the final-repeat stats when +0x2d0
+  is 0 and +0x2d4 is not (`support_spell_echo_final_repeat_damage_+%_final` → `damage_+%_final_from_spell_echo_final_repeat`,
+  the `spell_skills_*_on_final_repeat` crits, `support_greater_spell_echo_spell_damage_+%_final_per_repeat` × index).
+  The count is calculator `0x1427e4310`: `base_spell_repeat_count + skill_repeat_count`, plus
+  `skill_repeat_count_if_mined` with `skill_is_mined`, and 0 with `disable_skill_repeats`. Spell Echo (SupportSpellEcho,
+  item `SupportGemMulticast`) has `base_spell_repeat_count` 1, `support_echo_damage_+%_final` 0 and 40% more cast
+  speed at level 1. The copy constructor `0x1419e2d40` keeps +0x2d0, so every projectile's seeds take the repeats left:
+  Spark's [sequence, 2 + index, left, owner], the random volley's third slot, the single random projectile's fourth
+  (`0x141bb13a0`: [sequence, +0x11c, +0x458, +0x2d0, owner]) and the return roll's fourth.
+  `SpellRepeats` sends the count with the skill and the server repeats its releases (`ScheduleGemProjectile`) and
+  area hits (`LaunchProjectile`) a cast time apart, with the use's one cost and critical roll; a new action cancels the
+  rest. Ice Nova's action (`0x141c00180`) also reads 0x912 for rings 0.3 s apart (only while bytes +0x2b8 and +0x2b9
+  are equal), and its slot 0x460 thunks to the base replay; it gets no count until a trace shows how the two combine.
+  Not modelled: the final-repeat and per-repeat stats (Greater and Awakened Spell Echo), and whether a repeat re-aims
+  at a moving target.
   Catalog instant skills retain their instant flag, zero server cast duration and no finite casts-per-second rate.
   A channelled spell's native base is also preserved; this does not implement beam damage or change the existing
   server channel-hit cadence. Attack and non-spell timing paths are unchanged.
@@ -1504,7 +1544,8 @@ Live 2026-10-18 with the Witch's Fireball. Code: `SkillCatalog.EffectStats`, `Ge
 
 Only projectile skills (Fireball) and Righteous Fire dealt damage: every other gem skill logged "no projectile". Now
 `AreaSkillHit` gives them one hit, at the attack's contact keyframe (attacks, as the default attack but without the
-walk-in offset) or after the cast (spells), on every living monster
+walk-in offset) or at the area cast clip's contact (spells: `AnimationContacts.SpellAreaRelease`, see Release in §9;
+until 2026-10-31 after the whole cast; Ice Nova's victims as its ring reaches them), on every living monster
 within the skill's `active_skill_base_area_of_effect_radius` (in cells, else 12, grown by area of effect as Righteous
 Fire's: `SkillArea`; halved before 2026-10-23, which the units do not support) of the aimed
 point, or of the player when a melee skill is aimed too far. Attacks use the default attack's hit (`WeaponFor`: the
@@ -1605,7 +1646,61 @@ the flight a wander: slot 0x548 returns false (no fixed range), slot 0x558 (`0x1
 The life is set once, at `0x141b35b7a`: `skill_effect_duration` (0x168) / 1000 seconds, ± up to 100% of
 `spark_random_duration_%` (0x4397). That stat is virtual, so the client does not derive it from
 `base_skill_effect_duration`: before the Gateway sent it (`GemSkills`, `SkillDurationModifiers.Seconds`) every client
-spark died on its first tick and none was drawn. Not checked live yet.
+spark died on its first tick and none was drawn (live 2026-10-30: sparks drawn).
+
+**Spark's wander (live 2026-10-31, Frida `scripts/re/frida/trace-spark-legs.js`, 1,084 sparks).** Each spark is its own
+copy of the Spark action. Its first leg seeds the client's small generator (`0x14146d8f0`, the TinyMT32 key
+initializer with this client's constants, as `AnimationVariantSelector.NativeRandom`) from four words: the use's
+sequence (`+0x11a`), 2 + the spark's index in the volley (`+0x11c`), `+0x2d0` (0) and the owner's `+0x88` (the
+player, 0x1000). Every draw is the float range `0x1404ce3f0`: N = (int)(hi − lo + 1) × 1000, k uniform in [0, N]
+(`0x140484fa0`), value = k / N × (hi − lo) + lo in single precision; a zero-width range still draws.
+
+- First leg (`0x141b35a10`): life (`skill_effect_duration` / 1000 × 1 ± min(`spark_random_duration_%`, 100)%), then a
+  length of 15–25 cells toward the aim cell (target = start + round(delta × length / |delta|)), heading = atan2 of
+  the delta, then a speed factor of 0.8–1.2 × the projectile speed (`0x141b36080`).
+- Each later leg (`0x141b358c0`): a turn of ±45° (`0x141b35e80`), or 0–2π after terrain stopped it, added to the
+  heading and wrapped to [0, 2π]; a length of 15–25 (`0x141b360f0`); target = cell + truncate(cos, sin × length); a
+  speed factor. Slots 0x4c8/0x4d8 (`0x141b357f0`) end a leg by arrival, 0x4d0 (`0x141b35800`) by collision.
+- `skill_behaviour_variation` (0x1921, slot 0x310 `0x1419397d0`) changes these: 6 gives ±120° turns and 10–40-cell
+  legs, and 1, 2 and 4 forget hit enemies every 0.1 s instead of 0.66 s with no 150-cell limit. No player Spark gem
+  sets it.
+
+The Gateway flies the same legs (`SparkLegs`, `ProjectileProfile.Legs`): from the same seed, the server's legs are
+the client's cell for cell (`SparkLegsTests`, three live sparks). The start cell is the server's walk position, which can be cells away from
+the client's own (it snaps only beyond ~8.5 cells), so the drawn and simulated sparks then fly parallel paths.
+
+**The client's volley (static RE 2026-10-31, `0x141bb13a0`, setup `0x141bb0f20`).** Every spell projectile the client
+draws itself is aimed by one of four patterns, checked in this order: parallel (`0x141bb89d0`, when
+`support_parallel_projectile_number_of_points_per_side` is set), random directions (`0x141bb9280`, seeded through
+`0x140404a20`, when `random_projectile_direction` is set), nova (`0x141bb9500`, when `projectiles_nova` is set or a
+Disgorge nova applies; projectile i flies i × 6.28318 / n from the aim), and the fan (`0x141bb9730`) otherwise.
+The fan scales by k = (`multiple_projectiles_projectile_spread_+%` + 100) / 100 and steps
+max(min(atan(k × width / aim distance), min(2π, k × 120°) / (n − 1)), 0.14279968 rad), where width is
+`total_projectile_spread_angle_override` world units, else 60 (fitted to 175 live Spark volleys). A fixed spread
+replaces that step with max(fixed, 0)° / (n − 1): it is −1, so no spread, with `projectile_remove_default_spread`, else
+`fixed_projectile_spread`. The Gateway spreads every client-predicted spell this way (`ProjectileNativeVolley`,
+`ClientDrawnVolley`); parallel is not ported yet and keeps the server's own fan.
+
+Random directions: the setup fills a six-word key when the release asks for it (the plain release `0x141bb3f80` does)
+and `random_projectile_direction` is set: [sequence `+0x11a`, `+0x11c`, `+0x2d0`, `+0x458`, the owner's `+0x88`, slot
+0x540 (always 0)]. `0x141bb9280` adds a 0, seeds `0x141bba070` (the keyed initializer for seven words) and turns the
+aim of projectile i by its own float draw in 0–2π (x cos a − y sin a, y cos a + x sin a). A lone projectile takes
+another path in `0x141bb13a0`: its detached copy seeds `0x141a0c9d0` (five words: sequence, its `+0x11c` = 2, its
+`+0x458`, `+0x2d0`, owner), draws a in 0–2π and flies along (sin a, cos a) whatever the aim. The Gateway takes
+`+0x11c`, `+0x2d0` and `+0x458` of the casting action as 0 (the action's initializer zeroes `+0x11c` and `+0x458`;
+static only) (`RandomVolleyAngles`).
+
+The client flies its own projectiles `projectile_maximum_range_override` cells, else 50 with
+`reclaimed_malevolence_notable_abyss_searching`, else 150 (slot 0x600, `0x141ba62d0`); a return (`0x141bb2ae0`) aims
+at the caster's cell and flies that range past it. The Gateway uses both for client-drawn projectiles (live 2026-10-31:
+at the server's old 120 cells a returning Fireball hit before the drawn one came back).
+
+The return chance (`0x141bb04f0`, slot 0x698, asked when a projectile ends its outward flight) is rolled by each
+projectile's own copy: none with `skill_projectiles_cannot_return`; always with `projectiles_return`, or
+`attack_projectiles_return` on an attack; otherwise `projectile_return_%_chance` under 100 rolls `0x1404d03d0` in
+0–99 from `0x1419c29b0` seeded with eight words, [sequence, `+0x11c` (2 + the projectile's index), owner, `+0x2d0`,
+byte `+0x2b8`, 0, 0, 0], and returns below the chance. Only a decrement of `+0x2b8` was found (`0x141ba4620`); the
+Gateway takes it as 0 (`ReturnRolls`, `ProjectileProfile.ReturnRolls`), which needs a live check with a return chance.
 
 The captures above are bounded runtime observations, not a universal attack-versus-spell rule.
 The pinned executable has shared emission and final client bindings for ordinary ranged attacks and TS;
@@ -1723,8 +1818,9 @@ Native flight/contact logic resides in action/Positioned paths, not this small c
   native flight or stun-animation capture yet.
 - **Hit (reworked 2026-10-25).** `ProjectileFlight` advances from the
   connection's elapsed game clock, polled about every 16 ms. For each interval it solves the earliest intersection
-  of the projectile segment and each living monster's observed movement segment in relative coordinates, with the
-  existing 4-cell radius (`Game_PROJECTILE_HIT_RADIUS`; the row's CollisionRadius is 2). It keeps previous samples
+  of the projectile segment and each living monster's observed movement segment in relative coordinates. A projectile
+  the client draws itself (spells, `ProjectileOffense.ClientPredicted`) uses the client's contact rule below; any other
+  keeps the 4-cell circle (`ProjectileProfile.Radius`) against the monster's centre. It keeps previous samples
   across movement orders, rather than choosing a future target at launch. A monster can walk out of a formerly
   predicted hit, walk into the path later, or intercept before a farther monster. Removed/dead monsters are omitted;
   new objects and replaced walk estimators are tested only at the current endpoint, without inventing past motion.
@@ -1733,6 +1829,26 @@ Native flight/contact logic resides in action/Positioned paths, not this small c
   missed, and the projectile reached the wall at (369, 220).
   Ordering the monster from (330, 240) into the ray after release produced a hit at (326, 220).
   These checks used actual monster movement orders; nearer interceptors and dead targets also have automated coverage.
+- **The client's object contact (static RE 2026-10-31, checked against the disassembly).** Creation (`0x141bb13a0`)
+  copies the Projectiles.dat row's `CollisionRadius` (+0x3d) to the projectile's Positioned +0x1e3 and
+  `CollisionCandidateRadius` (+0x5f) to +0x1e4. Its move (`ActionProjectile` starts it through `0x141bacf60` →
+  `0x141e34220`, which stores the action's contact callback, std::function vtable `0x14352d058` → `0x141bad450`, at
+  Positioned +0x160) steps the flight one grid cell at a time (`0x141e32710`, cell from `0x141e4d390`). Before each
+  step it tests terrain with +0x1e3 + 1, then, at `0x141e329ca`, objects with `0x141e47a40(grid, next cell,
+  max(+0x1e3, +0x1e4) + 1, layer, positioned)`. That query walks the 23-cell tile buckets around the cell and, per
+  object (`0x141e47ca0`), contacts it when `max(|dx|, |dy|) − object +0x1e3 < reach`, all in integer grid cells
+  (+0x294/+0x298), skipping objects of size −1 (`cmp r10b, 0xff`). So a projectile cell contacts a monster at
+  Chebyshev distance ≤ max(CollisionRadius, CollisionCandidateRadius) + the monster's Positioned size (`ObjectSize − 1`):
+  a square, not a circle, and the monster's size counts. Fireball (2, 2) and Spark (`Metadata/Projectiles/Spark`, 1, 2)
+  both reach 2 cells; a common ObjectSize-3 monster is hit 4 cells from its cell on either axis.
+  `0x141e32dc0` then filters team relations (matrix `0x144489800`) and calls the stored callback (+0x198, or +0x1d8 with
+  +0x1e6 bit 0x40), which reaches `ActionProjectile::CollideWith` (`0x141ba7b30`, already-hit and immunity checks). Only
+  for a target with neither Monster nor Player component, and a projectile whose +0x1e4 exceeds +0x1e3, does
+  `CollideWith` narrow the reach to `CollisionRadius` (Chebyshev − target size ≤ +0x1e3). A projectile created
+  inside a monster's square is tested once at creation (`0x141ba99d0` → `0x141bb83c0`, reach 1).
+  The server (`ProjectileProfile.ContactCells`, set in `ClientDrawnVolley` from `SkillCatalog.ProjectileContactCells`;
+  `ProjectileActor.Size` from `LivingCollision.Size`) solves the same square in continuous coordinates: cells are
+  centred on integers, so its half-width is reach + size + 0.5. Not live-checked yet.
 - **Stopping at contact (static evidence and live verification, 2026-10-25).** The initial 0x1ba goes to the
   range/static-wall endpoint. At a discovered contact, S→C **0x1b7** relocates it to the rounded contact cell with the appropriate height,
   then the Animated swap below plays its impact. The 3.29.3b Positioned handler's switch (`0x141e30c90`) maps 0x1b7
