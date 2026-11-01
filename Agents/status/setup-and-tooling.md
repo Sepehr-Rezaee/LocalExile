@@ -179,6 +179,8 @@ away from unrelated catalogue-load/GC contention. Individual concurrency tests s
 
 ## Tooling
 
+Pull request checks: a scan of added lines for hidden text, and files only the maintainer approves ([docs](../docs/dev/pr-checks.md)).
+
 Everything used to work out the protocol is in the repository: the Ghidra, Frida and Python scripts in `scripts/re/`,
 our own tools in `Tools/`, and how to install the third-party ones in [GettingStarted](../GettingStarted.md)
 ("Third-party tools").
