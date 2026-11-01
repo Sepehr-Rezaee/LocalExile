@@ -41,6 +41,13 @@ Physical more damage is applied before conversion; elemental and chaos modifiers
 Conditional modifiers are not treated as unconditional bonuses.
 Skill panel values and ordinary hit execution use the same supported-skill calculation.
 The Delve socketed attack/spell more-damage effects multiply the matching hit once through this calculation.
+Awakened Increased Area of Effect's `inc_aoe_plus_more_area_damage_+%_final` is one of those unconditional keys.
+Three supports' more damage depends on the hit's target or the player, so `WithConditionalSupportDamageLocked`
+scales each target's roll after the outgoing-damage hooks, on the area and projectile hit paths:
+Hypothermia against a chilled enemy, Behead against an enemy at half its maximum Life or less (PoB
+`LowPoolThreshold`), and Damage on Full Life for an attack while the player's Life is full.
+The ailment share of "Hits and Ailments" follows the hit for chill, freeze and shock; ignite still takes its damage
+from the skill's ailment rows, without these multipliers.
 Channelled attacks pay the supported cost on subsequent channel hits.
 
 In the live Cyclone example, the level-one support adds 30% increased area to the character's 136%.
@@ -61,6 +68,7 @@ Spell Echo's repeats are modelled ([11](11-skills.md) "Spell repeats"), except I
 Triggers, totems, mines, minion behaviour, attack repeats, projectile branching, leech and many conditional effects
 still require their own execution paths.
 Persistent damage effects, including Righteous Fire, do not yet refresh every derived parameter on link changes.
-Only the unconditional damage keys explicitly listed by GemSupportDamage receive multiplicative processing.
+Only the unconditional damage keys listed by GemSupportDamage and the three target conditions above receive
+multiplicative processing.
 The native catalogue includes historical and placeholder variants; their presence does not make them obtainable.
 Do not describe the entire support catalogue as mechanically complete.

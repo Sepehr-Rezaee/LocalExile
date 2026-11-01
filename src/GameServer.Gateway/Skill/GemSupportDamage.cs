@@ -22,7 +22,8 @@ static class GemSupportDamage
         "support_spell_cascade_damage_+%_final", "support_greater_volley_projectile_damage_+%_final",
         "support_pulverise_melee_area_damage_+%_final", "support_fortify_melee_damage_+%_final",
         "support_barrage_damage_+%_final", "support_cruelty_hit_damage_+%_final",
-        "support_vicious_projectiles_physical_damage_+%_final", "support_vicious_projectiles_chaos_damage_+%_final"
+        "support_vicious_projectiles_physical_damage_+%_final", "support_vicious_projectiles_chaos_damage_+%_final",
+        "inc_aoe_plus_more_area_damage_+%_final"
     ];
 
     /// <summary>Each matching support modifier applies once to the portion's complete visited-type set.
