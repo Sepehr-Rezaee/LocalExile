@@ -781,6 +781,8 @@ static partial class Game
     {
         var gem = GemSkillEffects(conn).FirstOrDefault(g => g.Id == skillId);
         if (gem.Name is null) return Task.CompletedTask;
+        // Shield Charge hits along its own walk and where it ends (RunShieldCharge), not once where it started.
+        if (ShieldChargeBonusPct(conn, skillId, gem.Effect) != 0) return Task.CompletedTask;
         criticalRoll ??= CaptureSkillCriticalRoll(conn, skillId);
         if (UsesProjectileRuntime(gem.Effect))
             return ScheduleGemProjectile(remote, stream, ciphers, conn, skillId, gem, to,
@@ -885,7 +887,7 @@ static partial class Game
         ushort skillId, (ushort Id, int Effect, string Name, int Level, int Quality, uint Gem) gem, (int X, int Y) from, (int X, int Y) to,
         bool immediate = false, ushort sequence = 0, int? actionToken = null, CooldownUseTicket? cooldownUse = null, bool? melee = null,
         double damageMore = 1, uint excludeMonster = 0, SkillCriticalRoll? criticalRoll = null, int? channelGeneration = null,
-        uint targetId = 0, int repeat = 0)
+        uint targetId = 0, int repeat = 0, int? radiusOverride = null, ISet<uint>? once = null)
     {
         var paidVaal = SkillsFor(conn).VaalBudget(gem.Effect, gem.Level) is null ? null : conn.VaalUse;
         bool Current() => (cooldownUse?.Current(conn) ?? (actionToken is null || conn.ActionCount == actionToken))
@@ -913,7 +915,8 @@ static partial class Game
         lock (conn.Monsters) delay = spell
             ? castDuration.Value / 1000.0 * (repeat + Animations.SpellAreaRelease(SkillsFor(conn).ClassFor(conn.ClassRow).AnimatedObject))
             : AttackContactDelay(conn, SupportedAttackSeconds(conn, skillId), approach: false);
-        int radius = SkillRadius(conn, skillStats, spell, gem.Effect);
+        // A caller's own shape (Shield Charge's path and end, ShieldCharge.cs) replaces the skill's area radius.
+        int radius = radiusOverride ?? SkillRadius(conn, skillStats, spell, gem.Effect);
         // A melee skill aimed far away still lands in front of the player; a self-targeted spell goes off around the caster.
         var centre = VaalExecutor(conn, gem.Effect) || !spell && Dist(from, to) > radius + weapon.Range ? from
             : spell ? SpellCentre(conn, gem.Effect, from, to) : to;
@@ -956,8 +959,10 @@ static partial class Game
             if (channelGeneration is not null) centre = conn.Walk.Position(now);
             var found = conn.Monsters.Select(e => (e.Key, e.Value, Distance: Dist(e.Value.Walk.Position(now), centre)))
                 .Where(e => e.Key != excludeMonster && e.Value.Hostile && !e.Value.Dead && e.Value.Life > 0 && e.Value.OwnerId is null
-                    && e.Distance <= radius)
+                    && e.Distance <= radius && once?.Contains(e.Key) != true)
                 .ToList();
+            // Hits that may reach each monster only once across several sweeps record it here.
+            if (once is not null) foreach (var f in found) once.Add(f.Key);
             if (ring)
             {
                 found.Sort((a, b) => a.Distance.CompareTo(b.Distance));
