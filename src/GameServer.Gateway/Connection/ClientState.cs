@@ -140,6 +140,10 @@ sealed class SpawnedMonster(string label, WalkEstimator walk, int aggroRange, in
     // hits read.
     public double TauntedUntil = double.NegativeInfinity, TauntShownUntil;
     public ushort TauntBuff;
+    // Intimidated and unnerved by his hits (Game.HitDebuffsOnHitLocked) until when, shown the same way as the taunt.
+    public double IntimidatedUntil = double.NegativeInfinity, IntimidateShownUntil, UnnervedUntil = double.NegativeInfinity,
+        UnnerveShownUntil;
+    public ushort IntimidateBuff, UnnerveBuff;
     public readonly Dictionary<ushort, ushort> PlayerAuras = [];
     public (int All, int Elemental) TakenFromPlayer;
     // Pride's more Physical Damage taken, ramped by the time this monster has stayed in the aura (EnemyDebuffsTick).

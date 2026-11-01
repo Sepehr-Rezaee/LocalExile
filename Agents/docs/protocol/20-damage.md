@@ -807,6 +807,8 @@ mechanics remain open; source IDs, support lifecycle and parsed contact tests ar
   Pride adds `SpawnedMonster.PridePhysicalMore` as a MORE multiplier on the physical part only: 19% at gem level 20,
   rising linearly to 39% after 4 seconds in the aura. `MonsterDotTaken` applies the same factor to physical damage
   over time. 25% elemental, 20% taunted and 19% Pride: fire 145%, physical 142.8%.
+  The player's Intimidate (attack hits) and Unnerve (spell hits) add 10% each to that increase, on hits only
+  ([11](11-skills.md) §12).
 - `DamageModel.Mitigate(DamagePacket, ...)` applies each type's own capped resistance.
   Incoming hit commands and monster swings share `PlayerHitMitigation` after resistance.
   Righteous Fire keeps the single-value resistance-only DoT path.
