@@ -50,18 +50,28 @@ static partial class Game
     internal const double ExposureSeconds = 4;
     internal static readonly DamageType[] ExposureTypes = [DamageType.Fire, DamageType.Cold, DamageType.Lightning];
     internal static readonly ushort[] ExposureBuffRows = [1268, 1269, 1270];
+    // Elemental Equilibrium (poedb: "Exposure inflicted this way applies -25% to Resistances").
+    internal const int ElementalEquilibriumExposure = -25;
 
     /// <summary>The Exposure of one element a hit inflicts, 0 for none. {element}_exposure_on_hit_magnitude always
     /// inflicts its own; inflict_all_exposure_on_hit, base_inflict_{element}_exposure_on_hit_%_chance and, for a hit with
     /// that damage, chance_to_inflict_{element}_exposure_on_hit_with_{element}_damage_% inflict the default -10%. The
-    /// stronger one counts, plus the extra stats, and at least exposure_you_inflict_has_minimum_resistance_%.</summary>
+    /// stronger one counts (<see cref="InflictedExposure"/>).</summary>
     internal static int ExposureRoll(Func<string, int> get, DamageType type, bool withType, Random random)
     {
         string e = type.ToString().ToLowerInvariant();
         bool rolled = get("inflict_all_exposure_on_hit") != 0 || RandomRolls.Chance(get($"base_inflict_{e}_exposure_on_hit_%_chance")
             + (withType ? get($"chance_to_inflict_{e}_exposure_on_hit_with_{e}_damage_%") : 0), 100, random);
         int magnitude = Math.Min(rolled ? DefaultExposure : 0, get($"{e}_exposure_on_hit_magnitude"));
-        if (magnitude >= 0 || get("cannot_inflict_exposure") != 0) return 0;
+        return magnitude >= 0 ? 0 : InflictedExposure(get, type, magnitude);
+    }
+
+    /// <summary>The player's Exposure of this base magnitude as he inflicts it: plus the extra stats, at least
+    /// exposure_you_inflict_has_minimum_resistance_%, none with cannot_inflict_exposure.</summary>
+    internal static int InflictedExposure(Func<string, int> get, DamageType type, int magnitude)
+    {
+        if (get("cannot_inflict_exposure") != 0) return 0;
+        string e = type.ToString().ToLowerInvariant();
         magnitude += get($"{e}_exposure_you_inflict_applies_extra_{e}_resistance_+%")
             + get("exposure_you_inflict_applies_extra_%_to_affected_resistance");
         int minimum = get("exposure_you_inflict_has_minimum_resistance_%");
@@ -69,18 +79,36 @@ static partial class Game
     }
 
     // A hit that landed on a living monster, under the Monsters lock: each element's Exposure for 4 s, a later one of the
-    // same magnitude restarting it.
+    // same magnitude restarting it. Then Elemental Equilibrium (poedb: "Hits that deal Elemental Damage remove Exposure to
+    // those Elements and inflict Exposure to other Elements"), after the hit's own Exposure as in PoB, for 4 s too:
+    // Exposure's default duration, as the keystone names none.
     internal static void ExposureOnHitLocked(SpawnedMonster m, Func<string, int> get, DamagePacket mitigated, double now, Random random)
     {
         if (m.Mods.Effects["immune_to_exposure"] > 0) return;
         for (int i = 0; i < ExposureTypes.Length; i++)
+            if (ExposureRoll(get, ExposureTypes[i], mitigated[ExposureTypes[i]].Max > 0, random) is < 0 and var magnitude)
+                Expose(m, i, magnitude, now);
+        if (get("keystone_elemental_equilibrium") == 0 || !ExposureTypes.Any(t => mitigated[t].Max > 0)) return;
+        double effect = Math.Max(0, 1 + get("elemental_equilibrium_effect_+%") / 100.0);
+        for (int i = 0; i < ExposureTypes.Length; i++)
         {
             var type = ExposureTypes[i];
-            if (ExposureRoll(get, type, mitigated[type].Max > 0, random) is not (< 0 and var magnitude)) continue;
-            double until = now + ExposureSeconds;
-            m.Exposures[(type, magnitude)] = Math.Max(m.Exposures.GetValueOrDefault((type, magnitude), double.NegativeInfinity), until);
-            m.ExposureUntil[i] = Math.Max(m.ExposureUntil[i], until);
+            if (mitigated[type].Max > 0)
+            {
+                EndExposureLocked(m, type);
+                m.ExposureUntil[i] = double.NegativeInfinity;
+            }
+            else if (InflictedExposure(get, type, (int)(ElementalEquilibriumExposure * effect)) is < 0 and var magnitude)
+                Expose(m, i, magnitude, now);
         }
+    }
+
+    static void Expose(SpawnedMonster m, int i, int magnitude, double now)
+    {
+        var key = (ExposureTypes[i], magnitude);
+        double until = now + ExposureSeconds;
+        m.Exposures[key] = Math.Max(m.Exposures.GetValueOrDefault(key, double.NegativeInfinity), until);
+        m.ExposureUntil[i] = Math.Max(m.ExposureUntil[i], until);
     }
 
     /// <summary>The resistance its Exposure of this type applies at <paramref name="now"/>: the highest running one, 0
