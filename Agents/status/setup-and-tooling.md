@@ -65,7 +65,9 @@ Part of [Status](../Status.md); what to build next in this area is in
   Harvest, Heist and Delve are real modules with their own assemblies, which hot-reload, through `IPlayerWorld`.
   Trades and parties, Atlas passives, the crafting bench, cosmetics, vendors, portals and the map device, tattoos, Mercy Mission, quest objects, hideout editing, chat commands and unique belts are Core modules too. The game\'s rules are the `Game` module; the Gateway keeps the framework, game data, saves and connection state. What an NPC's options do is the `npcdialogue` module. A module runs only for the players whose league lists it, so a hideout
   without Harvest places no station. Not tried in the client after the move.
-  `Mods/Source/` has six examples, of which only `example` is on by default.
+  `Mods/Source/` has seven examples, of which only `example` is on by default.
+  `FastCampaign` (experience and movement speed, `/fast`, three languages) loaded as a script in a running Gateway and read
+  its `settings.txt`; not tried with the client, nor built as a project (no SDK on that PC).
   Mods see only `GameServer.Modding`: chat commands, the player tick, client messages (a mod may take one), area
   generated, monster killed, and drop, experience and stat modifiers; a mod that throws is logged and skipped.
   `live.ps1` builds `Mods\Source\` (the example mod: 100x item quantity, `/example`) into `Mods\Binaries\`.
