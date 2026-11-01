@@ -1377,6 +1377,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   The player's hits chill, freeze and shock monsters: threshold maximum life, strongest effect with its own duration,
   shock as increased damage taken (hits and Righteous Fire), chill and freeze in the monster AI and walk, the monster
   mods' ailment stats (of the Ice, of the Tempest, Unstoppable, Mirrored) and the chilled/frozen/shocked buffs.
+  Elemental Focus and the never-ailment stats stop those ailments ([20](../docs/protocol/20-damage.md) §3).
   Chill can raise damage taken and lessen the monster's swings (Glacial Wave), a freeze can have a minimum duration
   and a monster that hits the player can be frozen (Brine Bound).
   A corpse keeps its killing hit's ailments and a kill can shock it, unless the hit killed it frozen and it shatters.
