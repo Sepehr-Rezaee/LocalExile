@@ -1,9 +1,9 @@
 {
-  "id": "Mercy",
+  "id": "Pantheon",
   "version": "1.0.0",
   "kind": "feature",
   "depends": [
     "Game"
   ],
-  "assembly": "bin/mercy.dll"
+  "assembly": "bin/pantheon.dll"
 }

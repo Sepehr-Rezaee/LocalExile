@@ -286,7 +286,7 @@ no branch, no call that takes the stream). `≥ N` = N fixed bytes plus variable
 | 0x01e8 | `0x143162128` / `0x1408bf570` | ≥ 3 |  | `0x1408c1da0` |  |
 | 0x01ea | `0x143162128` / `0x1408bf570` | ≥ 3 |  | `0x1408c1b80` |  |
 | 0x01ec | `0x143162148` / `0x1408bf760` | 8 |  | `0x1408c1c60` |  |
-| 0x01ee | `0x14345ef10` / `0x140e29080` | 3 | generic (9 S→C ids) | `0x14097dfc0` |  |
+| 0x01ee | `0x14345ef10` / `0x140e29080` | 3 | generic (9 S→C ids) | `0x14097dfc0` | Pantheon: choose a god, u8 = PantheonPanelLayout row + 1 (`InstancePantheon`, the Pantheon module; [pantheon](../game/campaign/pantheon.md) §4) |
 | 0x01ef | `0x14316c930` / `0x140912f40` | 2 | generic (15 S→C ids) | `0x14216cbf0` |  |
 | 0x01f2 | `0x1435c0000` / `0x141f9bd10` | 3 |  | `0x140a23a40`, `0x140bba230`, `0x14216d470` +1 |  |
 | 0x01f7 | `0x1435bf670` / `0x140e29080` | 3 | generic (4 S→C ids) | `0x140cdf970` |  |

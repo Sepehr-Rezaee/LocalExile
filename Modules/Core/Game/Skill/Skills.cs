@@ -994,7 +994,7 @@ static partial class Game
         lock (conn.Monsters)
         {
             var next = new List<ushort>(conn.Passives);
-            int points = Progression.PassivePoints(level) + conn.ExtraPassivePoints + AscendancyOrdinaryPoints(conn);
+            int points = Progression.PassivePoints(level) + conn.ExtraPassivePoints + QuestPassivePoints(conn) + AscendancyOrdinaryPoints(conn);
             TrimOrdinaryPassives(conn, next, points);
             var effects = conn.MasteryEffects.Where(kv => next.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
             return new(level, conn.Pools.Level, conn.ExtraPassivePoints, next, effects, conn.MainAscendancy,
@@ -1036,7 +1036,7 @@ static partial class Game
                 var ascendancy = save.MainAscendancy ?? new();
                 var nodes = new List<ushort>(save.Passives ?? []);
                 ushort extra = save.ExtraPassivePoints ?? 0, refunds = save.RefundPoints ?? 0;
-                int points = Progression.PassivePoints(level) + extra + Game.AscendancyRules.OrdinaryPointsGranted(
+                int points = Progression.PassivePoints(level) + extra + QuestStaticRewards.Default.Value.PassivePoints(save.QuestFlags ?? []) + Game.AscendancyRules.OrdinaryPointsGranted(
                     (byte)SkillsFor(conn).ClassFor(conn.ClassRow).IntegerId, ascendancy);
                 TrimOrdinaryPassives(conn, nodes, points, ascendancy);
                 var masteries = (save.MasteryEffects ?? []).Where(kv => nodes.Contains(kv.Key))

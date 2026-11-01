@@ -2393,7 +2393,8 @@ Coverage: `PhreciaFourClassesTests` (Polytheist's admission).
 - **Resistances** (`CharacterStats`, `DamageModel`): the passives' `base_resist_all_elements_%` and
   `base_fire/cold/lightning/chaos_damage_resistance_%` are summed from the character's 0% base into `Pools`; the client
   applies the two permanent Kitava quest penalties itself, and the Gateway mirrors them from the same flags
-  (`a5q6-CompletedBoss`, `a10q3-SeenBoss`/`a10q3-UsedRewardBook`: -30% each, not an aura). The final value is
+  (`a5q6-CompletedBoss`/`SinOnKitavaDefeat`; `EndGameAvailable` once earned, QuestStaticRewards 39, or
+  `a10q3-UsedRewardBook`: -30% each, not an aura). The final value is
   `clamp(resistance, -200, min(75 + max-resistance modifiers, 90))`, taken from Path of Building commit `16de4b8`:
   `src/Modules/Data.lua` (`ResistFloor = -200`, `MaxResistCap = 90`), `src/Data/Misc.lua`
   (`base_maximum_all_resistances_% = 75`) and `src/Modules/CalcDefence.lua` (the clamp). The project is cloned locally

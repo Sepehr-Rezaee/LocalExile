@@ -308,7 +308,7 @@ u32. With 0 nothing else is read.
 | 9 raw bytes | +0x1e8 | |
 | u16, u16 | → +0x1f8, +0x208 | Hideouts.dat keys by HASH16 (lookups that fail give null and are tolerated); the first is the character's hideout ([21](21-hideouts.md) §1) |
 | u8 | +0x1b1 | non-zero → "WashedUp" state |
-| u8 × 5 | +0x1ae, +0x1ad, +0x1b0, +0x1af, +0x238 | |
+| u8 × 5 | +0x1ae, +0x1ad, +0x1b0, +0x1af, +0x238 | +0x1ae / +0x1ad: the major and minor **Pantheon** god, PantheonPanelLayout row + 1, 0 = none (`PlayerObject.PantheonMajor/Minor`; [pantheon](../game/campaign/pantheon.md) §5) |
 | u32 n + n × u32 | → vtable +0x158 | |
 | u8 n + n × (record `0x141e840c0`, u32) | → vtable +0x160 | MicrotransactionCounters.dat |
 
@@ -317,7 +317,8 @@ flag word, then one part per set bit; every part is conditional. Bit 0 = u32 **e
 `0x141e7f6b0`: it derives the level again and, when it changed, sets "levelled up" (+0x2e8 = new > old) and calls the
 component's vtable +0x108. Other bits: 2 and 8 the two vec16 lists, 0x200 the 9 raw bytes, 4 → +0x1a8 (frame), 0x40 → +0x1aa (portrait),
 0x10 the Hideouts keys, 0x20 the class byte, 0x1000 → +0x1b0, 0x80 → +0x1ae/+0x1ad, 0x100 → +0x1af, 0x800 a u32-counted
-list. `InstanceEntities.PlayerExperienceUpdate` sends `0001` + the u32 (`/set_level`).
+list. `InstanceEntities.PlayerExperienceUpdate` sends `0001` + the u32 (`/set_level`); `PlayerPantheonUpdate` sends
+`0080` + the two Pantheon bytes after C→S 0x1ee.
 
 ### 4.8 Inventories (`0x141e1ee30`, through slot 17 → slot 20), 2 bytes minimal
 
