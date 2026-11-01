@@ -157,11 +157,12 @@ class Bridge:
 
     def wait_area(self, area, timeout=60.0, previous=None, poll=0.3):
         """Wait until the player is in `area` (WorldAreas Id) with the instance entered. Uses the bridge's
-        `area:wait` when it exists, then confirms through `/state brief`."""
+        `area:wait` when it exists, then confirms through `/state brief`. `previous` is the bridge's `game:status`
+        from before the travel (area:wait's `from`); anything else is not sent."""
         deadline = self.clock() + timeout
         if self.area_wait_supported is not False:
             request = {"command": "area:wait", "area": area, "timeout": timeout}
-            if previous:
+            if isinstance(previous, dict):
                 request["from"] = previous
             try:
                 self.execute(request)

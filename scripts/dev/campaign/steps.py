@@ -360,6 +360,7 @@ def goto(ctx, step):
     errors = []
     for method in methods:
         log.info("  goto %s via %s", area, method)
+        before = ctx.bridge.status()  # area:wait's `from`: the status before the travel
         if method == "waypoint":
             if waypoint:
                 tp_next_to(ctx, waypoint["id"], waypoint.get("pos"))
@@ -393,7 +394,7 @@ def goto(ctx, step):
                     log.info("  route to %s: the exit %s is closed; planning again", area, " / ".join(f"{a} -> {b}" for a, b in closed))
             continue
         try:
-            ctx.bridge.wait_area(area, timeout=timeout, previous=current)
+            ctx.bridge.wait_area(area, timeout=timeout, previous=before)
             activate_waypoint(ctx)
             return
         except WaitTimeout as error:
@@ -522,8 +523,9 @@ def interact(ctx, step):
     if transitions:
         chosen = nearest(transitions, state.get("pos"))[0]
         tp_next_to(ctx, chosen["id"], chosen.get("pos"))
+        before = ctx.bridge.status()
         ctx.bridge.execute({"command": "object:interact", "id": chosen["id"]})
-        ctx.bridge.wait_area(chosen["to"], timeout=timeout, previous=state.get("area"))
+        ctx.bridge.wait_area(chosen["to"], timeout=timeout, previous=before)
         return
     npc = find_npc(state, target)
     if npc:

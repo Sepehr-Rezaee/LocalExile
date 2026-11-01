@@ -125,7 +125,8 @@ class FakeServer:
             return {"alreadyRunning": True, "screen": self.screen}
         if command == "game:status":
             return {"running": True, "screen": self.screen, "instanceState": 3 if self.screen == "game" else 0,
-                    "character": self.character if self.screen == "game" else None}
+                    "character": self.character if self.screen == "game" else None,
+                    "area": self.s["area"] if self.screen == "game" else None}
         if command == "login":
             self.passwords.append(request["password"])
             self.screen = "characters"
@@ -148,6 +149,8 @@ class FakeServer:
         if command == "area:wait":
             if not self.area_wait:
                 raise ValueError("Unknown command: area:wait")
+            if "from" in request and not isinstance(request["from"], dict):  # client_control.py's own check
+                raise ValueError("from must be a previous status object")
             return {"area": self.s["area"]}
         if command == "command":
             return {"text": request["text"], "replies": self.slash(request["text"])}
@@ -450,7 +453,7 @@ class StepTests(unittest.TestCase):
     def test_goto_uses_area_wait_when_the_bridge_has_it(self):
         self.server.area_wait = True
         steps.goto(self.ctx, {"area": "1_1_2"})
-        self.assertEqual(self.commands("area:wait")[0]["from"], "1_1_town")
+        self.assertEqual(self.commands("area:wait")[0]["from"]["area"], "1_1_town")
         self.assertTrue(self.bridge.area_wait_supported)
 
     def test_kill_teleports_and_waits_for_death(self):
