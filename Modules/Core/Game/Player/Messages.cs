@@ -155,7 +155,8 @@ static partial class Game
                         StartAction();
                     }
                 }
-                if (chargeToken != 0) _ = RunShieldCharge(remote, stream, ciphers, conn, chargeToken, conn.Walk.ArrivesAt);
+                if (chargeToken != 0) _ = RunShieldCharge(remote, stream, ciphers, conn, chargeToken, conn.Walk.ArrivesAt,
+                    use.SkillId, use.Slot, cooldownUse?.ActionToken ?? action, cooldownUse);
                 bool projectileRuntime = cast && gem.Name is not null && UsesProjectileRuntime(gem.Effect);
                 if (projectileRuntime) _ = CastGemSkill(remote, stream, ciphers, conn, use.SkillId,
                     (px, py), (use.X, use.Y), sequence: use.Slot, actionToken: cooldownUse?.ActionToken ?? action, cooldownUse: cooldownUse);

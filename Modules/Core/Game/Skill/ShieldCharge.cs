@@ -36,17 +36,39 @@ static partial class Game
         }
     }
 
-    // After the use's echo: the faster movement speed to the client, then back when the server's walk arrives (a later
-    // charge takes over the run and its own end).
+    // The client's charge hits (Frida 2026-11-01, scripts/re/frida/trace-charge-hits.js): a path hit at its position as it
+    // starts and then about every 100 ms (every ~8 cells at charge speed), each within 8 cells, and a final hit within
+    // 16 cells where it arrives. The server lands them on its own walk at the same cadence; each monster takes one path hit
+    // per charge (neighbouring path areas overlap), and the final hit reaches every monster in its area.
+    const double ShieldChargePathSeconds = 0.1;
+    const int ShieldChargePathRadius = 8, ShieldChargeEndRadius = 16;
+
+    // After the use's echo: the faster movement speed to the client, the path hits while the server's walk runs, the final
+    // hit and the speed back where it arrives (a later charge takes over the run, its hits and its end).
     internal static async Task RunShieldCharge(string remote, NetworkStream stream, ConnectionCiphers ciphers, ClientState conn,
-        int token, double arrivesAt)
+        int token, double arrivesAt, ushort skillId, ushort sequence, int actionToken, CooldownUseTicket? cooldownUse)
     {
         await SendPlayerStatSnapshot(remote, stream, ciphers, conn, () => PlayerStatsUpdateAtGate(conn, PlayerStatsWithCleared(conn)),
             $"0x01b3 player stats (Shield Charge starts: movement_velocity_+% {conn.Pools.MovementVelocityPct}, " +
             $"+{ShieldChargeMovementPct(conn)} while charging, until t={arrivesAt:0.000})");
-        double wait = arrivesAt - conn.Clock.Elapsed.TotalSeconds;
-        if (wait > 0) await Task.Delay(TimeSpan.FromSeconds(wait));
+        bool Current() => ShieldChargeRuns.TryGetValue(conn, out var r) && r.Token == token && !conn.Closed;
+        var gem = GemSkillEffects(conn).FirstOrDefault(g => g.Id == skillId);
+        var pathHit = new HashSet<uint>();
+        Task Hit((int X, int Y) at, int radius, ISet<uint>? once) => gem.Name is null ? Task.CompletedTask
+            : AreaSkillHit(remote, stream, ciphers, conn, skillId, gem, at, at, immediate: true, sequence: sequence,
+                actionToken: actionToken, cooldownUse: cooldownUse, radiusOverride: radius, once: once);
+        for (double tick = conn.Clock.Elapsed.TotalSeconds; tick < arrivesAt; tick += ShieldChargePathSeconds)
+        {
+            double wait = tick - conn.Clock.Elapsed.TotalSeconds;
+            if (wait > 0) await Task.Delay(TimeSpan.FromSeconds(wait));
+            await WhilePaused(conn);
+            if (!Current()) return;
+            await Hit(conn.Walk.Position(conn.Clock.Elapsed.TotalSeconds), ShieldChargePathRadius, pathHit);
+        }
+        double rest = arrivesAt - conn.Clock.Elapsed.TotalSeconds;
+        if (rest > 0) await Task.Delay(TimeSpan.FromSeconds(rest));
         if (!ShieldChargeRuns.TryGetValue(conn, out var run) || run.Token != token || conn.Closed) return;
+        await Hit(conn.Walk.Position(conn.Clock.Elapsed.TotalSeconds), ShieldChargeEndRadius, null);
         lock (conn.Monsters)
         {
             run.Percent = 0;
