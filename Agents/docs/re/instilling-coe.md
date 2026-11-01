@@ -2,7 +2,7 @@
 
 ## Scope
 
-`CurrencyInstillingOrb` uses the shared 0x71/0x72 currency path and `ItemRolls.Instilling`; the Gateway handler
+`CurrencyInstillingOrb` uses the shared 0x71/0x72 currency path and `FlaskEnchantments.Apply`; the Gateway handler
 spends one orb on success. It is a utility-flask currency, not an affix currency.
 
 The local rule: a utility flask of any rarity receives one of the fifteen spawnable official Instilling trigger
@@ -34,7 +34,7 @@ The CoE engine declares `instillingTypeId: 22`; its `flaskEnchantParameters` pas
 
 The game tables contain sixteen GenerationType 22 rows. All are Domain 1, ModType `FlaskEnchantmentInjector*`, level 1,
 and spawn with the `flask` tag. Fifteen have spawn weight 100; `FlaskEnchantmentInjectorOnGuardSkillExpired` has
-weight 0 and is not obtainable from the orb or the bench. The local `ItemRolls.InstillingPool` keeps the fifteen
+weight 0 and is not obtainable from the orb or the bench. The local `FlaskEnchantments.Apply` keeps the fifteen
 positive-weight rows.
 
 | Mods.dat row | Text |
@@ -56,7 +56,7 @@ positive-weight rows.
 | `FlaskEnchantmentInjectorOnUsingLifeFlask` | `Used when you use a Life Flask` |
 | `FlaskEnchantmentInjectorOnGuardSkillExpired` | `Used when you lose a Guard Skill Buff` (weight 0, excluded) |
 
-Every eligible row has one stat with value 1. The local `ItemRolls.InstillingPool` keeps the fifteen rows with
+Every eligible row has one stat with value 1. The local `FlaskEnchantments.Apply` keeps the fifteen rows with
 Domain 1, GenerationType 22 and a positive `WeightFor(flask tags)`.
 
 The wiki's [Instilling Orb](https://www.poewiki.net/wiki/Instilling_Orb) page gives the same trigger list and says the

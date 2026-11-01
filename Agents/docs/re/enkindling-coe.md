@@ -2,7 +2,7 @@
 
 ## Scope
 
-`CurrencyEnkindlingOrb` uses the shared 0x71/0x72 currency path and `ItemRolls.Enkindling`; the Gateway handler
+`CurrencyEnkindlingOrb` uses the shared 0x71/0x72 currency path and `FlaskEnchantments.Apply`; the Gateway handler
 spends one orb on success. It is a utility-flask currency, not an affix currency.
 
 The local rule: a utility flask of any rarity receives one of the five official Enkindling enchantments
@@ -45,7 +45,7 @@ level 1, and spawn with the `flask` tag.
 | `FlaskEnchantmentSealMaximumCharges____` | `local_flask_cannot_gain_charges_during_flask_effect`, `local_extra_max_charges` | 1, 40-60 | `Gains no Charges during Effect`; `+(40-60) to Maximum Charges` |
 
 Spawn weights are 250 for the increased-effect row and 100 for the other four (total 650). The local
-`ItemRolls.EnkindlingPool` keeps exactly these five rows: Domain 1, GenerationType 21 and a positive
+`FlaskEnchantments.Apply` keeps exactly these five rows: Domain 1, GenerationType 21 and a positive
 `WeightFor(flask tags)`.
 
 The wiki's [Enkindling Orb](https://www.poewiki.net/wiki/Enkindling_Orb) page gives the same five effects and says the
