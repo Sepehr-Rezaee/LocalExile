@@ -2097,6 +2097,19 @@ passive or another item changes which weapons qualify. Because the client still 
 (the effect's ActiveSkills `WeaponRestriction_ItemClassesKeys`) against the active hands' ItemClasses rows, an empty or
 inactive main hand counting as Unarmed (row 36), either hand fitting. Automated coverage only; awaiting a native check.
 
+The rest of `FUN_141ee7fb0` (Frida 2026-11-01, `scripts/re/frida/trace-skill-usable.js` and
+`trace-skill-usable-stats.js`), with ebp the main and esi the off hand's type, every test reading the skill's stats:
++0xb0 starts at 1 and is cleared by `skill_number_of_triggers` over 1, `skill_disabled_by_stat`, an Attack (type 1)
+with `disable_skill_if_melee_attack` (unless the main hand is 14 or 9) or `disable_skill_if_weapon_not_bow`,
+RequiresShield (type 10) without an off-hand 0x1b, RequiresStaff (0x86) without a main-hand 0xf or 0x3a, and
+RequiresOffHandNotWeapon (0x6a). DualWieldOnly (4) needs both hands fitting and, with DualWieldRequiresDifferentTypes
+(0x77), different types (Varunastra's stats 0x1066/0x1067 excepted). Then neither hand fitting clears it, and so does
+**`is_dual_wielding` (0xf6) with the main hand not fitting**, unless the off hand is 0x68, 0x1b or 0x15 and the main
+hand fits. Shield Charge's only class is Shield, so the main hand never fits it: with `is_dual_wielding` 1, which the
+client held because the server never sent it (stats from the network run no calculators,
+[13](13-items.md) "Client weapon-type stats"), it stayed greyed out beside a sceptre (live 2026-11-01). The Gateway now
+sends `is_dual_wielding` with both hands' weapon types, and the skill is usable.
+
 ## 10b. Actor restriction: warcry skills disabled
 
 `your_warcry_skills_are_disabled` is Stats row 5408, wire key 5409 in 3.29.3b.
