@@ -607,6 +607,21 @@ The client multiplies its three sources (volatility support, ascendancy, graft) 
 `combined_maximum_attack_damage_+%_final` (`FUN_1425d25b0`); only the ascendancy one exists on the server.
 See [Polytheist](../game/polytheist.md).
 
+## 2j. Melee damage by proximity
+
+"Deal up to X% more Melee Damage to Enemies, based on proximity" comes from three stats, each its own more multiplier
+(`MeleeProximity.cs`): Slayer's Impact (`slayer_damage_+%_final_from_distance`, 15), Close Combat
+(`support_slashing_damage_+%_final_from_distance`, 25 at level 1 and 39 at 20) and Shield Crush (`shield_crush_damage_+%_final_from_distance`).
+The ramp is PoB `ModStore`'s `MeleeProximity` with `{1,0}`: the whole multiplier up to 15 units, falling linearly to
+none at 40. The distance is the centre-to-centre one at the hit, as for close range ([11](11-skills.md),
+`TargetAccuracy`), so a large monster at melee range gets less than a small one. Whether the game subtracts the
+actors' sizes is not verified. The client dump has no ramp: the keys of the three stats (0x26e1, 0x250b, 0x4d70) do
+not appear in it, and `damage_+%_final_from_distance` (0x313) is only tested for being non-zero (`FUN_1428510b0`,
+`FUN_142886820`).
+The default melee attack and melee attack gems scale each target's hit before its roll; a melee attack's
+projectiles, minions and the damaging ailments do not take it. Close Combat's increased damage at close range (its
+quality) and its Combat Rush for travel skills, and `melee_damage_+%_at_close_range`, are not read.
+
 ## 3. Damage over time and ailments
 
 DoT is one damage type, has no hit, cannot critically strike and uses that type's resistance. `DamageOverTime` carries

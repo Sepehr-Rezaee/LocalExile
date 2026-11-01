@@ -1417,6 +1417,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   keeps the ignite and `is_ignited` without its damage.
   "While moving" evasion and regeneration follow the server's walk, and more maximum attack damage scales every attack
   hit's maxima next to Rage; Gateway coverage only ([Polytheist](../docs/game/polytheist.md)).
+  Impact, Close Combat and Shield Crush scale melee hits by proximity ([20](../docs/protocol/20-damage.md) §2j).
   Unconditional penetration works on the player's outgoing hits (general per-element and elemental stats, the
   attack-only variants, the cannot-penetrate flag; DoT and physical take none).
   Player and skill contributions to the same raw penetration stat add without overwriting either source.
