@@ -724,6 +724,13 @@ The generic [projectile framework](../docs/game/projectile-framework.md) owns pr
 the sole 30 Hz runtime. Catalog fallback provides basic flight; registered skill definitions supply special rules
 and can require explicit recipes.
 
+The [client projectile research](../docs/re/012-projectile-execution.md) now separates shared execution,
+client/server input contracts and six ordinary witnesses from the current server implementation.
+Final bindings, finite arithmetic, local contact/history, continuations and selected skill-stage joins are documented.
+Public scalar/vector and synthetic observation checks are separate from retained original-instruction controls.
+Gameplay TLS state/order, official Fireball direct/area result routing and actual effective-input timing remain open.
+This is a research baseline, not new live skill acceptance or complete native/server parity.
+
 - Arcane Might (#364) shares one highest-eligible-ratio consumer across current attacks and damage panels.
   Normal Crown of Eyes, Whisperer's existing consumer and wand mastery use the six modern stat contracts.
   Independent grants do not stack; skill base plus quality still adds before the maximum comparison.

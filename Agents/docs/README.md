@@ -49,6 +49,10 @@ How to regenerate them: [re/tooling.md](re/tooling.md) §7.
 
 ## How-to
 
+[Client projectile execution](re/012-projectile-execution.md): frozen 3.29.3b research, execution rules,
+client/server contracts, six ordinary witnesses, reproducible reference checks and explicit correctness gaps.
+This research does not change the production simulator or certify native/official-server parity.
+
 [Projectile framework](game/projectile-framework.md): sole production simulator and skill-provider boundary.
 [Projectile skills](game/projectile-skills.md): Fireball, Kinetic Blast, catalog policies, evidence and client checks.
 | Doc | Content |

@@ -469,6 +469,13 @@ remaining native checks are recorded in [the port record](../docs/dev/issue75-po
 
 ### Skill projectiles
 
+- **Client-contract research:** use the frozen [delivery matrix](../docs/re/projectiles/delivery-matrix.md)
+  before extending the simulator or changing phase prediction ownership.
+  Recovered count/layout, random contexts, motion/contact/history and selected continuation/skill rules are available.
+  Keep the finite [K1/K2/K3 followups](../docs/re/projectiles/verification-and-limitations.md) separate:
+  gameplay TLS state/order, official Fireball result routing and six-witness effective-input/read-update timing.
+  Do not make full rendering, every stat producer or complete engine teardown prerequisites for using closed rules.
+  The research itself changes no server behavior; production tasks below remain pending under their existing scope.
 - **Known:** the [framework](../docs/game/projectile-framework.md) owns production projectile routing and the
   only Core simulator. Catalog-known gems and ordinary bows and wands have basic straight flight and resolved
   modifiers; [registered skills](../docs/game/projectile-skills.md) supply terminal Fireball blasts and separate KB
