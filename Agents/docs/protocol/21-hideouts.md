@@ -189,7 +189,8 @@ because `MapKeyTierN` names the tier). `/item Map (Tier 5)` makes one. `MapKeys.
 the Atlas layout selected for the character in the native panel; `/atlas <layout id or name>` is a dev fallback. The
 first starting node (Cells) is the default. The selection is saved per character and restored on login. A generic
 map's area level follows its tier (`tier + 67`: tier 1 = 68, tier 16 = 83); old area-named maps keep their WorldAreas
-level.
+level. The client generates the layout at the 0x1d level, so the Gateway generates it there too
+(`ServerLevels.PlayableSeed` keeps the level for the seed played; re/011 §8).
 
 **Portals** are `Metadata/MiscellaneousObjects/MultiplexPortal` (`MapPortalObject`): Positioned, BaseEvents, StateMachine,
 Animated, Portal, Transitionable, MinimapIcon, InteractionAction, all read except BaseEvents (Frida
