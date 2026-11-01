@@ -33,7 +33,7 @@ Protocol reference and reverse-engineering notes for the Path of Exile 3.29.3b c
 | [protocol/20-damage.md](protocol/20-damage.md) | damage packets: types and conversion order, gain as extra, per-type mitigation, damage over time and ailments |
 | [protocol/22-pause.md](protocol/22-pause.md) | pause from the Escape menu: C→S 0x1d4, S→C 0x1d3 (world +0xb9c/+0xb9d), what the Gateway freezes |
 | [protocol/23-microtransactions.md](protocol/23-microtransactions.md) | microtransactions: the owned lists and their loaded flags (C→S 0x1f2, S→C 0x1f4/0x1f5), the Cosmetics tab (C→S 0x1f9, the worn table in S→C 0x1f3), cosmetics on the model and in the stats (ItemisedVisualEffect) |
-| [protocol/12-quests.md](protocol/12-quests.md) | quests (research): the data tables, a1q4 "Breaking Some Eggs" and the Submerged Passage blocker |
+| [protocol/12-quests.md](protocol/12-quests.md) | quests: the data tables, the quest engine and its rules, Act 1 quest by quest |
 | [protocol/06-debugging-log.md](protocol/06-debugging-log.md) | every live run, crash and fix, and lessons |
 | [protocol/address-index.md](protocol/address-index.md) | all client addresses by subsystem |
 
@@ -49,6 +49,10 @@ How to regenerate them: [re/tooling.md](re/tooling.md) §7.
 
 ## How-to
 
+[Client projectile execution](re/012-projectile-execution.md): frozen 3.29.3b research, execution rules,
+client/server contracts, six ordinary witnesses, reproducible reference checks and explicit correctness gaps.
+This research does not change the production simulator or certify native/official-server parity.
+
 [Projectile framework](game/projectile-framework.md): sole production simulator and skill-provider boundary.
 [Projectile skills](game/projectile-skills.md): Fireball, Kinetic Blast, catalog policies, evidence and client checks.
 | Doc | Content |
@@ -62,6 +66,7 @@ How to regenerate them: [re/tooling.md](re/tooling.md) §7.
 | [dev/editable-game-data.md](dev/editable-game-data.md) | what game data can become editable in SQLite, the client-compatibility boundary, the snapshot/cache design and the phased plan |
 | [dev/modding.md](dev/modding.md) | mods in `Mods/Binaries/<id>/`: `mod.json`, writing one in `Mods/Source/`, the hooks, reloading, limits |
 | [dev/item-crafter.md](dev/item-crafter.md) | the item crafter hook for tools: the Gateway's `crafter` mode (bases, mod pools, stat descriptions) and `/item_give` |
+| [dev/campaign-automation.md](dev/campaign-automation.md) | the campaign driver: `campaign.ps1`, the runner, quest step files and verbs, `/state`, `/kill`, `/quest_preset`, its own ports and client session |
 | [dev/headless-client.md](dev/headless-client.md) | cheap clients for agent sessions: the engine's Null renderer, per-client settings, frame cap, process limits, `nullifier.py`, measurements |
 | [dev/live-testing.md](dev/live-testing.md) | the older live-testing notes (GettingStarted supersedes them) |
 | [dev/ranged-monster-actions-port.md](dev/ranged-monster-actions-port.md) | standalone bow/wand and monster-action port, preserved upstream behavior and validation limits |
@@ -83,6 +88,7 @@ How to regenerate them: [re/tooling.md](re/tooling.md) §7.
 | [game/ascendancies.md](game/ascendancies.md) | selection, points, saves and the Phrecia play gate |
 | [game/phrecia-modules.md](game/phrecia-modules.md) | optional Phrecia class sources, league composition and reload ownership |
 | [game/antiquarian.md](game/antiquarian.md) | all nine node consumers, verified-graph admission, legal builds and native acceptance |
+| [game/campaign-quests.md](game/campaign-quests.md) | the quest engine's pieces in the Gateway and the modules, the act files, adding a quest and an act, quest passive and respec points |
 | [game/behemoth.md](game/behemoth.md) | optional Behemoth sources, shared Rampage/Vaal engines and current validation limits |
 | [game/unique-jewels.md](game/unique-jewels.md) | the 185 unique jewels, their effects and what the passive-socket server supports |
 | [game/radius-jewels.md](game/radius-jewels.md) | all 76 radius unique jewels: radius/ring model, mechanics, reusable timeless pieces and implementation plan; 42 jewels with server-side effects, 33 threshold items with client/server threshold checks, Lioneye's Fall's item source/client conversion, and the generated Impossible Escape keystone bypass |
