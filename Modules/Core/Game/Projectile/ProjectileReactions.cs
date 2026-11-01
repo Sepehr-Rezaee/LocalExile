@@ -94,6 +94,7 @@ static partial class Game
         if (playerKill)
         {
             session.Enqueue(() => Program.ServerHooks.MonsterKilled(new(killer, modMonster)));
+            if (OnslaughtOnKill(conn)) session.Enqueue(() => SendKillOnslaught(session.remote, session.stream, session.ciphers, conn));
             ChargesOnKill(conn, monster);
         }
         if (CommitQuestFlags(conn, QuestsOf(conn).OnMonsterKilled(conn.Layout.Id, variety.Id)) is { } quest)

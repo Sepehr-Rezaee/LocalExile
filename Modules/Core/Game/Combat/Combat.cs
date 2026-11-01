@@ -1378,6 +1378,7 @@ static partial class Game
         if (playerKill)
         {
             await Program.ServerHooks.MonsterKilled(new(killer, monster));
+            if (OnslaughtOnKill(conn)) await SendKillOnslaught(remote, stream, ciphers, conn);
             ChargesOnKill(conn, m);
         }
         await SetQuestFlags(remote, stream, ciphers, conn, QuestsOf(conn).OnMonsterKilled(conn.Layout.Id, variety.Id));
