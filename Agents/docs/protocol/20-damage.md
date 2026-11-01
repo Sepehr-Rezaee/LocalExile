@@ -907,9 +907,15 @@ does not. The flat `base_*_gained_on_enemy_death` plus `*_gained_on_enemy_death_
 `recover_%_maximum_life_on_kill`, `recover_%_maximum_mana_on_kill`, `maximum_mana_%_gained_on_kill` and
 `recover_energy_shield_%_on_kill` of the maximum pool, are summed and floored per pool, with no recovery-rate
 multiplier (PoB `CalcOffence.lua` "LifeOnKill"). Mana stops at unreserved Mana. The amounts are read when the player
-stats are built (`ConfigureLeech`), not per death, and the cannot-recover Life/ES flags stop their pool. Conditional
-sources (killing a cursed, chilled, ignited, shocked or frozen enemy, with Rage, with a tincture, per mastery type)
-and the "lost on kill" stats are not read.
+stats are built (`ConfigureLeech`), not per death, and the cannot-recover Life/ES flags stop their pool.
+Killing an ailing enemy adds `life_gained_on_killing_ignited_enemies` (flat Life),
+`recover_%_maximum_life_on_killing_chilled_enemy` (percent Life), `gain_X_energy_shield_on_killing_shocked_enemy` and
+`recover_X_mana_on_killing_frozen_enemy` (`KillRecovery.For`). The killing hit's own ailments count (wiki Ailment), so
+the corpse's state at `MonsterKilled` decides: a shattered monster counts as frozen (`MonsterElementalAilments.Shattered`),
+one whose ignites were cleared at death as ignited (`MonsterIgnites.DiedBurning`, also when its ignite's last tick
+killed it), and Within the Tempest's shock on the corpse does not count as shocked (`ShockedAtDeath`). A negative
+total (the "Lose X Life per Enemy Killed" forms) recovers nothing. Killing a cursed enemy, with Rage, with a tincture,
+per mastery type, and the "lost on kill" stats are not read.
 
 Decisions and alternatives:
 
