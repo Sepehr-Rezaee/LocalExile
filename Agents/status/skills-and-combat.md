@@ -956,6 +956,7 @@ This is a research baseline, not new live skill acceptance or complete native/se
   Action speed does not change projectile range: projectile speed only shortens the flight, and `action_speed_-%` is
   composed additively with chill/freeze for attack, cast and movement pacing; Tailwind/Harbinger sources remain #246.
   Direct and area snapshots keep area increases/supports scoped to their damage stages.
+  Point Blank scales attack projectile hits by travel ([projectiles](../docs/game/projectile-framework.md)).
   Area effects scale to the committed radius when the selected art exports a native radius; unknown art stays unscaled.
   Terrain-blocked area centers are omitted without resampling or reserving time; surviving areas keep consecutive intervals.
   Skill explosions, pulses, children, forms, native art and specialized resources belong to skill definitions.
