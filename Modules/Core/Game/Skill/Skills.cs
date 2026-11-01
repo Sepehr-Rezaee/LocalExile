@@ -90,12 +90,16 @@ static partial class Game
     // The final stats from a character snapshot already worked out (PlayerSkills reuses its own).
     internal static IEnumerable<(uint, int)> FinalPlayerStatsFrom(ClientState conn, Dictionary<uint, int> stats)
     {
-        // Quivers are gated by main_hand_weapon_type on the client, independently of the model's weapon stance. Only the
-        // bow's value is known, so other weapons send nothing (a value /set_stat set stays); taking the bow off clears the
-        // 9 sent before through PlayerStatsWithCleared.
+        // Both hands' native weapon types and whether they dual wield (a value /set_stat set stays). The client derives none
+        // of them from network stats: quivers need a bow's 9 in the main hand, and without is_dual_wielding it held 1,
+        // which greyed out Shield Charge beside a one-handed weapon (13-items.md "Client weapon-type stats").
         var mainHand = ActiveMainHand(conn);
-        if (Stats.Key("main_hand_weapon_type") is uint weaponTypeKey && WeaponTypeStats.BowType(mainHand?.Type?.Class) is int bowType)
-            stats.TryAdd(weaponTypeKey, bowType);
+        int mainType = WeaponTypeStats.Of(mainHand?.Type?.Class), offType = WeaponTypeStats.Of(ActiveOffHand(conn)?.Type?.Class);
+        if (Stats.Key("main_hand_weapon_type") is uint mainTypeKey) stats.TryAdd(mainTypeKey, mainType);
+        if (Stats.Key("off_hand_weapon_type") is uint offTypeKey) stats.TryAdd(offTypeKey, offType);
+        if (Stats.Key("is_dual_wielding") is uint dualKey)
+            stats.TryAdd(dualKey, WeaponTypeStats.IsDualWielding(mainType, offType,
+                Stats.Key("unarmed_counts_as_dual_wielding") is uint unarmedKey && stats.GetValueOrDefault(unarmedKey) != 0) ? 1 : 0);
         // Both hands' weapon stats. A dual-wielded attack swings the off hand as well, and the client sets that strike's
         // weapon up from the off hand's own final stats (it derives nothing itself, 11-skills.md §4).
         foreach (var (k, v) in WeaponStats(conn, WeaponOf(conn, mainHand), stats)) stats[k] = v;

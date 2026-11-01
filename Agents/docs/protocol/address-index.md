@@ -467,6 +467,15 @@ Bounded static research for 3.29.3b; detailed fields, concrete vtables, evidence
 | `0x1428cf720` | Fn | 15801: 3004 OR (2730 AND 2532) |
 | `0x1400e4fc0` | Fn | registers skill-disabled virtual 15798 |
 | `0x1428cf770` | Fn | 15798: aura branch checks skill 15801 and caster 11075; other restrictions separate |
+| `0x141ee7fb0` | Fn | skill usable (+0xb0) from the hand types, skill types and skill stats, `is_dual_wielding` included ([11](11-skills.md) §10a) |
+| `0x141ee8410` | Fn | one hand's type against the skill's weapon restriction (+0xb2 main / +0xb3 off) |
+| `0x141ee8cf0` | Fn | skill has ActiveSkillType (row + 1) |
+| `0x142199200` | Fn | ActiveSkillManager vtable +8: stores the hand types at +0x14c / +0x150 |
+| `0x142513630` | Fn | registers a stat calculator: key, evaluator, dependency keys |
+| `0x140093460` | Fn | registers `is_dual_wielding` (0xf6) with dependencies 3, 4, 0x2b33, 1 |
+| `0x142521190` | Fn | `is_dual_wielding`: both hands in table 0x142fdd728 and off hand not 14, or unarmed rule ([13](13-items.md) "Client weapon-type stats") |
+| `0x142fdd728` | Data | byte per native weapon type: set for weapons, clear for 13 (shield) and 14 (empty hand) |
+| `0x1428abac0`, `0x1428ac240`, `0x1428abe80` | Fn | `is_wielding_sword` (0–2), `_mace` (3–5), `_axe` (7, 8): the weapon-type enum's sources |
 | `0x1428b0750` | Fn | virtual double-armour chance 12268; [model/evidence](../game/steel-willed-armour.md) |
 | `0x1428b0854` | Code | reads Steel Willed per-recent-enemy-hit input 20680 |
 | `0x1428b08eb` | Code | reads recent enemy-hit counter 4534 |

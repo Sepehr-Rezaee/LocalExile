@@ -10,6 +10,13 @@ Part of [Status](../Status.md); what to build next in this area is in
   Elapsed Life regeneration, stopping at expiry, area carry, death and relog were also verified.
   The evidence uses a new unascended character with raw inputs; it does not establish Behemoth selection.
   See [Fortification](../docs/game/fortification.md) for the formula, source coverage and remaining extensions.
+- Shield-only skills beside a one-handed weapon (verified live 2026-11-01: Shield Charge with a sceptre and a shield).
+  The client greys out a skill when `is_dual_wielding` is set and the main hand does not fit it, and it never derives
+  that stat from network stats: unsent, it read 1 for every character.
+  The Gateway now sends `is_dual_wielding` with both hands' native weapon types (`WeaponTypeStats`), and the skill
+  became usable; its charge still uses the generic movement path (instant arrival, hit at the start point).
+  Code: `WeaponTypeStats.cs`, `Skills.cs` (`FinalPlayerStatsFrom`).
+  Docs: [11](../docs/protocol/11-skills.md) §10a, [13](../docs/protocol/13-items.md) "Client weapon-type stats".
 - Antiquarian's real selected nodes now drive Ward absorption/restoration and Runic Tablet's pausable Adrenaline.
   Goliath's zero Intelligence reaches requirements and pools; Whaletooth extends actual Enduring Cry recovery.
   Turtle Shell integrates 8% Life over one second after accepted melee stun, with native Life correction at expiry.
