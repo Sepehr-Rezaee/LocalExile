@@ -252,6 +252,20 @@ public static class InstanceEntities
     public static byte[] TransitionableUpdate(uint entityId, byte componentIndex, byte state) =>
         ComponentUpdate(entityId, componentIndex, [state]);
 
+    public const ushort BlockageUpdateId = 0x1c6;
+
+    /// <summary>
+    /// S→C 0x1c6 (world group, read 0x141fe14b0; world handler 0x142187480): an object's TriggerableBlockage, which has no
+    /// 0x2ba reader (slot 20 is <c>ret</c>). World header, u8 blocked; while blocked a u8 count and that many u8 sections.
+    /// Unblocked runs the component's +0xb8 (a Trial of Ascendancy's door opening), blocked its +0xb0 with the sections.
+    /// </summary>
+    public static byte[] BlockageUpdate(uint entityId, bool blocked)
+    {
+        var w = new LoginWriter().U16(BlockageUpdateId).U32(entityId).U32(0).U16(0).U8((byte)(blocked ? 1 : 0));
+        if (blocked) w.U8(0);   // no sections
+        return w.ToArray();
+    }
+
     /// <summary>
     /// S→C 0x2ba to an object's Animated component (reader <c>0x141e57490</c>): flags bit0 + a u32-counted UTF-16 .ao path
     /// swaps its animated object, which then plays the new one's default animation (a projectile's impact: Fireball →
@@ -331,6 +345,14 @@ public static class InstanceEntities
     /// </summary>
     public static byte[] PlayerHideoutsUpdate(uint playerId, ushort hideout, ushort hideout2) =>
         ComponentUpdate(playerId, PlayerObject.PlayerComponentIndex, new BlobWriter().U16(0x10).U16(hideout).U16(hideout2).ToArray());
+
+    /// <summary>
+    /// The player's Pantheon gods (0x2ba to the Player component, reader 0x141e7ee30): u16 flags, bit7 (0x80) = u8 → +0x1ae
+    /// (major), u8 → +0x1ad (minor), each a PantheonPanelLayout row + 1 (0 = none), as C→S 0x1ee chooses them; then the
+    /// component's vtable +0x138 (refresh). campaign/pantheon.md §5.
+    /// </summary>
+    public static byte[] PlayerPantheonUpdate(uint playerId, byte major, byte minor) =>
+        ComponentUpdate(playerId, PlayerObject.PlayerComponentIndex, new BlobWriter().U16(0x80).U8(major).U8(minor).ToArray());
 
     /// <summary>The player's league quest flags (0x2ba to the Player component): u16 flags, bit3 (0x08) = the whole
     /// second flag set (+0x1d0) again, as <see cref="PlayerObject.WriteFlagSet"/>.</summary>
@@ -478,6 +500,17 @@ public sealed record AreaTransitionObject(int GridX, int GridY, ushort Destinati
     /// <summary>Set for a transition that leads within its own area (a map's boss arena gate): where it takes the player.
     /// Server side only; the blob names the area itself as the destination.</summary>
     public (int X, int Y)? TeleportTo { get; init; }
+
+    /// <summary>The tile object's own type when it was created as a plain AreaTransition (a quest exit such as
+    /// Metadata/QuestObjects/Act4/AscentTransition, see AreaTransitionCatalog.Resolve): quest rules and NPC scripts name it.
+    /// Server side only.</summary>
+    public string? SourceType { get; init; }
+    /// <summary>The module whose quest tables changed this exit of the shared layout, or null: an exit that stands only where
+    /// those tables run (a quest-gated disabled entrance, a quest portal, an exit's version a quest swaps in), or with
+    /// <see cref="QuestReplaced"/> one that stands only where they do not (the layout's own exit a quest replaced).
+    /// Server side only.</summary>
+    public string? QuestSource { get; init; }
+    public bool QuestReplaced { get; init; }
 
     /// <summary>Whether the exit stands in a town. Only then does the client read the compact int (<see cref="Index"/>)
     /// after the destination: 0x141e5b870 reads it when the state is 0 and the byte at +0x14 of the current area's
@@ -941,6 +974,10 @@ public sealed record PlayerObject(string Name, byte ClassIndex, int GridX, int G
     /// <summary>The Player component's index in the player object's component order (04 §3).</summary>
     public const byte PlayerComponentIndex = 6;
 
+    /// <summary>The Pantheon gods (Player +0x1ae major, +0x1ad minor): PantheonPanelLayout row + 1, 0 = none.</summary>
+    public byte PantheonMajor { get; init; }
+    public byte PantheonMinor { get; init; }
+
     /// <summary>The Inventories component's index in the player object's component order (04 §3).</summary>
     public const byte InventoriesComponentIndex = 8;
 
@@ -1005,7 +1042,9 @@ public sealed record PlayerObject(string Name, byte ClassIndex, int GridX, int G
          .Zeros(9)           // raw +0x1e8
          .U16(Hideout).U16(Hideout2)   // Hideouts.dat keys (HASH16; 0 finds no row): the character's hideout (21-hideouts.md §1)
          .U8((byte)(WashedUp ? 1 : 0)) // +0x1b1 (non-zero → "WashedUp" state)
-         .U8(0).U8(0).U8(0).U8(0).U8(0)
+         .U8(PantheonMajor)  // +0x1ae: the major Pantheon god, PantheonPanelLayout row + 1 (0 = none; campaign/pantheon.md §5)
+         .U8(PantheonMinor)  // +0x1ad: the minor god, the same way
+         .U8(0).U8(0).U8(0)  // +0x1b0, +0x1af, +0x238
          .U32(0)             // u32 count + u32 list (vtable +0x158)
          .U8(0);             // microtransaction counters (0x141e83470)
         WriteInventories(w, Equipped);   // Inventories (0x141e1ee30): what the model wears

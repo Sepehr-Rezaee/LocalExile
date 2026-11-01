@@ -108,7 +108,10 @@ static class AreaLayouts
         Ids.GetValueOrDefault(hash) ?? AreaTransitionCatalog.IdOf(hash) ?? HideoutCatalog.ByArea(hash)?.AreaId ?? $"0x{hash:x4}";
 
     /// <summary>The seed the instance's layout is generated and played at (<see cref="ServerLevels.PlayableSeed"/>).</summary>
-    public static uint PlayableSeed(ushort hash, uint seed) => ServerLevels.PlayableSeed(IdOf(hash), seed);
+    public static uint PlayableSeed(ushort hash, uint seed) => PlayableSeed(hash, seed, 0);
+
+    /// <inheritdoc cref="PlayableSeed(ushort, uint)"/>
+    public static uint PlayableSeed(ushort hash, uint seed, int areaLevel) => ServerLevels.PlayableSeed(IdOf(hash), seed, areaLevel);
 
     public static AreaLayout For(ushort hash, uint seed)
     {
