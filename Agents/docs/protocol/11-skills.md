@@ -2572,7 +2572,7 @@ failed I/O, allocation limits, actual official values and every skill's successf
   each living hostile monster within the radius of the living player with 0x1c1 and takes it off with 0x1c2 when it
   leaves, the player dies or the node is refunded; a vanished monster is forgotten without a message
   (`PassiveBuffAuras.BlindState`). The invisible aura buff on the player is not sent: nothing on the client reads it
-  that we know of. `Game.Blinded` (smoke cloud or aura) is the one Blind condition the hits read: 20% less monster
+  that we know of. `Game.Blinded` (smoke cloud, aura or a hit's Blind, below) is the one Blind condition the hits read: 20% less monster
   accuracy and evasion, `critical_strike_chance_+%_vs_blinded_enemies` in the player's increased critical chance
   against the target, `damage_taken_+%_from_blinded_enemies` on its hits ([Polytheist](../game/polytheist.md)).
 - **Passive-granted skills** (`PassiveGrantedSkills.cs`, §10f): a passive's PassiveSkills `GrantedEffectsPerLevel`
@@ -2740,6 +2740,14 @@ failed I/O, allocation limits, actual official values and every skill's successf
   to its `base_damage_taken_+%` in `MonsterTakesMitigated` and the hit's ailment damage, not in burns. Not read: the
   weapon-local chance, "Nearby Enemies are Intimidated" auras, the full-life, curse, block and warcry sources, minions'
   chances and Intimidate's stun duration stat.
+- **Blind on hit** (`HitDebuffs.BlindRoll`). The same hit makes one roll for the sum of `global_chance_to_blind_on_hit_%`
+  (the Blind support's 10%), `attacks_chance_to_blind_on_hit_%` for an attack and
+  `%_chance_to_blind_on_critical_strike` on a critical strike. Blind lasts 4 s (poedb: "base duration of Blind is 4
+  seconds") × (1 + `blind_duration_+%`/100) from the latest hit that inflicts it (`SpawnedMonster.BlindedUntil`), and
+  `EnemyDebuffsTick` shows it with the `blinded` buff (179) and its time left, like Intimidate. `Game.Blinded` counts
+  it, so it has the aura's effects above. Not read: `blind_effect_+%`, the weapon-local chance
+  (`local_chance_to_blind_on_hit_%`, on the panel only), `cannot_be_blinded` and `avoid_blind_%` on monsters (no
+  Blind source checks them), the conditional chances and minions' chances.
 - **Where it runs.** The player tick (`RunPlayerTick`, 250 ms, not while paused) calls `TickPassiveAuras`, which
   does `EnemyDebuffsTick`; the step works at the send gate, so a removed monster gets no buff. The auras come from
   the allocated nodes at each step, `taunted_enemies_damage_taken_+%` from the stats last sent
