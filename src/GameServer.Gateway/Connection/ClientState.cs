@@ -411,13 +411,17 @@ sealed partial class ClientState(AreaLayout layout, uint ticket, uint seed)
     public uint NextObjectId = 0x3000;
     // Room server objects a quest keeps in the area until its flag is set (The Twilight Strand's force wall), by id.
     public readonly Dictionary<uint, (string Flag, IReadOnlySet<(int X, int Y)> Cells)> QuestRoomObjects = [];
-    // Cells quest walls close to the player's walk estimate (QuestBarriers), the union of QuestRoomObjects' cells.
+    // A Trial of Ascendancy's objects in this area (LabyrinthTrials), by id, and the cells its closed doors close, by id.
+    public readonly Dictionary<uint, AreaPopulation.RoomObject> TrialObjects = [];
+    public readonly Dictionary<uint, IReadOnlySet<(int X, int Y)>> DoorBarriers = [];
+    // Cells quest walls and closed doors close to the player's walk estimate (QuestBarriers): the union of
+    // QuestRoomObjects' and DoorBarriers' cells.
     public volatile IReadOnlySet<(int X, int Y)> Barrier = new HashSet<(int X, int Y)>();
 
-    /// <summary>Recomputes <see cref="Barrier"/> from the standing quest walls; the player's walk estimate reads it on its
-    /// next order (call under the Monsters lock).</summary>
+    /// <summary>Recomputes <see cref="Barrier"/> from the standing quest walls and closed doors; the player's walk estimate
+    /// reads it on its next order (call under the Monsters lock).</summary>
     public void UpdateBarrier() =>
-        Barrier = new HashSet<(int X, int Y)>(QuestRoomObjects.Values.SelectMany(o => o.Cells));
+        Barrier = new HashSet<(int X, int Y)>(QuestRoomObjects.Values.SelectMany(o => o.Cells).Concat(DoorBarriers.Values.SelectMany(c => c)));
     // The player's attacks: the next time one may start (Clock seconds). The client repeats 0x24 while the button is held.
     public double NextAttackAt;
     // Counts the player's actions; an attack's hit lands only if no other action started since (moving cancels it).

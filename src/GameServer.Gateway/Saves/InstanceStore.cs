@@ -99,6 +99,20 @@ sealed partial class InstanceState
         lock (_openedChests) return _openedChests.Contains((x, y));
     }
 
+    readonly HashSet<(string Type, int X, int Y)> _transitioned = [];
+
+    /// <summary>Transitions the room object of this type standing at this cell (a trial's door, lever or plaque): true the
+    /// first time in this instance. It stays so for every later entry.</summary>
+    public bool Transition(string type, int x, int y)
+    {
+        lock (_transitioned) return _transitioned.Add((type, x, y));
+    }
+
+    public bool Transitioned(string type, int x, int y)
+    {
+        lock (_transitioned) return _transitioned.Contains((type, x, y));
+    }
+
     public uint? PlaceTutorialItem(string key, WorldItemObject item)
     {
         lock (_startWeapons)

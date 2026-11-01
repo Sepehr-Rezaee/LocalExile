@@ -10,7 +10,8 @@ namespace GameServer.Modules.M_questobjects;
 
 /// <summary>The campaign's quests (Agents/docs/game/campaign-quests.md): the quest engine's tables, one per act (Acts/), which
 /// it registers while loaded, the engine's hooks on entering an area, a kill, a click on a quest object and a read of item
-/// moves (the engine itself is the Game module's World/Quest/), the opening tutorial, its gems, and the Glyph quest.</summary>
+/// moves (the engine itself is the Game module's World/Quest/), the opening tutorial, its gems, the Glyph quest and the
+/// Trials of Ascendancy.</summary>
 public sealed class QuestObjectsModule : IModule, IDisposable
 {
     readonly List<IDisposable> _events = [];
@@ -41,6 +42,7 @@ public sealed class QuestObjectsModule : IModule, IDisposable
             await SpawnQuestRoomObjects(remote, stream, ciphers, conn);
             await SpawnOpeningTutorial(remote, stream, ciphers, conn);
             await SpawnGlyphQuest(remote, stream, ciphers, conn);
+            await SpawnTrialObjects(remote, stream, ciphers, conn);
             // The quest engine: quest items synced, entered flags, quest chests and objects, room NPCs, blockers.
             await StartQuestArea(remote, stream, ciphers, conn);
         });
@@ -119,7 +121,7 @@ public sealed class QuestObjectsModule : IModule, IDisposable
                 await UseGlyphWall(remote, stream, ciphers, conn, use);
                 return true;
             }
-            return false;
+            return await UseTrialObject(remote, stream, ciphers, conn, use);
         });
     }
 }

@@ -162,6 +162,16 @@ Part of [Status](../Status.md); what to build next in this area is in
   The Labyrinth's boss ends use the layout the client builds with seed 0; the server sends no daily layout.
   Code: `GameServer.Data/Terrain/Generation`, `scripts/re/levelgen`.
   Docs: [re/011](../docs/re/011-level-generation.md).
+- **Trials of Ascendancy.** In each LabyrinthTrials area the Gateway places the trial rooms' door, levers, Locked
+  Doors, plaque and portal back.
+  The door opens, a lever opens the nearest Locked Door, the plaque sets the trial's quest flag (the client counts it
+  done), opens the portal back to the door and opens the Trial Plaque window (0x7b kind 9) with the trials done.
+  What an instance opened stays open; an opened Locked Door is removed, since the client keeps its cells closed.
+  Verified with the real client in The Lower Prison (2026-10-31).
+  Not built: traps, the trials' monsters, the toggling, multi and timed levers of the other trials, and league-wide
+  trials (league quest flags are not saved).
+  Code: `LabyrinthTrials.cs`, QuestObjects `Rules.LabyrinthTrials.cs`.
+  Docs: [labyrinth-trials](../docs/game/labyrinth-trials.md).
 
 ## Not working yet
 

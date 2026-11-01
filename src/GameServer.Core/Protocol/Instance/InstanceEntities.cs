@@ -252,6 +252,20 @@ public static class InstanceEntities
     public static byte[] TransitionableUpdate(uint entityId, byte componentIndex, byte state) =>
         ComponentUpdate(entityId, componentIndex, [state]);
 
+    public const ushort BlockageUpdateId = 0x1c6;
+
+    /// <summary>
+    /// S→C 0x1c6 (world group, read 0x141fe14b0; world handler 0x142187480): an object's TriggerableBlockage, which has no
+    /// 0x2ba reader (slot 20 is <c>ret</c>). World header, u8 blocked; while blocked a u8 count and that many u8 sections.
+    /// Unblocked runs the component's +0xb8 (a Trial of Ascendancy's door opening), blocked its +0xb0 with the sections.
+    /// </summary>
+    public static byte[] BlockageUpdate(uint entityId, bool blocked)
+    {
+        var w = new LoginWriter().U16(BlockageUpdateId).U32(entityId).U32(0).U16(0).U8((byte)(blocked ? 1 : 0));
+        if (blocked) w.U8(0);   // no sections
+        return w.ToArray();
+    }
+
     /// <summary>
     /// S→C 0x2ba to an object's Animated component (reader <c>0x141e57490</c>): flags bit0 + a u32-counted UTF-16 .ao path
     /// swaps its animated object, which then plays the new one's default animation (a projectile's impact: Fireball →
