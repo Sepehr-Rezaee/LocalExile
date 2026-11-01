@@ -76,6 +76,8 @@ Nothing yet.
   (`SpellRepeats`; [11](../docs/protocol/11-skills.md) "Spell repeats"); tested, not yet checked with the real client.
   Special execution mechanics remain incomplete; see [25](../docs/protocol/25-gem-supports.md).
 
+- **Culling Strike.** Melee, area and projectile hits cull at 10% Life ([25](../docs/protocol/25-gem-supports.md)).
+
 - **Stable gem skill ids (tested, not yet checked with the real client).** Each gem keeps its skill id while it stays
   socketed (a gem moved through the cursor keeps its own; a gem swapped in never takes the old gem's id), so skill bar
   keys no longer move when other gems come or go; a skill that goes away ends its aura or Righteous Fire;
